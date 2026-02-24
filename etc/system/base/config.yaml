@@ -1,0 +1,28 @@
+config:
+  environments_root: /share/base/envs
+  build_jobs: 64
+  ccache: true
+  locks: true
+  checksum: true
+  deprecated: false
+  dirty: false
+  build_language: C
+  verify_ssl: true
+  ssl_certs: $SSL_CERT_FILE
+  suppress_gpg_warnings: false
+  url_fetch_method: urllib
+  connect_timeout: 10
+  db_lock_timeout: 60
+  package_lock_timeout: null
+  allow_sgid: true
+  install_status: true
+  binary_index_ttl: 600
+  flags:
+    keep_werror: 'none'
+  aliases:
+    concretise: concretize
+    containerise: containerize
+    rm: remove
+  shared_linking:
+    type: rpath
+    bind: false

@@ -1,0 +1,14 @@
+config:
+  install_tree:
+    root: ~/privatemodules/bin
+    projections:
+      all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}"
+  template_dirs:
+    - ~/privatemodules/templates
+  license_dir: ~/privatemodules/licenses
+  build_stage:
+    - $tempdir/$user/spack-stage
+    - $user_cache_path/stage
+  test_stage: $user_cache_path/test
+  source_cache: $spack/var/spack/cache
+  misc_cache: $user_cache_path/cache
