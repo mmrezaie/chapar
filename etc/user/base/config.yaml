@@ -10,5 +10,5 @@ config:
     - $tempdir/$user/spack-stage
     - $user_cache_path/stage
   test_stage: $user_cache_path/test
-  source_cache: $spack/var/spack/cache
+  source_cache: $user_cache_path/source
   misc_cache: $user_cache_path/cache
