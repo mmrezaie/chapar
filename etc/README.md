@@ -1,32 +1,44 @@
 # Chapar Spack Configuration
 
-Spack configuration split into **system** and **user** scopes, each supporting
-**Linux** and **macOS** via `include.yaml` platform routing (Spack >= v1.0).
+Spack configuration split into **system** and **user** scopes, with OS overlays
+for **rocky8**, **rocky9**, and **macOS** (Spack >= v1.0).
 
 ## Directory Layout
 
 ```
 etc/
 ├── system/                 # System scope — shared by ALL users on the machine
-│   ├── include.yaml        # Routes to ${platform}/ then base/
+│   ├── include.yaml        # Routes rocky8/rocky9/macos, then linux fallback, then base/
 │   ├── base/               # Cross-platform settings
 │   │   ├── concretizer.yaml
 │   │   ├── config.yaml     # System-level config (build_jobs, ccache, environments_root, …)
 │   │   ├── mirrors.yaml
 │   │   ├── packages.yaml   # Virtual providers, permissions (no externals here)
 │   │   └── repos.yaml
+│   ├── rocky8/             # Rocky Linux 8 OS-specific settings
+│   │   └── packages.yaml
+│   ├── rocky9/             # Rocky Linux 9 OS-specific settings
+│   │   └── packages.yaml
+│   ├── macos/              # macOS OS-specific settings
+│   │   └── packages.yaml
 │   ├── darwin/             # macOS-only externals
 │   │   └── packages.yaml
 │   └── linux/              # Linux-only externals
 │       └── packages.yaml
 │
 └── user/                   # User scope — per-user settings
-    ├── include.yaml        # Routes to ${platform}/ then base/
+    ├── include.yaml        # Routes rocky8/rocky9/macos, then linux fallback, then base/
     ├── base/               # Cross-platform user settings
     │   ├── config.yaml     # install_tree, template_dirs, build_stage, …
     │   └── modules.yaml    # Module generation (tcl/lmod roots, naming)
-    ├── darwin/             # macOS user overrides (add files as needed)
-    └── linux/              # Linux user overrides (add files as needed)
+    ├── rocky8/             # Rocky Linux 8 user overrides
+    │   └── config.yaml
+    ├── rocky9/             # Rocky Linux 9 user overrides
+    │   └── config.yaml
+    ├── macos/              # macOS user overrides
+    │   └── config.yaml
+    ├── darwin/             # Platform-level macOS overrides (optional)
+    └── linux/              # Platform-level Linux overrides (optional)
 ```
 
 ## Spack Scope Precedence (low → high)
@@ -46,18 +58,36 @@ scopes **2 (system)** and **4 (user)**.
 
 ## How to Deploy
 
-### System Scope (all users)
+### Project Init Script (Recommended)
 
-Copy or symlink `etc/system/` contents to the system config path. This
-requires root/admin access since it lives outside any user's home directory.
+If you want to keep the upstream Spack repository unmodified and still use this
+repo's `etc/` config with a fast tmp cache, initialize your shell with:
 
 ```bash
-# Default location
-sudo cp -r etc/system/* /etc/spack/
+source /path/to/chapar/etc/init.sh
+```
 
-# Or use a custom path and export the variable in your shell profile
+This script:
+
+- sources Spack from `SPACK_ROOT`, the in-repo `spack/`, or `spack` on `PATH`
+- sets `SPACK_USER_CONFIG_PATH` to `chapar/etc/user`
+- sets `SPACK_SYSTEM_CONFIG_PATH` to `chapar/etc/system`
+- defaults `SPACK_USER_CACHE_PATH` to `/tmp/$USER/spack-cache`
+- creates the cache directory if it does not exist
+
+### System Scope (all users)
+
+Use a symlink so updates in this repo are picked up immediately (no copy step).
+This requires root/admin access since it lives outside any user's home
+directory.
+
+```bash
+# Default location (recommended)
+sudo ln -sfn /path/to/chapar/etc/system /etc/spack
+
+# Custom location
 export SPACK_SYSTEM_CONFIG_PATH=/opt/spack/config/system
-sudo cp -r etc/system/* "$SPACK_SYSTEM_CONFIG_PATH"/
+sudo ln -sfn /path/to/chapar/etc/system "$SPACK_SYSTEM_CONFIG_PATH"
 ```
 
 On a shared HPC cluster this is typically managed by the sysadmin. All users
@@ -65,19 +95,40 @@ who source the same Spack installation will pick up these settings.
 
 ### User Scope (single user)
 
-Copy or symlink `etc/user/` contents to your personal Spack config directory.
+Use a symlink so user-scope updates are always in sync with this repo.
 
 ```bash
 # Default location
-cp -r etc/user/* ~/.spack/
+ln -sfn /path/to/chapar/etc/user ~/.spack
 
-# Or use a custom path
+# Custom location
 export SPACK_USER_CONFIG_PATH=~/my-spack-config
-cp -r etc/user/* "$SPACK_USER_CONFIG_PATH"/
+ln -sfn /path/to/chapar/etc/user "$SPACK_USER_CONFIG_PATH"
 ```
 
 Each user can have their own copy and customize install paths, module roots,
 etc. without affecting other users.
+
+### One-Command Linking Helper
+
+From the repo root:
+
+```bash
+# Link user scope
+bash ./etc/link-scopes.sh --user
+
+# Link system scope (needs sudo)
+sudo bash ./etc/link-scopes.sh --system
+```
+
+Or link both at once:
+
+```bash
+sudo bash ./etc/link-scopes.sh --all
+```
+
+When run with `sudo`, the helper links system scope under `/etc/spack` and links
+user scope for the original invoking user (`$SUDO_USER`), not root.
 
 ### Quick Validation
 
@@ -98,28 +149,67 @@ spack config blame config
 
 ## Platform Routing via include.yaml
 
-Each scope has an `include.yaml` that tells Spack to load platform-specific
-overrides first, then fall back to `base/`:
+Each scope has an `include.yaml` that tells Spack to load OS-specific overlays
+first, then a Linux fallback overlay, then fall back to `base/`:
 
 ```yaml
 include:
-- path: "${platform}"
+- path: rocky8
   optional: true
+  when: os == "rocky8"
+- path: rocky9
+  optional: true
+  when: os == "rocky9"
+- path: macos
+  optional: true
+  when: platform == "darwin"
+- path: linux
+  optional: true
+  when: platform == "linux"
 - path: base
 ```
 
-`${platform}` resolves to `darwin` on macOS and `linux` on Linux. The
-`optional: true` flag means Spack won't error if the platform directory is
-missing — it just skips it.
+The OS overlays (`rocky8`, `rocky9`, and `macos`) are selected first when the
+`when:` condition matches. The Linux platform fallback is included only when
+`platform == "linux"`. The `optional: true` flag means Spack won't error if an
+included directory is missing and just skips it.
 
-Because `${platform}` appears **above** `base` in the include list, platform
-settings take precedence over base settings when there are conflicts.
+Because OS and platform overlays appear **above** `base` in the include list,
+their settings take precedence over base settings when there are conflicts.
+This include layout works the same whether scopes are copied or symlinked.
 
 You can check your current platform with:
 
 ```bash
 spack arch --platform
 ```
+
+## Skipper Canary Release Workflow
+
+When `envs/skipper` changes, use an isolated release root first, validate it,
+then promote it by switching symlinks. This avoids touching currently deployed
+packages during testing.
+
+For Rocky 8/9 overlays in this repo, skipper currently targets `x86_64_v4`.
+
+```bash
+# 1) Build canary release in isolated roots
+bash envs/skipper/release.sh build 2026-04-21
+
+# 2) Load canary module tree and run validations
+bash envs/skipper/release.sh test-hints 2026-04-21
+
+# 3) Promote only after validation succeeds
+bash envs/skipper/release.sh promote 2026-04-21 --yes
+```
+
+Release layout:
+
+- Install prefixes: `/share/base/releases/<release-id>/bin`
+- Modules: `/share/base/releases/<release-id>/modulefiles`
+- Active release symlink: `/share/base/current`
+- Compatibility links updated on promote:
+  `/share/base/bin`, `/share/base/modulefiles`, `/share/base/lmods`
 
 ## What Goes Where
 

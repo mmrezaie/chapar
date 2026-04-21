@@ -1,1 +1,7 @@
 .DS_Store
+
+# Spack runtime/cache artifacts (machine-local)
+envs/*/.spack-env/
+etc/user/cache/
+etc/user/package_repos/
+etc/user/package-repository.lock
