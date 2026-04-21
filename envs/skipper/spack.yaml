@@ -21,27 +21,29 @@ spack:
   # add package specs to the `specs` list
   definitions:
   - mpis: [openmpi, intel-oneapi-mpi]
-  - compilers: [gcc@8.5.0, gcc@13.2.0, intel-oneapi-compilers]
+  - compilers: [gcc@13.4.0, gcc@14.3.0, gcc@15.2.0, intel-oneapi-compilers]
   specs:
-  - gcc@13.2.0+profiled %gcc@8.5.0
-  - ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem %gcc@8.5.0
-  - libfabric@1.22.0%gcc@8.5.0 fabrics=mlx,verbs
-  - tmux%gcc@8.5.0
-  - tcl%gcc@8.5.0
-  - tk%gcc@8.5.0
-  - python@3.8.19+optimizations+tkinter %gcc@8.5.0
-  - python@3.10.14+optimizations+tkinter %gcc@8.5.0
-  - python@3.11.9+optimizations+tkinter %gcc@8.5.0
-  - python@3.12.5+optimizations+tkinter %gcc@8.5.0
-  - intel-oneapi-mpi@2021.14.0+generic-names %gcc@8.5.0
-  - intel-oneapi-mpi@2021.10.0+generic-names %gcc@8.5.0
-  - intel-oneapi-compilers@2024.1.0%gcc@8.5.0
-  - intel-oneapi-compilers@2023.1.0%gcc@8.5.0
-  - hpctoolkit@2024.01.stable+cuda+mpi+python %gcc@8.5.0
-  - autoconf%gcc@8.5.0
-  - pulseaudio@13.0~mpi %gcc@8.5.0 ^fftw~mpi
-  - imagemagick@7.1.1-39%gcc@8.5.0
-  - numactl%gcc@8.5.0
+  - gcc@13.4.0+profiled
+  - gcc@14.3.0+profiled
+  - gcc@15.2.0+profiled
+  - ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+  - libfabric@1.22.0 fabrics=mlx,verbs
+  - tmux
+  - tcl
+  - tk
+  - python@3.8.19+optimizations+tkinter
+  - python@3.10.14+optimizations+tkinter
+  - python@3.11.9+optimizations+tkinter
+  - python@3.12.5+optimizations+tkinter
+  - intel-oneapi-mpi@2021.14.0+generic-names
+  - intel-oneapi-mpi@2021.10.0+generic-names
+  - intel-oneapi-compilers@2024.1.0
+  - intel-oneapi-compilers@2023.1.0
+  - hpctoolkit@2024.01.stable+cuda+mpi+python
+  - autoconf
+  - pulseaudio@13.0~mpi ^fftw~mpi
+  - imagemagick@7.1.1-39
+  - numactl
   packages:
     all:
       providers:
@@ -49,46 +51,6 @@ spack:
   view: false
   concretizer:
     unify: when_possible
-  compilers:
-  - compiler:
-      spec: gcc@=13.2.0
-      paths:
-        cc: /share/base/bin/linux-rocky8-x86_64_v4/gcc-8.5.0/gcc-13.2.0-seudrchxfhcb4uooikdnlxz75xeza575/bin/gcc
-        cxx: /share/base/bin/linux-rocky8-x86_64_v4/gcc-8.5.0/gcc-13.2.0-seudrchxfhcb4uooikdnlxz75xeza575/bin/g++
-        f77: /share/base/bin/linux-rocky8-x86_64_v4/gcc-8.5.0/gcc-13.2.0-seudrchxfhcb4uooikdnlxz75xeza575/bin/gfortran
-        fc: /share/base/bin/linux-rocky8-x86_64_v4/gcc-8.5.0/gcc-13.2.0-seudrchxfhcb4uooikdnlxz75xeza575/bin/gfortran
-      flags: {}
-      operating_system: rocky8
-      target: x86_64
-      modules: []
-      environment: {}
-      extra_rpaths: []
-  - compiler:
-      spec: oneapi@=2024.1.0
-      paths:
-        cc: /share/base/skipper/environments/skipper/.spack-env/view/compiler/2024.1/bin/icx
-        cxx: /share/base/skipper/environments/skipper/.spack-env/view/compiler/2024.1/bin/icpx
-        f77: /share/base/skipper/environments/skipper/.spack-env/view/compiler/2024.1/bin/ifx
-        fc: /share/base/skipper/environments/skipper/.spack-env/view/compiler/2024.1/bin/ifx
-      flags: {}
-      operating_system: rocky8
-      target: x86_64
-      modules: []
-      environment: {}
-      extra_rpaths: []
-  - compiler:
-      spec: gcc@=8.5.0
-      paths:
-        cc: /usr/lib64/ccache/gcc
-        cxx: /usr/lib64/ccache/g++
-        f77: /usr/bin/gfortran
-        fc: /usr/bin/gfortran
-      flags: {}
-      operating_system: rocky8
-      target: x86_64
-      modules: []
-      environment: {}
-      extra_rpaths: []
   modules:
     default:
       roots:
@@ -104,4 +66,3 @@ spack:
           environment:
             prepend_path:
               LD_LIBRARY_PATH: '{prefix}/lib'
-
