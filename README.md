@@ -157,6 +157,19 @@ different operating systems. The shared Spack source, shared package repo pin,
 shared environment specs, and shared policy make the environments comparable;
 OS overlays capture unavoidable platform differences.
 
+## Build Parallelism
+
+Chapar sets Spack's `config:build_jobs` to a high ceiling in
+`etc/system/base/config.yaml`. Spack automatically clamps that value to the
+number of CPUs available on the host, including CPU affinity limits when
+supported, so package builds use all available cores by default.
+
+Users can still override this for a single command:
+
+```bash
+spack -e envs/skipper install -j 8
+```
+
 ## Customization Rules
 
 - Do not modify `spack/` for Chapar policy.

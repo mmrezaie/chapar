@@ -226,6 +226,20 @@ Release layout:
 | Module roots               | user     | Each user generates modules in their own tree      |
 | build_stage, caches        | user     | Per-user temp and cache directories                |
 
+## Build Parallelism
+
+Chapar sets `config:build_jobs` in `etc/system/base/config.yaml` to a high
+ceiling. Spack computes the actual job count as the smaller of that configured
+value and the CPUs available to the current process, so this makes package
+builds use all available host cores by default without hard-coding a specific
+machine size.
+
+Users can still cap one build explicitly:
+
+```bash
+spack install -j 8
+```
+
 ## Linux Packages
 
 The `etc/system/linux/packages.yaml` file is intentionally a neutral fallback.

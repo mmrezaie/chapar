@@ -1,6 +1,8 @@
 config:
   environments_root: /share/base/envs
-  build_jobs: 64
+  # Spack caps this to the host CPUs it can use, so a high value means
+  # "use all available cores" without hard-coding a site-specific core count.
+  build_jobs: 999999
   ccache: true
   locks: true
   checksum: true
