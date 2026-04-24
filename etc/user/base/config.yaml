@@ -1,4 +1,5 @@
 config:
+  environments_root: ~/.spack/environments
   install_tree:
     root: ~/privatemodules/bin
     projections:

@@ -1,0 +1,5 @@
+# macOS user-scope overrides
+config:
+  build_stage:
+    - $tempdir/$user/spack-stage
+    - $user_cache_path/stage
