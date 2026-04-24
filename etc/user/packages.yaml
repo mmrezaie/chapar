@@ -1,0 +1,18 @@
+packages:
+  apple-clang:
+    externals:
+    - spec: apple-clang@21.0.0
+      prefix: /usr
+      extra_attributes:
+        compilers:
+          c: /usr/bin/clang
+          cxx: /usr/bin/clang++
+  gcc:
+    externals:
+    - spec: gcc@15.2.0 languages:='c,c++,fortran'
+      prefix: /opt/homebrew
+      extra_attributes:
+        compilers:
+          c: /opt/homebrew/bin/gcc-15
+          cxx: /opt/homebrew/bin/g++-15
+          fortran: /opt/homebrew/bin/gfortran
