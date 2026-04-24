@@ -66,6 +66,33 @@ spack arch
 spack config blame config
 ```
 
+## Compiler Discovery
+
+Before concretizing on a new machine, confirm which compiler the OS actually
+provides. On RPM-based Linux systems such as Fedora and Rocky, install and
+check the system compiler packages first:
+
+```bash
+sudo dnf install gcc gcc-c++ gcc-gfortran
+rpm -q gcc gcc-c++ gcc-gfortran
+gcc -dumpfullversion -dumpversion
+g++ -dumpfullversion -dumpversion
+gfortran -dumpfullversion -dumpversion || true
+```
+
+Then let Spack record the detected compiler in the user scope:
+
+```bash
+spack compiler find --scope user /usr/bin
+spack external find --scope user gcc
+spack config blame packages
+```
+
+This is especially important on non-Rocky Linux systems such as Fedora. Fedora
+44 does not provide Rocky 8's `gcc@8.5.0`, so it should rely on discovered
+user-scope compiler entries or a Fedora-specific overlay instead of the Rocky
+8/Rocky 9 system overlays.
+
 ## Building The Shared Environment
 
 Use the shared environment under `envs/skipper`:
@@ -108,8 +135,9 @@ OS overlay first and then to shared `base` config.
 
 Rocky Linux 8 and Rocky Linux 9 should keep system-provided packages such as
 `glibc`, system compilers, and basic build tools in their own `packages.yaml`
-overlays. Run this on each real machine after initialization to discover local
-externals:
+overlays. Rocky 8 uses system GCC `8.5.0`; Rocky 9 uses system GCC 11, commonly
+`11.5.0` on current Rocky 9 point releases. Run this on each real machine after
+initialization to discover local externals:
 
 ```bash
 spack external find --scope system

@@ -1,4 +1,14 @@
 include:
-- path: "${platform}"
+- path: rocky8
   optional: true
+  when: os == "rocky8"
+- path: rocky9
+  optional: true
+  when: os == "rocky9"
+- path: macos
+  optional: true
+  when: platform == "darwin"
+- path: linux
+  optional: true
+  when: platform == "linux"
 - path: base

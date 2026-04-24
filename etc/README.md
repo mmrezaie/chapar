@@ -11,7 +11,7 @@ etc/
 │   ├── include.yaml        # Routes rocky8/rocky9/macos, then linux fallback, then base/
 │   ├── base/               # Cross-platform settings
 │   │   ├── concretizer.yaml
-│   │   ├── config.yaml     # System-level config (build_jobs, ccache, environments_root, …)
+│   │   ├── config.yaml     # System-level config (build_jobs, ccache, …)
 │   │   ├── mirrors.yaml
 │   │   ├── packages.yaml   # Virtual providers, permissions (no externals here)
 │   │   └── repos.yaml
@@ -221,16 +221,46 @@ Release layout:
 | Repos                      | system   | Shared package repositories                        |
 | Concretizer policy         | system   | Consistent solver behavior across users            |
 | build_jobs, ccache         | system   | Machine resources, shared tool availability        |
-| environments_root          | system   | Shared environment storage                         |
+| environments_root          | user     | Per-user managed environment storage (`~/.spack/environments`) |
 | install_tree (user paths)  | user     | Each user installs to their own directory          |
 | Module roots               | user     | Each user generates modules in their own tree      |
 | build_stage, caches        | user     | Per-user temp and cache directories                |
 
 ## Linux Packages
 
-The `etc/system/linux/packages.yaml` ships as a skeleton based on a typical
-RHEL/Rocky 8 system. After deploying, run `spack external find` on your
-actual Linux machine and update the file with accurate versions and paths:
+The `etc/system/linux/packages.yaml` file is intentionally a neutral fallback.
+It is loaded for any Linux distribution that does not match a more specific
+overlay, so it must not declare Rocky-specific compiler or core OS externals.
+
+Rocky-specific compiler entries belong in the Rocky overlays:
+
+- Rocky Linux 8: `etc/system/rocky8/packages.yaml`, system GCC `8.5.0`.
+- Rocky Linux 9: `etc/system/rocky9/packages.yaml`, system GCC 11, commonly
+  `11.5.0` on current Rocky 9 point releases.
+
+On a new user machine, first check the compiler reported by the OS. On
+RPM-based Linux systems such as Fedora and Rocky, install and check the system
+compiler packages first:
+
+```bash
+sudo dnf install gcc gcc-c++ gcc-gfortran
+rpm -q gcc gcc-c++ gcc-gfortran
+gcc -dumpfullversion -dumpversion
+g++ -dumpfullversion -dumpversion
+gfortran -dumpfullversion -dumpversion || true
+```
+
+Then let Spack discover and record the compiler in the user scope:
+
+```bash
+spack compiler find --scope user /usr/bin
+spack external find --scope user gcc
+spack config blame packages
+```
+
+For a managed Rocky machine, an administrator can instead discover externals
+into the system scope and merge the generated results into the matching Rocky
+overlay:
 
 ```bash
 spack external find --scope system

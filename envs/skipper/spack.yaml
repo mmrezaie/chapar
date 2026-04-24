@@ -5,6 +5,16 @@
 #
 spack:
   repos: []
+  include:
+  - path: ./rocky8
+    optional: true
+    when: os == "rocky8"
+  - path: ./rocky9
+    optional: true
+    when: os == "rocky9"
+  - path: ./macos
+    optional: true
+    when: platform == "darwin"
   config:
     install_tree:
       root: /share/base/bin  # Replace with your desired path
