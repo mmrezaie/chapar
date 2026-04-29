@@ -14,8 +14,8 @@ config:
   - $tempdir/$user/skipper-canary-stage
   - $user_cache_path/skipper-canary/stage
   test_stage: $user_cache_path/skipper-canary/test
-  source_cache: $user_cache_path/skipper-canary/source
-  misc_cache: $user_cache_path/skipper-canary/cache
+  source_cache: $user_cache_path/source
+  misc_cache: $user_cache_path/cache
   install_missing: true
 
 modules:
