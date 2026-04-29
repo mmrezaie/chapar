@@ -1,8 +1,4 @@
 mirrors:
-  shared-buildcache:
-    binary: true
-    source: false
-    url: file:///share/base/buildcache
   spack-public:
     binary: false
     url: https://mirror.spack.io

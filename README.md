@@ -116,6 +116,34 @@ spack -e envs/skipper-canary install --fail-fast
 spack -e envs/skipper-canary module tcl refresh -y
 ```
 
+## Long-Term Buildcache
+
+Active builds should use the local tmpfs/user cache paths for performance. On
+systems where `/share/base` is slow, do not keep `/share/base/buildcache` in the
+default mirror list; otherwise every install can spend time checking or reading
+large binary tarballs over the slow mount.
+
+After a successful build, push binaries explicitly for long-term reuse:
+
+```bash
+mkdir -p /share/base/buildcache
+spack -e envs/skipper-canary buildcache push --unsigned --update-index file:///share/base/buildcache
+```
+
+When you want to consume that archive explicitly, add it as a user-scope binary
+mirror for that session or user:
+
+```bash
+spack mirror add --scope user --type binary --unsigned shared-buildcache file:///share/base/buildcache
+spack -e envs/skipper-canary install --use-buildcache=auto --fail-fast
+```
+
+Remove it from the hot path when you are done using the slow archive:
+
+```bash
+spack mirror remove --scope user shared-buildcache
+```
+
 Both environments have OS overlays:
 
 ```text
