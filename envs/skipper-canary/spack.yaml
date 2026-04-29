@@ -40,7 +40,7 @@ spack:
   - intel-oneapi-compilers@2023.1.0
   - hpctoolkit@2024.01.stable+cuda+mpi+python
   - autoconf
-  - pulseaudio@13.0~mpi ^fftw~mpi
+  - pulseaudio@13.0 ^fftw~mpi
   - imagemagick@7.1.1-39
   - numactl
   packages:
