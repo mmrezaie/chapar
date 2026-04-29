@@ -1,3 +1,20 @@
 packages:
   all:
     target: [aarch64, armv8.5a]
+  openmpi:
+    require:
+    - fabrics=none
+    - schedulers=none
+  hdf5:
+    require:
+    - +mpi+hl
+  netcdf-c:
+    require:
+    - +mpi+parallel-netcdf
+  fftw:
+    require:
+    - +mpi+openmp
+    - precision=double,float
+  openblas:
+    require:
+    - threads=openmp

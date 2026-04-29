@@ -6,6 +6,7 @@
 spack:
   repos: []
   include:
+  - path: ../common/specs.yaml
   - path: ./rocky8
     optional: true
     when: os == "rocky8"
@@ -30,35 +31,19 @@ spack:
 #    TMPDIR: /tmp/$user/skipper-stage
 
   # add package specs to the `specs` list
-  definitions:
-  - mpis: [openmpi, intel-oneapi-mpi]
-  - compilers: [gcc@13.4.0, gcc@14.3.0, gcc@15.2.0, intel-oneapi-compilers]
   specs:
-  - gcc@13.4.0+profiled
-  - gcc@14.3.0+profiled
-  - gcc@15.2.0+profiled
-  - ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
-  - libfabric@1.22.0 fabrics=mlx,verbs
-  - tmux
-  - tcl
-  - tk
-  - python@3.8:3.8+optimizations+tkinter
-  - python@3.10:3.10+optimizations+tkinter
-  - python@3.11:3.11+optimizations+tkinter
-  - python@3.12:3.12+optimizations+tkinter
-  - intel-oneapi-mpi@2021.14.0+generic-names
-  - intel-oneapi-mpi@2021.10.0+generic-names
-  - intel-oneapi-compilers@2024.1.0
-  - intel-oneapi-compilers@2023.1.0
-  - hpctoolkit@2024.01.stable+cuda+mpi+python
-  - autoconf
-  - pulseaudio@13.0 ^fftw~mpi
-  - imagemagick@7.1.1-39
-  - numactl
+  - $common_specs
+  - $linux_specs
+  - $rocky8_specs
+  - $rocky9_specs
+  - $macos_specs
   packages:
     all:
       providers:
         mpi: [openmpi, intel-oneapi-mpi]
+        blas: [openblas]
+        lapack: [openblas]
+        scalapack: [netlib-scalapack]
   view: false
   concretizer:
     unify: when_possible

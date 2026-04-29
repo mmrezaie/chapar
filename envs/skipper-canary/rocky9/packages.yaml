@@ -2,3 +2,43 @@ packages:
   all:
     require: "%gcc@11.5.0"
     target: [x86_64_v4]
+  openmpi:
+    require:
+    - +cuda
+    - fabrics=verbs,ucx,ofi
+    - schedulers=none
+    - ^ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  intel-oneapi-mpi:
+    require:
+    - +external-libfabric
+    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  ucx:
+    require:
+    - +cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  libfabric:
+    require:
+    - +cuda+gdrcopy
+    - fabrics=mlx,verbs
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  hdf5:
+    require:
+    - +mpi+fortran+hl
+  netcdf-c:
+    require:
+    - +mpi+parallel-netcdf
+  fftw:
+    require:
+    - +mpi+openmp
+    - precision=double,float
+  openblas:
+    require:
+    - threads=openmp
+  nccl:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  gdrcopy:
+    require:
+    - +cuda
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f

@@ -3,16 +3,12 @@
 packages:
   gcc:
     externals:
-    - spec: gcc@8.5.0 languages:='c,c++'
+    - spec: gcc@8.5.0 languages:='c,c++,fortran'
       prefix: /usr
       extra_attributes:
         compilers:
           c: /usr/bin/gcc
           cxx: /usr/bin/g++
-    - spec: gcc@8.5.0 languages:=fortran
-      prefix: /usr
-      extra_attributes:
-        compilers:
           fortran: /usr/bin/gfortran
   gmake:
     externals:
