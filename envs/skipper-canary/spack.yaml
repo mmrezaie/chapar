@@ -16,6 +16,8 @@ spack:
   - path: ./macos
     optional: true
     when: platform == "darwin"
+  config:
+    deprecated: true
 
   # add package specs to the `specs` list
   definitions:
@@ -30,10 +32,10 @@ spack:
   - tmux
   - tcl
   - tk
-  - python@3.8.19+optimizations+tkinter
-  - python@3.10.14+optimizations+tkinter
-  - python@3.11.9+optimizations+tkinter
-  - python@3.12.5+optimizations+tkinter
+  - python@3.8:3.8+optimizations+tkinter
+  - python@3.10:3.10+optimizations+tkinter
+  - python@3.11:3.11+optimizations+tkinter
+  - python@3.12:3.12+optimizations+tkinter
   - intel-oneapi-mpi@2021.14.0+generic-names
   - intel-oneapi-mpi@2021.10.0+generic-names
   - intel-oneapi-compilers@2024.1.0
