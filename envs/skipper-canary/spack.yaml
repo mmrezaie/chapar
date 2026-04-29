@@ -27,10 +27,14 @@ spack:
   - gcc@13.4.0+profiled
   - gcc@14.3.0+profiled
   - gcc@15.2.0+profiled
+  - intel-oneapi-compilers@2025.3.1
   - ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
   - libfabric@1.22.0 fabrics=mlx,verbs
-  - openmpi@4.1.8 fabrics=verbs schedulers=none
+  - openmpi@4.1.8 fabrics=verbs,ucx,ofi schedulers=none
   - libffi@3.2.1
+  - cuda@13.0.2
+  - neovim
+  - npm
   - tmux
   - tcl
   - tk
@@ -38,6 +42,9 @@ spack:
   - python@3.10:3.10+optimizations+tkinter
   - python@3.11:3.11+optimizations+tkinter
   - python@3.12:3.12+optimizations+tkinter
+  - python@3.13:3.13+optimizations+tkinter
+  - python@3.14:3.14+optimizations+tkinter
+  - intel-oneapi-mpi@2021.17.0+generic-names
   - intel-oneapi-mpi@2021.14.0+generic-names
   - intel-oneapi-mpi@2021.10.0+generic-names
   - intel-oneapi-compilers@2024.1.0
@@ -51,6 +58,16 @@ spack:
     all:
       providers:
         mpi: [openmpi, intel-oneapi-mpi]
+    openmpi:
+      require:
+      - fabrics=verbs,ucx,ofi
+      - schedulers=none
+      - ^ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+      - ^libfabric@1.22.0 fabrics=mlx,verbs
+    intel-oneapi-mpi:
+      require:
+      - +external-libfabric
+      - ^libfabric@1.22.0 fabrics=mlx,verbs
   view: false
   concretizer:
     unify: when_possible
