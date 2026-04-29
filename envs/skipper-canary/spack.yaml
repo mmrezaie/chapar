@@ -29,6 +29,8 @@ spack:
   - gcc@15.2.0+profiled
   - ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
   - libfabric@1.22.0 fabrics=mlx,verbs
+  - openmpi@4.1.8 fabrics=verbs schedulers=none
+  - libffi@3.2.1
   - tmux
   - tcl
   - tk
