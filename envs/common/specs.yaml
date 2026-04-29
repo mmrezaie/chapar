@@ -16,7 +16,6 @@ definitions:
   - tmux
   - tcl
   - tk
-  - python@3.8:3.8+optimizations+tkinter
   - python@3.10:3.10+optimizations+tkinter
   - python@3.11:3.11+optimizations+tkinter
   - python@3.12:3.12+optimizations+tkinter
