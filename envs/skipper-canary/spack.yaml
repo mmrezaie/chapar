@@ -1,51 +1,44 @@
-# This is a Spack Environment file.
-#
-# skipper-canary keeps the same specs as skipper, but loads filesystem locations
-# from locations.yaml so canary installs can move without editing this file.
-#
+# Full canary skipper environment.
 spack:
   repos: []
   include:
   - path: ./locations.yaml
+  - path: ../common/packages.yaml
+  - path: ../common/modules.yaml
   - path: ../common/specs.yaml
-  - path: ./rocky8
+  - path: ../common/rocky8
     optional: true
     when: os == "rocky8"
-  - path: ./rocky9
+  - path: ../common/rocky9
     optional: true
     when: os == "rocky9"
-  - path: ./macos
+  - path: ../common/macos
     optional: true
     when: platform == "darwin"
   config:
     deprecated: true
-
-  # add package specs to the `specs` list
   specs:
-  - $common_specs
-  - $linux_specs
-  - $rocky8_specs
-  - $rocky9_specs
-  - $macos_specs
-  packages:
-    all:
-      providers:
-        mpi: [openmpi, intel-oneapi-mpi]
-        blas: [openblas]
-        lapack: [openblas]
-        scalapack: [netlib-scalapack]
+  - $common_devtools_specs
+  - $common_python_specs
+  - $common_hpc_library_specs
+  - $common_benchmark_specs
+  - $linux_devtools_specs
+  - $linux_debug_specs
+  - $linux_benchmark_specs
+  - $linux_profiling_specs
+  - $rocky8_toolchain_specs
+  - $rocky8_mpi_specs
+  - $rocky8_benchmark_specs
+  - $rocky8_profiling_specs
+  - $rocky9_toolchain_specs
+  - $rocky9_mpi_specs
+  - $rocky9_gpu_specs
+  - $rocky9_benchmark_specs
+  - $rocky9_profiling_specs
+  - $macos_toolchain_specs
+  - $macos_mpi_specs
+  - $macos_benchmark_specs
+  - $macos_profiling_specs
   view: false
   concretizer:
     unify: when_possible
-  modules:
-    default:
-      enable:
-      - tcl
-      tcl:
-        naming_scheme: '{name}/{version}'
-        hash_length: 0
-        exclude_implicits: true
-        pulseaudio:
-          environment:
-            prepend_path:
-              LD_LIBRARY_PATH: '{prefix}/lib'

@@ -1,0 +1,10 @@
+packages:
+  all:
+    providers:
+      mpi: [openmpi, intel-oneapi-mpi]
+      blas: [openblas]
+      lapack: [openblas]
+      scalapack: [netlib-scalapack]
+  libffi:
+    require:
+    - '@3.2.1'

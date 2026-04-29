@@ -23,6 +23,9 @@ packages:
     - +cuda+gdrcopy
     - fabrics=mlx,verbs
     - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  cuda:
+    require:
+    - '@13.0.2'
   hdf5:
     require:
     - +mpi+fortran+hl

@@ -1,0 +1,25 @@
+spack:
+  repos: []
+  include:
+  - path: ../skipper-canary/locations.yaml
+  - path: ../common/packages.yaml
+  - path: ../common/modules.yaml
+  - path: ../common/specs.yaml
+  - path: ../common/rocky8
+    optional: true
+    when: os == "rocky8"
+  - path: ../common/rocky9
+    optional: true
+    when: os == "rocky9"
+  - path: ../common/macos
+    optional: true
+    when: platform == "darwin"
+  config:
+    deprecated: true
+  specs:
+  - $rocky8_mpi_specs
+  - $rocky9_mpi_specs
+  - $macos_mpi_specs
+  view: false
+  concretizer:
+    unify: when_possible

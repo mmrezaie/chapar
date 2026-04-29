@@ -1,0 +1,16 @@
+# Filesystem policy for skipper production installs.
+config:
+  install_tree:
+    root: /share/base/bin
+    projections:
+      all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}"
+  template_dirs:
+  - /share/base/templates
+  build_stage: /tmp/$user/skipper-stage
+  install_missing: true
+
+modules:
+  default:
+    roots:
+      tcl: /share/base/modulefiles
+      lmod: /share/base/lmods
