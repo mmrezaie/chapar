@@ -19,6 +19,8 @@ spack:
   config:
     install_tree:
       root: /share/base/bin  # Replace with your desired path
+      projections:
+        all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}"
     template_dirs:
     - /share/base/templates
     build_stage: /tmp/$user/skipper-stage

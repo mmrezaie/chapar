@@ -6,7 +6,7 @@ config:
   install_tree:
     root: ~/privatemodules/skipper-canary/bin
     projections:
-      all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}"
+      all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}"
   template_dirs:
   - ~/privatemodules/skipper-canary/templates
   license_dir: ~/privatemodules/skipper-canary/licenses
