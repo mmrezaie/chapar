@@ -1,10 +1,10 @@
 # Shared spec definitions for skipper environments.
 #
-# Keep root specs here so skipper and skipper-canary differ only in filesystem
-# policy. OS-specific definitions prevent Linux/CUDA specs from leaking into
-# macOS, and keep Rocky9 as the full GPU/HPC target.
+# The full skipper environments compose all categories. Section environments use
+# the same definitions to build smaller, reusable chunks into the same install
+# tree for their flavor.
 definitions:
-- common_specs:
+- common_devtools_specs:
   - autoconf
   - cmake
   - ninja
@@ -16,11 +16,14 @@ definitions:
   - tmux
   - tcl
   - tk
+  - imagemagick@7.1.1-39
+- common_python_specs:
   - python@3.10:3.10+optimizations+tkinter
   - python@3.11:3.11+optimizations+tkinter
   - python@3.12:3.12+optimizations+tkinter
   - python@3.13:3.13+optimizations+tkinter
   - python@3.14:3.14+optimizations+tkinter
+- common_hpc_library_specs:
   - openblas threads=openmp
   - fftw+mpi+openmp precision=double,float
   - netlib-scalapack
@@ -28,80 +31,106 @@ definitions:
   - parallel-netcdf
   - netcdf-c+mpi+parallel-netcdf
   - netcdf-fortran
+- common_benchmark_specs:
   - hpl+openmp
   - hpcg+openmp
   - stream+openmp
-  - imagemagick@7.1.1-39
-- linux_specs:
+- linux_devtools_specs:
   - numactl
+  - pulseaudio@13.0 ^fftw~mpi
+  when: platform == "linux"
+- linux_debug_specs:
+  - gdb+python
+  - valgrind+mpi
+  when: platform == "linux"
+- linux_benchmark_specs:
   - intel-mpi-benchmarks
   - qperf+verbs
   - ior+hdf5+ncmpi
   - mdtest
   - h5bench+all
   - fio
+  when: platform == "linux"
+- linux_profiling_specs:
   - likwid
   - scalasca
   - tau+mpi+papi+openmp~cuda
   - darshan-runtime+mpi+hdf5+parallel-netcdf
   - darshan-util
-  - gdb+python
-  - valgrind+mpi
-  - pulseaudio@13.0 ^fftw~mpi
   when: platform == "linux"
-- rocky8_specs:
+- rocky8_toolchain_specs:
   - gcc@13.4.0+profiled
   - gcc@14.3.0+profiled
   - gcc@15.2.0+profiled
+  - intel-oneapi-compilers@2024.1.0
+  - intel-oneapi-compilers@2023.1.0
+  when: os == "rocky8"
+- rocky8_mpi_specs:
   - ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
   - libfabric@1.22.0~cuda fabrics=mlx,verbs
   - openmpi@4.1.8 fabrics=verbs,ucx,ofi schedulers=none
   - intel-oneapi-mpi@2021.14.0+generic-names
   - intel-oneapi-mpi@2021.10.0+generic-names
-  - intel-oneapi-compilers@2024.1.0
-  - intel-oneapi-compilers@2023.1.0
-  - hpctoolkit@2024.01.stable~cuda+mpi+python
+  when: os == "rocky8"
+- rocky8_benchmark_specs:
   - osu-micro-benchmarks
+  when: os == "rocky8"
+- rocky8_profiling_specs:
+  - hpctoolkit@2024.01.stable~cuda+mpi+python
   - papi+infiniband
   - scorep~cuda+mpi+papi
   - caliper~cuda+mpi+papi+libunwind+libdw
   - hwloc+pci
   when: os == "rocky8"
-- rocky9_specs:
+- rocky9_toolchain_specs:
   - gcc@13.4.0+profiled
   - gcc@14.3.0+profiled
   - gcc@15.2.0+profiled
   - intel-oneapi-compilers@2025.3.1
+  - intel-oneapi-compilers@2024.1.0
+  - intel-oneapi-compilers@2023.1.0
+  - cuda@13.0.2
+  when: os == "rocky9"
+- rocky9_mpi_specs:
   - ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
   - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs
   - openmpi@4.1.8+cuda fabrics=verbs,ucx,ofi schedulers=none
   - openmpi@5.0.8+cuda fabrics=verbs,ucx,ofi schedulers=none
-  - cuda@13.0.2
   - intel-oneapi-mpi@2021.17.0+generic-names
   - intel-oneapi-mpi@2021.14.0+generic-names
   - intel-oneapi-mpi@2021.10.0+generic-names
-  - intel-oneapi-compilers@2024.1.0
-  - intel-oneapi-compilers@2023.1.0
-  - hpctoolkit@2024.01.stable+cuda+mpi+python
-  - hpctoolkit@2025.0.1+cuda+mpi+python~auditor_default
-  - osu-micro-benchmarks+cuda
-  - babelstream+cuda
+  when: os == "rocky9"
+- rocky9_gpu_specs:
   - nccl@2.28.7-1
-  - nccl-tests+mpi+cuda ^nccl@2.28.7-1
   - nvshmem+cuda+mpi+ucx+libfabric+nccl ^nccl@2.28.7-1
   - nvbandwidth+cuda
   - cuda-memtest
-  - nvtx+python
   - nvtop+cuda support=nvidia
+  when: os == "rocky9"
+- rocky9_benchmark_specs:
+  - osu-micro-benchmarks+cuda
+  - babelstream+cuda
+  - nccl-tests+mpi+cuda ^nccl@2.28.7-1
+  when: os == "rocky9"
+- rocky9_profiling_specs:
+  - hpctoolkit@2024.01.stable+cuda+mpi+python
+  - hpctoolkit@2025.0.1+cuda+mpi+python~auditor_default
+  - nvtx+python
   - papi+infiniband+cuda
   - scorep+mpi+papi+cuda
   - caliper+mpi+papi+cuda+libunwind+libdw
   - hwloc+cuda+pci+nvml
   when: os == "rocky9"
-- macos_specs:
+- macos_toolchain_specs:
   - gcc@15.2.0
+  when: platform == "darwin"
+- macos_mpi_specs:
   - openmpi@5.0.8 fabrics=none schedulers=none
+  when: platform == "darwin"
+- macos_benchmark_specs:
   - osu-micro-benchmarks
   - babelstream+omp
+  when: platform == "darwin"
+- macos_profiling_specs:
   - nvtx+python
   when: platform == "darwin"

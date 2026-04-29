@@ -1,0 +1,25 @@
+spack:
+  repos: []
+  include:
+  - path: ../skipper/locations.yaml
+  - path: ../common/packages.yaml
+  - path: ../common/modules.yaml
+  - path: ../common/specs.yaml
+  - path: ../common/rocky8
+    optional: true
+    when: os == "rocky8"
+  - path: ../common/rocky9
+    optional: true
+    when: os == "rocky9"
+  - path: ../common/macos
+    optional: true
+    when: platform == "darwin"
+  config:
+    deprecated: true
+  specs:
+  - $rocky8_toolchain_specs
+  - $rocky9_toolchain_specs
+  - $macos_toolchain_specs
+  view: false
+  concretizer:
+    unify: when_possible
