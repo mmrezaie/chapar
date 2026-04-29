@@ -1,3 +1,4 @@
 packages:
   all:
+    require: "%gcc@11.5.0"
     target: [x86_64_v4]
