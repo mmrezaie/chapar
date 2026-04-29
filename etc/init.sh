@@ -11,32 +11,17 @@ fi
 
 _chapar_etc_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _chapar_root="$(cd "${_chapar_etc_dir}/.." && pwd)"
-_chapar_spack_setup=""
+_chapar_spack_root="${CHAPAR_SPACK_ROOT:-${HOME}/.local/opt/spack}"
+_chapar_spack_setup="${_chapar_spack_root}/share/spack/setup-env.sh"
 
-# Priority:
-# 1) Explicit SPACK_ROOT from user
-# 2) spack executable found on PATH
-# 3) In-repo spack checkout (if present)
-if [ -n "${SPACK_ROOT:-}" ] && [ -r "${SPACK_ROOT}/share/spack/setup-env.sh" ]; then
-    _chapar_spack_setup="${SPACK_ROOT}/share/spack/setup-env.sh"
-elif [ -n "$(type -P spack 2>/dev/null)" ]; then
-    _chapar_spack_cmd="$(type -P spack)"
-    if [ -x "${_chapar_spack_cmd}" ]; then
-        _chapar_spack_root="$(cd "$(dirname "${_chapar_spack_cmd}")/.." && pwd)"
-        if [ -r "${_chapar_spack_root}/share/spack/setup-env.sh" ]; then
-            _chapar_spack_setup="${_chapar_spack_root}/share/spack/setup-env.sh"
-        fi
-    fi
-elif [ -r "${_chapar_root}/spack/share/spack/setup-env.sh" ]; then
-    _chapar_spack_setup="${_chapar_root}/spack/share/spack/setup-env.sh"
-fi
-
-if [ -z "${_chapar_spack_setup}" ]; then
-    echo "ERROR: could not find Spack setup-env.sh. Set SPACK_ROOT first." >&2
+if [ ! -r "${_chapar_spack_setup}" ]; then
+    echo "ERROR: could not find Spack at ${_chapar_spack_root}" >&2
+    echo "Install it with: bash ${_chapar_root}/etc/install-spack.sh" >&2
     return 1
 fi
 
-# Load Spack shell functions/command.
+# Load Spack shell functions/command from the per-user upstream checkout.
+export SPACK_ROOT="${_chapar_spack_root}"
 . "${_chapar_spack_setup}"
 
 # Bind this shell to chapar config scopes.
@@ -62,5 +47,5 @@ if type module >/dev/null 2>&1; then
     fi
 fi
 
-unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_cmd _chapar_spack_root
+unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_root
 unset _chapar_module_root _chapar_module_archdir

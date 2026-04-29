@@ -1,7 +1,9 @@
 # Chapar Spack Configuration
 
 Spack configuration split into **system** and **user** scopes, with OS overlays
-for **rocky8**, **rocky9**, and **macOS** (Spack >= v1.0).
+for **rocky8**, **rocky9**, and **macOS** (Spack >= v1.0). Upstream Spack lives
+in each user's `~/.local/opt/spack`; Chapar keeps policy and environments
+outside that checkout.
 
 ## Directory Layout
 
@@ -58,6 +60,21 @@ scopes **2 (system)** and **4 (user)**.
 
 ## How to Deploy
 
+### Install Spack
+
+Install upstream Spack once per user under `~/.local/opt/spack`:
+
+```bash
+bash /path/to/chapar/etc/install-spack.sh
+```
+
+This clones `https://github.com/spack/spack.git` with `--depth=2`, matching the
+standard Spack source-checkout setup. To pin a release or branch during install:
+
+```bash
+SPACK_REF=releases/latest bash /path/to/chapar/etc/install-spack.sh
+```
+
 ### Project Init Script (Recommended)
 
 If you want to keep the upstream Spack repository unmodified and still use this
@@ -69,7 +86,8 @@ source /path/to/chapar/etc/init.sh
 
 This script:
 
-- sources Spack from `SPACK_ROOT`, the in-repo `spack/`, or `spack` on `PATH`
+- sets `SPACK_ROOT` to `~/.local/opt/spack`
+- sources `~/.local/opt/spack/share/spack/setup-env.sh`
 - sets `SPACK_USER_CONFIG_PATH` to `chapar/etc/user`
 - sets `SPACK_SYSTEM_CONFIG_PATH` to `chapar/etc/system`
 - defaults `SPACK_USER_CACHE_PATH` to `/tmp/$USER/spack-cache`
@@ -91,7 +109,8 @@ sudo ln -sfn /path/to/chapar/etc/system "$SPACK_SYSTEM_CONFIG_PATH"
 ```
 
 On a shared HPC cluster this is typically managed by the sysadmin. All users
-who source the same Spack installation will pick up these settings.
+who source Chapar with `etc/init.sh` will pick up these settings while keeping
+their own Spack checkout under `~/.local/opt/spack`.
 
 ### User Scope (single user)
 
@@ -282,9 +301,11 @@ spack external find --scope system
 
 ## Environment Variables Reference
 
-| Variable                     | Default         | Purpose                              |
-|------------------------------|-----------------|--------------------------------------|
-| `SPACK_SYSTEM_CONFIG_PATH`   | `/etc/spack/`   | Override system scope location       |
-| `SPACK_USER_CONFIG_PATH`     | `~/.spack/`     | Override user scope location         |
-| `SPACK_USER_CACHE_PATH`      | `~/.spack/`     | Override user cache location         |
-| `SPACK_DISABLE_LOCAL_CONFIG` | (unset)         | Set to `true` to disable system+user |
+| Variable                     | Default              | Purpose                              |
+|------------------------------|----------------------|--------------------------------------|
+| `CHAPAR_SPACK_ROOT`          | `~/.local/opt/spack` | Override the Spack checkout path for testing |
+| `SPACK_ROOT`                 | `~/.local/opt/spack` | Set by `etc/init.sh` before sourcing Spack |
+| `SPACK_SYSTEM_CONFIG_PATH`   | `/etc/spack/`        | Override system scope location       |
+| `SPACK_USER_CONFIG_PATH`     | `~/.spack/`          | Override user scope location         |
+| `SPACK_USER_CACHE_PATH`      | `~/.spack/`          | Override user cache location         |
+| `SPACK_DISABLE_LOCAL_CONFIG` | (unset)              | Set to `true` to disable system+user |

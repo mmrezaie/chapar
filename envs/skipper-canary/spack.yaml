@@ -1,0 +1,63 @@
+# This is a Spack Environment file.
+#
+# skipper-canary keeps the same specs as skipper, but loads filesystem locations
+# from locations.yaml so canary installs can move without editing this file.
+#
+spack:
+  repos: []
+  include:
+  - path: ./locations.yaml
+  - path: ./rocky8
+    optional: true
+    when: os == "rocky8"
+  - path: ./rocky9
+    optional: true
+    when: os == "rocky9"
+  - path: ./macos
+    optional: true
+    when: platform == "darwin"
+
+  # add package specs to the `specs` list
+  definitions:
+  - mpis: [openmpi, intel-oneapi-mpi]
+  - compilers: [gcc@13.4.0, gcc@14.3.0, gcc@15.2.0, intel-oneapi-compilers]
+  specs:
+  - gcc@13.4.0+profiled
+  - gcc@14.3.0+profiled
+  - gcc@15.2.0+profiled
+  - ucx@1.16.0+cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+  - libfabric@1.22.0 fabrics=mlx,verbs
+  - tmux
+  - tcl
+  - tk
+  - python@3.8.19+optimizations+tkinter
+  - python@3.10.14+optimizations+tkinter
+  - python@3.11.9+optimizations+tkinter
+  - python@3.12.5+optimizations+tkinter
+  - intel-oneapi-mpi@2021.14.0+generic-names
+  - intel-oneapi-mpi@2021.10.0+generic-names
+  - intel-oneapi-compilers@2024.1.0
+  - intel-oneapi-compilers@2023.1.0
+  - hpctoolkit@2024.01.stable+cuda+mpi+python
+  - autoconf
+  - pulseaudio@13.0~mpi ^fftw~mpi
+  - imagemagick@7.1.1-39
+  - numactl
+  packages:
+    all:
+      providers:
+        mpi: [openmpi, intel-oneapi-mpi]
+  view: false
+  concretizer:
+    unify: when_possible
+  modules:
+    default:
+      enable:
+      - tcl
+      tcl:
+        naming_scheme: '{name}/{version}'
+        hash_length: 0
+        pulseaudio:
+          environment:
+            prepend_path:
+              LD_LIBRARY_PATH: '{prefix}/lib'

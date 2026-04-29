@@ -1,0 +1,25 @@
+# Filesystem policy for skipper-canary.
+#
+# Edit this file to move canary installs, generated modules, build stages,
+# templates, licenses, and caches without changing spack.yaml.
+config:
+  install_tree:
+    root: ~/privatemodules/skipper-canary/bin
+    projections:
+      all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}"
+  template_dirs:
+  - ~/privatemodules/skipper-canary/templates
+  license_dir: ~/privatemodules/skipper-canary/licenses
+  build_stage:
+  - $tempdir/$user/skipper-canary-stage
+  - $user_cache_path/skipper-canary/stage
+  test_stage: $user_cache_path/skipper-canary/test
+  source_cache: $user_cache_path/skipper-canary/source
+  misc_cache: $user_cache_path/skipper-canary/cache
+  install_missing: true
+
+modules:
+  default:
+    roots:
+      tcl: ~/privatemodules/skipper-canary/modulefiles
+      lmod: ~/privatemodules/skipper-canary/lmods

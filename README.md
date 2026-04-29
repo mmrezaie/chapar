@@ -3,26 +3,26 @@
 Chapar is a reproducible Spack setup for building similar HPC software
 environments on macOS, Rocky Linux 8, and Rocky Linux 9.
 
-The repository keeps upstream Spack as a pinned submodule in `spack/` and keeps
-all local customization in this repository. Do not edit files under `spack/`
-for site policy, user paths, package preferences, module layout, or environment
-definitions.
+Each user keeps upstream Spack in `~/.local/opt/spack`, following Spack's
+standard source-checkout workflow. Chapar does not vendor Spack. It keeps all
+site policy, user paths, package preferences, module layout, and environment
+definitions outside the Spack repository.
 
 ## Goals
 
-- Use the same Spack source checkout for every user and supported OS.
-- Keep upstream Spack clean so it can be updated or reset independently.
+- Use the same per-user Spack install path on every supported OS.
+- Keep upstream Spack clean so it can be updated independently.
 - Share one environment definition while allowing OS-specific compiler,
   external package, target, and filesystem differences.
 - Let users generate their own installs and module trees without modifying the
-  shared Spack source.
+  upstream Spack checkout.
 
 ## Layout
 
 ```text
 .
-|-- spack/              # Upstream Spack source, pinned as a git submodule
 |-- etc/
+|   |-- install-spack.sh # Installs upstream Spack under ~/.local/opt/spack
 |   |-- init.sh         # Shell initializer for this checkout
 |   |-- system/         # Shared Spack system scope and OS overlays
 |   |-- user/           # User Spack scope and OS overlays
@@ -34,28 +34,28 @@ definitions.
 
 ## Quick Start
 
-Clone this repository with the pinned Spack submodule:
+Clone this repository:
 
 ```bash
-git clone --recurse-submodules <chapar-repo-url> chapar
+git clone <chapar-repo-url> chapar
 cd chapar
 ```
 
-If the repository was cloned without submodules, initialize Spack afterward:
+Install upstream Spack once for the current user if it is not already present:
 
 ```bash
-git submodule update --init --recursive
+bash ./etc/install-spack.sh
 ```
 
-Initialize the shell from this checkout:
+Then initialize the shell from this checkout:
 
 ```bash
-export SPACK_ROOT="$PWD/spack"
 source ./etc/init.sh
 ```
 
-The explicit `SPACK_ROOT` makes every user source the same Spack checkout from
-this repository, even if another `spack` command exists earlier on `PATH`.
+`etc/init.sh` loads Spack from `~/.local/opt/spack` and binds Spack's system and
+user configuration scopes to this Chapar checkout. It does not modify the Spack
+checkout.
 
 Verify the active configuration:
 
@@ -95,7 +95,7 @@ user-scope compiler entries or a Fedora-specific overlay instead of the Rocky
 
 ## Building The Shared Environment
 
-Use the shared environment under `envs/skipper`:
+Use the Rocky Linux production environment under `envs/skipper`:
 
 ```bash
 spack -e envs/skipper concretize -f
@@ -103,18 +103,33 @@ spack -e envs/skipper install --fail-fast
 spack -e envs/skipper module tcl refresh -y
 ```
 
-The environment has OS overlays:
+`skipper` is intended for Rocky Linux 8 and Rocky Linux 9 production builds and
+keeps its install and module roots under `/share/base`.
+
+For canary builds, use `envs/skipper-canary`. It keeps the same package specs
+but loads install roots, module roots, build stages, and cache locations from
+`envs/skipper-canary/locations.yaml`:
+
+```bash
+spack -e envs/skipper-canary concretize -f
+spack -e envs/skipper-canary install --fail-fast
+spack -e envs/skipper-canary module tcl refresh -y
+```
+
+Both environments have OS overlays:
 
 ```text
 envs/skipper/rocky8/
 envs/skipper/rocky9/
-envs/skipper/macos/
+envs/skipper-canary/rocky8/
+envs/skipper-canary/rocky9/
+envs/skipper-canary/macos/
 ```
 
-Those overlays are selected by Spack `when:` rules in `envs/skipper/spack.yaml`.
-Use them for platform-specific targets or package constraints only. Keep common
-specs, variants, and module policy in the top-level environment file whenever
-possible.
+Those overlays are selected by Spack `when:` rules in each environment's
+`spack.yaml`. Use them for platform-specific targets or package constraints
+only. Keep common specs, variants, and module policy in the top-level
+environment file whenever possible.
 
 ## Configuration Model
 
@@ -153,9 +168,9 @@ brew install gcc ccache
 ```
 
 The goal is similar environments, not byte-identical concrete specs across
-different operating systems. The shared Spack source, shared package repo pin,
-shared environment specs, and shared policy make the environments comparable;
-OS overlays capture unavoidable platform differences.
+different operating systems. The shared package repo pin, shared environment
+specs, and shared policy make the environments comparable; OS overlays capture
+unavoidable platform differences.
 
 ## Build Parallelism
 
@@ -172,7 +187,7 @@ spack -e envs/skipper install -j 8
 
 ## Customization Rules
 
-- Do not modify `spack/` for Chapar policy.
+- Do not modify `~/.local/opt/spack` for Chapar policy.
 - Put shared machine or site settings in `etc/system`.
 - Put user paths and user-local settings in `etc/user`.
 - Put environment package lists in `envs/<name>/spack.yaml`.
