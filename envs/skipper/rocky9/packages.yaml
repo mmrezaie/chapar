@@ -7,6 +7,7 @@ packages:
     - +cuda
     - fabrics=verbs,ucx,ofi
     - schedulers=none
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
     - ^ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
     - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
   intel-oneapi-mpi:
@@ -31,7 +32,31 @@ packages:
   openblas:
     require:
     - threads=openmp
+  osu-micro-benchmarks:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  babelstream:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
   nccl:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  nccl-tests:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  nvshmem:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  nvbandwidth:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  nvtop:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  caliper:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  hwloc:
     require:
     - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
   gdrcopy:

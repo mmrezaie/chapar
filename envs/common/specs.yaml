@@ -72,10 +72,10 @@ definitions:
   - gcc@14.3.0+profiled
   - gcc@15.2.0+profiled
   - intel-oneapi-compilers@2025.3.1
-  - ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - openmpi@4.1.8+cuda fabrics=verbs,ucx,ofi schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - openmpi@5.0.8+cuda fabrics=verbs,ucx,ofi schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  - ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+  - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs
+  - openmpi@4.1.8+cuda fabrics=verbs,ucx,ofi schedulers=none
+  - openmpi@5.0.8+cuda fabrics=verbs,ucx,ofi schedulers=none
   - cuda@13.0.2
   - intel-oneapi-mpi@2021.17.0+generic-names
   - intel-oneapi-mpi@2021.14.0+generic-names
@@ -84,19 +84,19 @@ definitions:
   - intel-oneapi-compilers@2023.1.0
   - hpctoolkit@2024.01.stable+cuda+mpi+python
   - hpctoolkit@2025.0.1+cuda+mpi+python~auditor_default
-  - osu-micro-benchmarks+cuda cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - babelstream+cuda cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - nccl-tests+mpi+cuda cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f ^nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - nvshmem+cuda+mpi+ucx+libfabric+nccl cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f ^nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - nvbandwidth+cuda cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  - osu-micro-benchmarks+cuda
+  - babelstream+cuda
+  - nccl@2.28.7-1
+  - nccl-tests+mpi+cuda ^nccl@2.28.7-1
+  - nvshmem+cuda+mpi+ucx+libfabric+nccl ^nccl@2.28.7-1
+  - nvbandwidth+cuda
   - cuda-memtest
   - nvtx+python
-  - nvtop+cuda support=nvidia cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  - nvtop+cuda support=nvidia
   - papi+infiniband+cuda
   - scorep+mpi+papi+cuda
-  - caliper+mpi+papi+cuda+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-  - hwloc+cuda+pci+nvml cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+  - caliper+mpi+papi+cuda+libunwind+libdw
+  - hwloc+cuda+pci+nvml
   when: os == "rocky9"
 - macos_specs:
   - gcc@15.2.0
