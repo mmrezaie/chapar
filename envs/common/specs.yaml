@@ -108,7 +108,7 @@ definitions:
   - nvtop+cuda support=nvidia
   when: os == "rocky9"
 - rocky9_benchmark_specs:
-  - osu-micro-benchmarks+cuda
+  - osu-micro-benchmarks
   - babelstream+cuda
   - nccl-tests+mpi+cuda ^nccl@2.28.7-1
   when: os == "rocky9"
