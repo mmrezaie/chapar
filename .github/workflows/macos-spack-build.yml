@@ -3,7 +3,7 @@ name: macOS Spack Build
 on:
   push:
     branches:
-      - chapar-goes-macos
+      - main
     paths:
       - .github/macos-spack-build.trigger
       - .github/workflows/macos-spack-build.yml

@@ -67,7 +67,7 @@ Manual dispatch inputs:
 - `spack_install_args`: default `-p 1 --fail-fast`.
 - `resources_root`: run/buildcache root. Empty means `~/privatemodules/chapar-runs`.
 
-The push fallback is path-filtered to `.github/macos-spack-build.trigger` and validates the canary `mpi` section on branch `chapar-goes-macos`.
+The push fallback is path-filtered to `.github/macos-spack-build.trigger` and validates the canary `mpi` section on `main`.
 
 ## Thunderbolt Networking
 
