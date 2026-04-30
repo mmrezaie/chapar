@@ -14,6 +14,18 @@ packages:
   libffi:
     require:
     - '@3.4.7:'
+  py-pip:
+    require:
+    - ^python@3.12:3.12~optimizations~tkinter
+  py-setuptools:
+    require:
+    - ^python@3.12:3.12~optimizations~tkinter
+  py-wheel:
+    require:
+    - ^python@3.12:3.12~optimizations~tkinter
+  python-venv:
+    require:
+    - ^python@3.12:3.12~optimizations~tkinter
   hdf5:
     require:
     - +mpi+fortran+hl

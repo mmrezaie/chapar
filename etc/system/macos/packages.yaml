@@ -58,8 +58,8 @@ packages:
       prefix: /opt/homebrew
   python:
     externals:
-    - spec: python@3.9.6+bz2+crypt+ctypes+dbm+lzma+pyexpat~pythoncmd+readline+sqlite3+ssl+tix+tkinter+uuid+zlib
-      prefix: /usr
+    - spec: python@3.12.13+bz2+crypt+ctypes+dbm+lzma+pyexpat+pythoncmd+readline+sqlite3+ssl~tkinter+uuid+zlib
+      prefix: /opt/homebrew/opt/python@3.12
   openssl:
     externals:
     - spec: openssl@3.6.2

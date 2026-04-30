@@ -33,6 +33,9 @@ export SPACK_SYSTEM_CONFIG_PATH="${_chapar_root}/etc/system"
 export SPACK_USER_CACHE_PATH
 mkdir -p "${SPACK_USER_CACHE_PATH}" 2>/dev/null || true
 
+# Keep user pip configuration from leaking into Spack Python package builds.
+export PIP_CONFIG_FILE=/dev/null
+
 # If environment modules is available, add Chapar-managed module roots.
 # This keeps `module avail` aligned with `spack module tcl refresh` output.
 if type module >/dev/null 2>&1; then

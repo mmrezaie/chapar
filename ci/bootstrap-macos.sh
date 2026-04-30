@@ -41,6 +41,7 @@ packages=(
     ninja
     openssl@3
     pkgconf
+    python@3.12
     rsync
     texinfo
 )
@@ -62,6 +63,7 @@ mkdir -p "${HOME}/privatemodules/chapar-runs" "${HOME}/privatemodules/skipper-ca
 command -v gcc-15 >/dev/null 2>&1 || die "Homebrew gcc-15 is missing"
 command -v g++-15 >/dev/null 2>&1 || die "Homebrew g++-15 is missing"
 command -v gfortran >/dev/null 2>&1 || die "Homebrew gfortran is missing"
+command -v "${brew_prefix}/opt/python@3.12/bin/python3.12" >/dev/null 2>&1 || die "Homebrew python@3.12 is missing"
 if [ ! -x "${brew_prefix}/bin/ccache" ]; then
     brew link ccache >/dev/null 2>&1 || true
 fi
@@ -74,5 +76,6 @@ echo "arch:        $(uname -m)"
 echo "brew:        ${brew_prefix}"
 echo "gcc:         $(gcc-15 -dumpfullversion)"
 echo "gfortran:    $(gfortran -dumpfullversion)"
+echo "python:      $("${brew_prefix}/opt/python@3.12/bin/python3.12" --version)"
 echo "ccache:      ${ccache_version}"
 echo "privatemods: ${HOME}/privatemodules"
