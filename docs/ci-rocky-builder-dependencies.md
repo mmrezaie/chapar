@@ -126,6 +126,12 @@ dnf -y install gh
 - `gh` is not required by the build itself, but is useful for manual debugging and GitHub operations inside persistent builder containers.
 - `nfs-utils` supports resource/NAS access and diagnostics.
 
+## XPMEM Policy
+
+Do not enable UCX `+xpmem` in the generic Incus CI environments. Spack's preferred `xpmem@2.6.5-36` builds a Linux kernel module by default and needs kernel sources for the running kernel. The Rocky containers share the Incus host kernel, so Rocky `kernel-devel` packages do not match the active Fedora host kernel and the build fails at configure time.
+
+If a production cluster needs XPMEM, install and load the kernel module on matching compute-node kernels and model it as a site-specific external instead of building it in the portable CI buildcache.
+
 ## CI Install Concurrency
 
 The Intel oneAPI offline installers share Intel cache state under `/var/intel/installercache`. Running multiple oneAPI compiler installs concurrently corrupted that cache during testing. The container CI driver therefore defaults to serialized package installation:

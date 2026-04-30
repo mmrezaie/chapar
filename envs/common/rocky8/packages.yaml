@@ -5,7 +5,7 @@ packages:
     require:
     - fabrics=verbs,ucx,ofi
     - schedulers=none
-    - ^ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+    - ^ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
     - ^libfabric@1.22.0~cuda fabrics=mlx,verbs
   intel-oneapi-mpi:
     require:
@@ -13,7 +13,7 @@ packages:
     - ^libfabric@1.22.0~cuda fabrics=mlx,verbs
   ucx:
     require:
-    - ~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+    - ~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
   libfabric:
     require:
     - ~cuda

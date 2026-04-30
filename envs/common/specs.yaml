@@ -66,7 +66,7 @@ definitions:
   - intel-oneapi-compilers@2023.1.0
   when: os == "rocky8"
 - rocky8_mpi_specs:
-  - ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+  - ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
   - libfabric@1.22.0~cuda fabrics=mlx,verbs
   - openmpi@4.1.8 fabrics=verbs,ucx,ofi schedulers=none
   - intel-oneapi-mpi@2021.14.0+generic-names
@@ -92,7 +92,7 @@ definitions:
   - cuda@13.0.2
   when: os == "rocky9"
 - rocky9_mpi_specs:
-  - ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
+  - ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
   - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs
   - openmpi@4.1.8+cuda fabrics=verbs,ucx,ofi schedulers=none
   - openmpi@5.0.8+cuda fabrics=verbs,ucx,ofi schedulers=none
