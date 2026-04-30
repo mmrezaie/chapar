@@ -28,8 +28,8 @@ packages:
       prefix: /usr
   bison:
     externals:
-    - spec: bison@2.3
-      prefix: /usr
+    - spec: bison@3.8.2
+      prefix: /opt/homebrew/opt/bison
   openssh:
     externals:
     - spec: openssh@10.0p2
@@ -40,19 +40,19 @@ packages:
       prefix: /opt/homebrew
   git:
     externals:
-    - spec: git@2.50.1~tcltk
-      prefix: /usr
+    - spec: git@2.54.0~tcltk
+      prefix: /opt/homebrew
   flex:
     externals:
     - spec: flex@2.6.4+lex
-      prefix: /usr
+      prefix: /opt/homebrew/opt/flex
   m4:
     externals:
-    - spec: m4@1.4.6
-      prefix: /usr
+    - spec: m4@1.4.21
+      prefix: /opt/homebrew
   ccache:
     externals:
-    - spec: ccache@4.12.3
+    - spec: ccache@4.13.5
       prefix: /opt/homebrew
   python:
     externals:
@@ -60,7 +60,15 @@ packages:
       prefix: /usr
   openssl:
     externals:
-    - spec: openssl@3.6.1
+    - spec: openssl@3.6.2
+      prefix: /opt/homebrew
+  pkgconf:
+    externals:
+    - spec: pkgconf@2.5.1
+      prefix: /opt/homebrew
+  ninja:
+    externals:
+    - spec: ninja@1.13.2
       prefix: /opt/homebrew
   go:
     externals:
@@ -75,53 +83,52 @@ packages:
     - spec: perl@5.34.1~cpanm+opcode+open+shared+threads
       prefix: /usr
   zlib:
-    externals:
-    - spec: zlib@1.2.11
-      prefix: /usr
+    buildable: true
+    externals: []
   cmake:
     externals:
-    - spec: cmake@3.26.5
-      prefix: /usr
+    - spec: cmake@4.3.2
+      prefix: /opt/homebrew
   autoconf:
     externals:
-    - spec: autoconf@2.69
-      prefix: /usr
+    - spec: autoconf@2.73
+      prefix: /opt/homebrew
   automake:
     externals:
-    - spec: automake@1.16.1
-      prefix: /usr
+    - spec: automake@1.18.1
+      prefix: /opt/homebrew
   libtool:
     externals:
-    - spec: libtool@2.4.6
-      prefix: /usr
+    - spec: libtool@2.5.4
+      prefix: /opt/homebrew
   coreutils:
     externals:
-    - spec: coreutils@8.30
-      prefix: /usr
+    - spec: coreutils@9.11
+      prefix: /opt/homebrew
   findutils:
     externals:
-    - spec: findutils@4.6.0
-      prefix: /usr
+    - spec: findutils@4.10.0
+      prefix: /opt/homebrew/opt/findutils
   diffutils:
     externals:
-    - spec: diffutils@3.6
-      prefix: /usr
+    - spec: diffutils@3.12
+      prefix: /opt/homebrew
   gawk:
     externals:
-    - spec: gawk@4.2.1
-      prefix: /usr
+    - spec: gawk@5.4.0
+      prefix: /opt/homebrew
   sed:
     externals:
-    - spec: sed@4.5
-      prefix: /usr
+    - spec: sed@4.10
+      prefix: /opt/homebrew/opt/gnu-sed
   tar:
     externals:
     - spec: tar@1.30
       prefix: /usr
   texinfo:
     externals:
-    - spec: texinfo@6.5
-      prefix: /usr
+    - spec: texinfo@7.3
+      prefix: /opt/homebrew
   groff:
     externals:
     - spec: groff@1.22.3

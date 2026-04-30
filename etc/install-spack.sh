@@ -29,7 +29,20 @@ die() {
 
 update_spack() {
     [ -d "${SPACK_ROOT}/.git" ] || die "not a git checkout: ${SPACK_ROOT}"
-    git -C "${SPACK_ROOT}" pull --ff-only
+    if ! git -C "${SPACK_ROOT}" diff --quiet || ! git -C "${SPACK_ROOT}" diff --cached --quiet; then
+        die "Spack checkout has local changes: ${SPACK_ROOT}"
+    fi
+    if [ -n "${SPACK_REF}" ]; then
+        git -C "${SPACK_ROOT}" fetch --tags origin "${SPACK_REF}" || true
+        if git -C "${SPACK_ROOT}" show-ref --verify --quiet "refs/remotes/origin/${SPACK_REF}"; then
+            git -C "${SPACK_ROOT}" checkout -B "${SPACK_REF}" "origin/${SPACK_REF}"
+            git -C "${SPACK_ROOT}" pull --ff-only origin "${SPACK_REF}"
+        else
+            git -C "${SPACK_ROOT}" checkout --detach "${SPACK_REF}" || git -C "${SPACK_ROOT}" checkout --detach FETCH_HEAD
+        fi
+    else
+        git -C "${SPACK_ROOT}" pull --ff-only
+    fi
 }
 
 case "${1:-}" in

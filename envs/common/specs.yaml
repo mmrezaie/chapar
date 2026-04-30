@@ -125,12 +125,19 @@ definitions:
   - gcc@15.2.0
   when: platform == "darwin"
 - macos_mpi_specs:
-  - openmpi@5.0.8 fabrics=none schedulers=none
+  - libfabric@1.22.0 fabrics=tcp,sockets,udp
+  - openmpi@4.1.8 fabrics=ofi schedulers=none
+  - openmpi@5.0.8 fabrics=ofi schedulers=none
   when: platform == "darwin"
 - macos_benchmark_specs:
+  - intel-mpi-benchmarks
+  - ior+hdf5+ncmpi
+  - mdtest
+  - h5bench+all
+  - fio
   - osu-micro-benchmarks
   - babelstream+omp
   when: platform == "darwin"
 - macos_profiling_specs:
-  - nvtx+python
+  - hwloc
   when: platform == "darwin"
