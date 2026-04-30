@@ -53,7 +53,7 @@ For manual setup:
 
 ```bash
 xcode-select --install
-brew install gcc ccache cmake ninja pkgconf autoconf automake libtool bison flex gettext openssl@3 python@3.12 make gawk gnu-sed coreutils diffutils findutils grep rsync texinfo modules
+brew install gcc ccache cmake ninja pkgconf autoconf automake libtool m4 bison flex gettext openssl@3 python@3.12 neovim make gawk gnu-sed coreutils diffutils findutils grep rsync texinfo modules
 ```
 
 ## Workflow
