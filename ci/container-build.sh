@@ -12,8 +12,12 @@ set -euo pipefail
 : "${RUN_ID:=manual}"
 : "${PUSH_BUILDCACHE_SCRIPT:=./ci/push-buildcache.sh}"
 : "${SPACK_INSTALL_ARGS:=-p 1 --fail-fast}"
+: "${CHAPAR_UPDATE_SPACK:=false}"
 
-SECTIONS=(toolchain devtools python mpi libs gpu benchmarks profiling)
+case "${OS_NAME}" in
+    macos|darwin) SECTIONS=(toolchain devtools python mpi libs benchmarks profiling) ;;
+    *) SECTIONS=(toolchain devtools python mpi libs gpu benchmarks profiling) ;;
+esac
 read -r -a SPACK_INSTALL_ARGS_ARRAY <<< "${SPACK_INSTALL_ARGS}"
 
 case "${FLAVOR}" in
@@ -44,7 +48,11 @@ echo "    output:   ${RUN_ROOT}"
 mkdir -p "$(dirname "${REPO_DIR}")"
 if [ -d "${REPO_DIR}/.git" ]; then
     cd "${REPO_DIR}"
-    git remote set-url origin "${REPO_URL}"
+    if git remote get-url origin >/dev/null 2>&1; then
+        git remote set-url origin "${REPO_URL}"
+    else
+        git remote add origin "${REPO_URL}"
+    fi
     git fetch --all --prune
 else
     git clone "${REPO_URL}" "${REPO_DIR}"
@@ -63,6 +71,8 @@ git rev-parse HEAD | tee "${RUN_ROOT}/commit.txt"
 SPACK_ROOT="${CHAPAR_SPACK_ROOT:-${HOME}/.local/opt/spack}"
 if [ ! -r "${SPACK_ROOT}/share/spack/setup-env.sh" ]; then
     bash ./etc/install-spack.sh
+elif [ "${CHAPAR_UPDATE_SPACK}" = "true" ]; then
+    bash ./etc/install-spack.sh --update
 fi
 
 source ./etc/init.sh

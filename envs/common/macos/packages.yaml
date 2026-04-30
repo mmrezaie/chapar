@@ -1,13 +1,22 @@
 packages:
   all:
+    providers:
+      mpi: [openmpi]
     target: [aarch64, armv8.5a]
   openmpi:
     require:
-    - fabrics=none
+    - fabrics=ofi
     - schedulers=none
+    - ^libfabric@1.22.0 fabrics=tcp,sockets,udp
+  libfabric:
+    require:
+    - fabrics=tcp,sockets,udp
   hdf5:
     require:
-    - +mpi+hl
+    - +mpi+fortran+hl
+  fftw:
+    require:
+    - +mpi+openmp
   netcdf-c:
     require:
     - +mpi+parallel-netcdf

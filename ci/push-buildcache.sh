@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'USAGE'
-Usage: ci/push-buildcache.sh --env-path PATH --os rocky8|rocky9 --flavor canary|prod [options]
+Usage: ci/push-buildcache.sh --env-path PATH --os rocky8|rocky9|macos --flavor canary|prod [options]
 
 Options:
   --resources-root PATH        CI output root inside the container (default: /resources/chapar)
@@ -36,8 +36,8 @@ if [ -z "${ENV_PATH}" ] || [ -z "${OS_NAME}" ] || [ -z "${FLAVOR}" ]; then
 fi
 
 case "${OS_NAME}" in
-    rocky8|rocky9) ;;
-    *) echo "ERROR: --os must be rocky8 or rocky9" >&2; exit 1 ;;
+    rocky8|rocky9|macos) ;;
+    *) echo "ERROR: --os must be rocky8, rocky9, or macos" >&2; exit 1 ;;
 esac
 
 case "${FLAVOR}" in

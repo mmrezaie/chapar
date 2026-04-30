@@ -195,6 +195,10 @@ xcode-select --install
 brew install gcc ccache
 ```
 
+Native macOS GitHub Actions runners are documented in `docs/ci-macos.md`.
+Docker on macOS builds Linux artifacts, so use a native runner for Darwin module
+trees under `~/privatemodules`.
+
 The goal is similar environments, not byte-identical concrete specs across
 different operating systems. The shared package repo pin, shared environment
 specs, and shared policy make the environments comparable; OS overlays capture
