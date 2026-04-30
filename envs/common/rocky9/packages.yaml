@@ -7,22 +7,22 @@ packages:
     - +cuda
     - fabrics=verbs,ucx,ofi
     - schedulers=none
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-    - ^ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
-    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - ^ucx@1.16.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   intel-oneapi-mpi:
     require:
     - +external-libfabric
-    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   ucx:
     require:
     - +cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs+xpmem
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   libfabric:
     require:
     - +cuda+gdrcopy
     - fabrics=mlx,verbs
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   cuda:
     require:
     - '@13.0.2'
@@ -37,32 +37,32 @@ packages:
     - threads=openmp
   osu-micro-benchmarks:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   babelstream:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   nccl:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   nccl-tests:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   nvshmem:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   nvbandwidth:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   nvtop:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   caliper:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   hwloc:
     require:
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   gdrcopy:
     require:
     - +cuda
-    - cuda_arch=75,80,86,87,89,90,90a,100,100a,100f,103,103a,103f,110,110a,110f,120,120a,120f,121,121a,121f
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
