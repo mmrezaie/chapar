@@ -2,6 +2,7 @@ SPACK_INIT := ./etc/init.sh
 CANARY_ENV := skipper-canary
 PROD_ENV := skipper
 SECTIONS := toolchain devtools python mpi libs gpu benchmarks profiling
+SPACK_INSTALL_ARGS ?=
 
 .PHONY: help
 help:
@@ -26,12 +27,12 @@ help:
 
 define CANARY_SECTION_TARGET
 canary-$(1):
-	bash -lc 'source $$(SPACK_INIT) && spack -e ./envs/$$(CANARY_ENV)-$(1) concretize -f && spack -e ./envs/$$(CANARY_ENV)-$(1) install'
+	bash -lc 'source $$(SPACK_INIT) && spack -e ./envs/$$(CANARY_ENV)-$(1) concretize -f && spack -e ./envs/$$(CANARY_ENV)-$(1) install $$(SPACK_INSTALL_ARGS)'
 endef
 
 define PROD_SECTION_TARGET
 prod-$(1):
-	bash -lc 'source $$(SPACK_INIT) && spack -e ./envs/$$(PROD_ENV)-$(1) concretize -f && spack -e ./envs/$$(PROD_ENV)-$(1) install'
+	bash -lc 'source $$(SPACK_INIT) && spack -e ./envs/$$(PROD_ENV)-$(1) concretize -f && spack -e ./envs/$$(PROD_ENV)-$(1) install $$(SPACK_INSTALL_ARGS)'
 endef
 
 $(foreach section,$(SECTIONS),$(eval $(call CANARY_SECTION_TARGET,$(section))))
@@ -56,10 +57,10 @@ prod-sections:
 	done
 
 canary-full:
-	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(CANARY_ENV) concretize -f && spack -e ./envs/$(CANARY_ENV) install'
+	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(CANARY_ENV) concretize -f && spack -e ./envs/$(CANARY_ENV) install $(SPACK_INSTALL_ARGS)'
 
 prod-full:
-	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(PROD_ENV) concretize -f && spack -e ./envs/$(PROD_ENV) install'
+	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(PROD_ENV) concretize -f && spack -e ./envs/$(PROD_ENV) install $(SPACK_INSTALL_ARGS)'
 
 check:
 	bash -lc 'source $(SPACK_INIT) && for env in envs/skipper*; do [ -f "$$env/spack.yaml" ] || continue; spack -e "./$$env" config get config >/dev/null && spack -e "./$$env" config get packages >/dev/null && spack -e "./$$env" config get modules >/dev/null || exit 1; done'

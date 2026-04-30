@@ -1,0 +1,127 @@
+name: Incus Spack Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: Target Rocky Linux version
+        required: true
+        type: choice
+        default: rocky9
+        options:
+          - rocky9
+          - rocky8
+          - all
+      flavor:
+        description: Environment flavor
+        required: true
+        type: choice
+        default: canary
+        options:
+          - canary
+          - prod
+      section:
+        description: Section or integration target
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - full
+          - toolchain
+          - devtools
+          - python
+          - mpi
+          - libs
+          - gpu
+          - benchmarks
+          - profiling
+      git_ref:
+        description: Optional branch, tag, or SHA to build; defaults to workflow ref
+        required: false
+        type: string
+        default: ""
+      push_buildcache:
+        description: Publish successful build outputs to the NAS buildcache
+        required: true
+        type: boolean
+        default: true
+      spack_install_args:
+        description: Arguments passed to spack install inside the container
+        required: true
+        type: string
+        default: -p 1 --fail-fast
+      keep_running:
+        description: Leave the Incus builder container running after the job
+        required: true
+        type: boolean
+        default: false
+      runner_label:
+        description: Self-hosted runner label or label expression
+        required: true
+        type: string
+        default: self-hosted
+      incus_remote:
+        description: Optional Incus remote name; leave blank for local Incus
+        required: false
+        type: string
+        default: ""
+      resources_source:
+        description: Host path exported into containers as /resources
+        required: true
+        type: string
+        default: /resources
+      resources_root:
+        description: CI output root inside containers
+        required: true
+        type: string
+        default: /resources/chapar
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chapar-incus-builders
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ inputs.flavor }} ${{ inputs.section }} on ${{ inputs.os }}
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 1440
+
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@v4
+
+      - name: Verify Incus client
+        run: command -v incus
+
+      - name: Run Incus build
+        env:
+          KEEP_RUNNING: ${{ inputs.keep_running }}
+          INPUT_GIT_REF: ${{ inputs.git_ref }}
+          DEFAULT_GIT_REF: ${{ github.ref_name }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          git_ref="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
+
+          args=(
+            --os "${{ inputs.os }}"
+            --flavor "${{ inputs.flavor }}"
+            --section "${{ inputs.section }}"
+            --git-ref "${git_ref}"
+            --repo-url "${REPO_URL}"
+            --incus-remote "${{ inputs.incus_remote }}"
+            --resources-source "${{ inputs.resources_source }}"
+            --resources-root "${{ inputs.resources_root }}"
+            --run-id "${{ github.run_id }}"
+            --push-buildcache "${{ inputs.push_buildcache }}"
+            --spack-install-args "${{ inputs.spack_install_args }}"
+          )
+
+          if [ "${KEEP_RUNNING}" = "true" ]; then
+            args+=(--keep-running)
+          fi
+
+          ci/incus-build.sh "${args[@]}"
