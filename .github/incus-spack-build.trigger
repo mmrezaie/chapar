@@ -1,3 +1,3 @@
 # Touch this file to start the path-filtered Incus Spack Build push workflow.
 # The push fallback validates rocky9 canary benchmarks with the default runner label.
-trigger: 2026-04-30T11:50:00Z
+trigger: 2026-04-30T16:25:00Z
