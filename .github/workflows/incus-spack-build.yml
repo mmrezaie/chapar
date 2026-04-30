@@ -51,26 +51,11 @@ on:
         required: true
         type: string
         default: -p 1 --fail-fast
-      keep_running:
-        description: Leave the Incus builder container running after the job
-        required: true
-        type: boolean
-        default: false
       runner_label:
-        description: Self-hosted runner label or label expression
+        description: Common custom label on the Rocky Incus container runners
         required: true
         type: string
-        default: self-hosted
-      incus_remote:
-        description: Optional Incus remote name; leave blank for local Incus
-        required: false
-        type: string
-        default: ""
-      resources_source:
-        description: Host path exported into containers as /resources
-        required: true
-        type: string
-        default: /resources
+        default: chapar
       resources_root:
         description: CI output root inside containers
         required: true
@@ -86,42 +71,37 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ inputs.flavor }} ${{ inputs.section }} on ${{ inputs.os }}
-    runs-on: ${{ inputs.runner_label }}
+    name: Build ${{ inputs.flavor }} ${{ inputs.section }} on ${{ matrix.os_name }}
+    if: ${{ inputs.os == 'all' || inputs.os == matrix.os_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_name: rocky8
+          - os_name: rocky9
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}","{1}"]', inputs.runner_label, matrix.os_name)) }}
     timeout-minutes: 1440
 
     steps:
       - name: Check out workflow scripts
         uses: actions/checkout@v4
 
-      - name: Verify Incus client
-        run: command -v incus
+      - name: Bootstrap Rocky dependencies
+        run: bash ci/bootstrap-rocky.sh
 
-      - name: Run Incus build
+      - name: Run Spack build
         env:
-          KEEP_RUNNING: ${{ inputs.keep_running }}
           INPUT_GIT_REF: ${{ inputs.git_ref }}
           DEFAULT_GIT_REF: ${{ github.ref_name }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          REPO_DIR: ${{ github.workspace }}
+          FLAVOR: ${{ inputs.flavor }}
+          SECTION: ${{ inputs.section }}
+          OS_NAME: ${{ matrix.os_name }}
+          PUSH_BUILDCACHE: ${{ inputs.push_buildcache }}
+          SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args }}
+          RESOURCES_ROOT: ${{ inputs.resources_root }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          git_ref="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
-
-          args=(
-            --os "${{ inputs.os }}"
-            --flavor "${{ inputs.flavor }}"
-            --section "${{ inputs.section }}"
-            --git-ref "${git_ref}"
-            --repo-url "${REPO_URL}"
-            --incus-remote "${{ inputs.incus_remote }}"
-            --resources-source "${{ inputs.resources_source }}"
-            --resources-root "${{ inputs.resources_root }}"
-            --run-id "${{ github.run_id }}"
-            --push-buildcache "${{ inputs.push_buildcache }}"
-            --spack-install-args "${{ inputs.spack_install_args }}"
-          )
-
-          if [ "${KEEP_RUNNING}" = "true" ]; then
-            args+=(--keep-running)
-          fi
-
-          ci/incus-build.sh "${args[@]}"
+          export GIT_REF="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
+          bash ci/container-build.sh

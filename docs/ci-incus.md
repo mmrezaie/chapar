@@ -1,42 +1,64 @@
 # Incus Spack CI
 
-Chapar builds Rocky Linux Spack environments through a manual GitHub Actions workflow that controls persistent Incus builder containers. The containers are stopped after each job by default, but are not deleted, so Spack source caches, clones, and package state can be reused.
+Chapar builds Rocky Linux Spack environments through a manual GitHub Actions workflow that runs directly inside persistent Incus builder containers. Each Rocky builder container is registered with GitHub as a self-hosted runner, so GitHub schedules the job onto the matching container and Spack caches, clones, and package state can be reused between runs.
 
 ## Builder Host
 
-Run the GitHub Actions self-hosted runner on the machine that can control Incus and mount or access the NAS resources export.
+Run the Incus containers on the machine that can mount or access the NAS resources export.
 
 Required host setup:
 
 - `incus` CLI installed and authenticated.
-- A self-hosted GitHub Actions runner registered for this repository.
-- The NAS resources export available on the host at `/resources`, or another path passed as `resources_source`.
+- Rocky8 and Rocky9 builder containers registered as self-hosted GitHub Actions runners.
+- The NAS resources export available on the host at `/resources` and mounted into the containers as `/resources`.
 - Enough local storage and CPU/RAM for the Rocky8/Rocky9 build containers.
 
 Builder package/repository requirements are tracked in `docs/ci-rocky-builder-dependencies.md`.
 
-The workflow defaults to `runs-on: self-hosted`. If your runner uses another label, set `runner_label` when manually dispatching the workflow.
+The workflow targets runners with labels `self-hosted`, `chapar`, and either `rocky8` or `rocky9`. If you use a different common label, set `runner_label` when manually dispatching the workflow.
 
 ## Containers
 
-The wrapper uses these persistent containers by default:
+Use these persistent containers by default:
 
 - `chapar-rocky8-builder`
 - `chapar-rocky9-builder`
+
+Register them with these custom labels:
+
+- `chapar-rocky8-builder`: `chapar,rocky8`
+- `chapar-rocky9-builder`: `chapar,rocky9`
 
 The default images are:
 
 - Rocky8: `images:rockylinux/8`
 - Rocky9: `images:rockylinux/9`
 
-Override images from the runner environment if needed:
+Override images when creating containers if needed:
 
 ```bash
 export ROCKY8_IMAGE=images:rockylinux/8
 export ROCKY9_IMAGE=images:rockylinux/9
 ```
 
-If the Incus server is remote, pass its remote name through the workflow `incus_remote` input or local `--incus-remote` option.
+## Runner Registration
+
+Create or copy a short-lived registration token from GitHub repository Settings, Actions, Runners, New self-hosted runner. Then register both Incus containers from the Incus control host:
+
+```bash
+export GITHUB_RUNNER_TOKEN=<registration-token>
+ci/register-incus-runner.sh --container chapar-rocky8-builder
+ci/register-incus-runner.sh --container chapar-rocky9-builder
+```
+
+The helper installs the GitHub runner under `/opt/actions-runner`, creates an `actions` user with passwordless sudo, registers the runner, and starts it as a service. Passwordless sudo is required because the workflow bootstraps Rocky RPM dependencies before running Spack.
+
+Verify the runners from GitHub or from the containers:
+
+```bash
+incus exec chapar-rocky8-builder -- /opt/actions-runner/svc.sh status
+incus exec chapar-rocky9-builder -- /opt/actions-runner/svc.sh status
+```
 
 ## Resources Mount
 
@@ -75,15 +97,12 @@ Inputs:
 - `git_ref`: optional branch, tag, or SHA. Empty means the workflow branch/tag.
 - `push_buildcache`: publish successful outputs to the NAS buildcache.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1 --fail-fast`.
-- `keep_running`: leave the builder container running after the job.
-- `runner_label`: self-hosted runner label, default `self-hosted`.
-- `incus_remote`: optional Incus remote name.
-- `resources_source`: host path mounted into the container as `/resources`.
+- `runner_label`: common custom runner label, default `chapar`.
 - `resources_root`: output root inside the container, default `/resources/chapar`.
 
 ## Local Invocation
 
-From a checkout on the Incus control host:
+The GitHub workflow runs inside the target container. For local debugging from a checkout on the Incus control host, you can still use the Incus wrapper:
 
 ```bash
 ci/incus-build.sh --os rocky9 --flavor canary --section all
@@ -119,12 +138,12 @@ Per-run logs and concrete environment files:
 
 ## Build Behavior
 
-Each job copies the current CI scripts into the selected container, bootstraps baseline Rocky packages with `dnf`, clones or updates the Chapar repository in `/root/workspace/chapar`, checks out the requested ref, sources `./etc/init.sh`, then runs the matching Make target.
+Each job runs on the matching Rocky self-hosted runner container, bootstraps baseline Rocky packages with `dnf`, updates the checked-out Chapar repository to the requested ref, sources `./etc/init.sh`, concretizes the selected Spack environment, and installs it.
 
 Target mapping:
 
-- `section=all`: `make canary` or `make prod`.
-- `section=full`: `make canary-full` or `make prod-full`.
-- `section=<name>`: `make canary-<name>` or `make prod-<name>`.
+- `section=all`: all section environments, then the full integration environment.
+- `section=full`: only the full integration environment.
+- `section=<name>`: only the named section environment.
 
 When `push_buildcache` is true, the job runs `spack buildcache push --unsigned --update-index` and writes to the matching NAS buildcache directory. For `section=all`, it publishes each section environment and the full integration environment.

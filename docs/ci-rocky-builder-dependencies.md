@@ -4,7 +4,7 @@ This document records the host/container setup that was needed to make the Incus
 
 ## Tested Smoke Path
 
-The validated action-equivalent command was:
+The validated host-side smoke command was:
 
 ```bash
 ci/incus-build.sh \

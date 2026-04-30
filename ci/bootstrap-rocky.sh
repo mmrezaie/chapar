@@ -6,9 +6,20 @@ if ! command -v dnf >/dev/null 2>&1; then
     exit 1
 fi
 
-dnf -y makecache
+as_root() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        echo "ERROR: root privileges or passwordless sudo are required for $*" >&2
+        exit 1
+    fi
+}
 
-dnf -y install \
+as_root dnf -y makecache
+
+as_root dnf -y install \
     autoconf \
     automake \
     bash \
@@ -59,16 +70,16 @@ dnf -y install \
 
 source /etc/os-release
 case "${VERSION_ID%%.*}" in
-    8) dnf config-manager --set-enabled powertools || true ;;
-    9) dnf config-manager --set-enabled crb || true ;;
+    8) as_root dnf config-manager --set-enabled powertools || true ;;
+    9) as_root dnf config-manager --set-enabled crb || true ;;
 esac
 
-dnf -y install epel-release
-dnf -y install ccache
+as_root dnf -y install epel-release
+as_root dnf -y install ccache
 
 if ! command -v gh >/dev/null 2>&1; then
-    dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
-    dnf -y install gh
+    as_root dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+    as_root dnf -y install gh
 fi
 
 git config --global --add safe.directory '*' || true
