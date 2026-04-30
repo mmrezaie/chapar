@@ -93,9 +93,9 @@ definitions:
   when: os == "rocky9"
 - rocky9_mpi_specs:
   - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
-  - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs
-  - openmpi@4.1.8+cuda fabrics=verbs,ucx,ofi schedulers=none
-  - openmpi@5.0.8+cuda fabrics=verbs,ucx,ofi schedulers=none
+  - libfabric@1.22.0~cuda fabrics=mlx,verbs
+  - openmpi@4.1.8+cuda fabrics=verbs,ucx schedulers=none
+  - openmpi@5.0.8+cuda fabrics=verbs,ucx schedulers=none
   - intel-oneapi-mpi@2021.17.0+generic-names
   - intel-oneapi-mpi@2021.14.0+generic-names
   - intel-oneapi-mpi@2021.10.0+generic-names

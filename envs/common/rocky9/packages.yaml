@@ -5,24 +5,22 @@ packages:
   openmpi:
     require:
     - +cuda
-    - fabrics=verbs,ucx,ofi
+    - fabrics=verbs,ucx
     - schedulers=none
     - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   intel-oneapi-mpi:
     require:
     - +external-libfabric
-    - ^libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - ^libfabric@1.22.0~cuda fabrics=mlx,verbs
   ucx:
     require:
     - +cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
     - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   libfabric:
     require:
-    - +cuda+gdrcopy
+    - ~cuda
     - fabrics=mlx,verbs
-    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   cuda:
     require:
     - '@13.0.2'
