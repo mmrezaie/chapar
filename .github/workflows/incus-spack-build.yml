@@ -86,6 +86,30 @@ jobs:
       - name: Bootstrap Rocky dependencies
         run: bash ci/bootstrap-rocky.sh
 
+      - name: Verify NAS resources mount
+        env:
+          RESOURCES_ROOT: ${{ inputs.resources_root }}
+          OS_NAME: ${{ matrix.os_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${RESOURCES_ROOT}"
+          fs_type="$(findmnt -n -T "${RESOURCES_ROOT}" -o FSTYPE)"
+          source="$(findmnt -n -T "${RESOURCES_ROOT}" -o SOURCE)"
+          echo "resources root: ${RESOURCES_ROOT}"
+          echo "mount source:   ${source}"
+          echo "mount type:     ${fs_type}"
+
+          case "${fs_type}" in
+            nfs|nfs4) ;;
+            *) echo "ERROR: ${RESOURCES_ROOT} must be on the NAS NFS mount, got ${fs_type}" >&2; exit 1 ;;
+          esac
+
+          test_dir="${RESOURCES_ROOT}/.ci-write-test-${RUN_ID}-${OS_NAME}"
+          mkdir -p "${test_dir}"
+          rmdir "${test_dir}"
+
       - name: Run Spack build
         env:
           INPUT_GIT_REF: ${{ inputs.git_ref }}

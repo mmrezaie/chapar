@@ -69,19 +69,28 @@ sudo mkdir -p /resources
 sudo mount -t nfs -o vers=4.2 10.151.98.25:/mnt/resources /resources
 ```
 
-The Rocky builder containers are unprivileged Incus containers. Their root user maps to host UID/GID `100000`, so the CI output directory must be writable by that mapped identity:
+For persistence on the Incus host, add this `/etc/fstab` entry:
+
+```text
+10.151.98.25:/mnt/resources /resources nfs4 rw,vers=4.2,_netdev,nofail,x-systemd.automount 0 0
+```
+
+The Rocky builder containers are unprivileged Incus containers. Their root user maps to host UID/GID `100000`; the GitHub Actions runner user is container UID/GID `1000`, which maps to host UID/GID `101000`. The CI output directory must be writable by both mapped identities:
 
 ```bash
 mkdir -p /resources/chapar
 incus exec nas -- chown 100000:1003 /mnt/resources/chapar
 incus exec nas -- chmod 2775 /mnt/resources/chapar
+incus exec nas -- setfacl -R -m u:100000:rwX,u:101000:rwX,g:1003:rwX /mnt/resources/chapar
+incus exec nas -- find /mnt/resources/chapar -type d -exec setfacl -m d:u:100000:rwx,d:u:101000:rwx,d:g:1003:rwx {} +
 ```
 
 Verify from the host and containers:
 
 ```bash
 findmnt /resources
-incus exec chapar-rocky9-builder -- touch /resources/chapar/.write-test
+incus exec chapar-rocky9-builder -- sudo -u actions touch /resources/chapar/.write-test
+incus exec nas -- ls -ln /mnt/resources/chapar/.write-test
 incus exec chapar-rocky9-builder -- rm -f /resources/chapar/.write-test
 ```
 
