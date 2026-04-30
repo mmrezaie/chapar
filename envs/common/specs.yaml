@@ -48,7 +48,7 @@ definitions:
   - qperf+verbs
   - ior+hdf5+ncmpi
   - mdtest
-  - h5bench+all
+  - h5bench+exerciser+metadata
   - fio
   when: platform == "linux"
 - linux_profiling_specs:
