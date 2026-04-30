@@ -10,7 +10,7 @@ definitions:
   - ninja
   - meson
   - pkgconf
-  - libffi@3.2.1
+  - libffi
   - neovim
   - npm
   - tmux

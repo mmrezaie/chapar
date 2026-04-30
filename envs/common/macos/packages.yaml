@@ -11,6 +11,9 @@ packages:
   libfabric:
     require:
     - fabrics=tcp,sockets,udp
+  libffi:
+    require:
+    - '@3.4.7:'
   hdf5:
     require:
     - +mpi+fortran+hl

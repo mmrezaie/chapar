@@ -5,6 +5,3 @@ packages:
       blas: [openblas]
       lapack: [openblas]
       scalapack: [netlib-scalapack]
-  libffi:
-    require:
-    - '@3.2.1'

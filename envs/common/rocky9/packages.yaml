@@ -21,6 +21,9 @@ packages:
     require:
     - ~cuda
     - fabrics=mlx,verbs
+  libffi:
+    require:
+    - '@3.2.1'
   cuda:
     require:
     - '@13.0.2'
