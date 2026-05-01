@@ -1,5 +1,9 @@
 .DS_Store
 
+# Python import caches
+__pycache__/
+*.py[cod]
+
 # Spack is installed per user in ~/.local/opt/spack. Do not vendor it here.
 /spack/
 

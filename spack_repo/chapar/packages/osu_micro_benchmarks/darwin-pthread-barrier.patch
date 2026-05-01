@@ -1,0 +1,63 @@
+diff --git a/c/mpi/pt2pt/standard/osu_latency_mt.c b/c/mpi/pt2pt/standard/osu_latency_mt.c
+--- a/c/mpi/pt2pt/standard/osu_latency_mt.c
++++ b/c/mpi/pt2pt/standard/osu_latency_mt.c
+@@ -11,6 +11,59 @@
+ 
+ #include <osu_util_mpi.h>
+ 
++#if defined(__APPLE__) && !defined(PTHREAD_BARRIER_SERIAL_THREAD)
++#define PTHREAD_BARRIER_SERIAL_THREAD 1
++
++typedef struct {
++    pthread_mutex_t mutex;
++    pthread_cond_t cond;
++    unsigned int count;
++    unsigned int trip_count;
++    unsigned int generation;
++} pthread_barrier_t;
++
++static int pthread_barrier_init(pthread_barrier_t *barrier, const void *attr,
++                                unsigned int count)
++{
++    (void)attr;
++
++    barrier->count = 0;
++    barrier->trip_count = count;
++    barrier->generation = 0;
++
++    pthread_mutex_init(&barrier->mutex, NULL);
++    pthread_cond_init(&barrier->cond, NULL);
++
++    return 0;
++}
++
++static int pthread_barrier_wait(pthread_barrier_t *barrier)
++{
++    int ret = 0;
++    unsigned int generation;
++
++    pthread_mutex_lock(&barrier->mutex);
++
++    generation = barrier->generation;
++    barrier->count++;
++
++    if (barrier->count == barrier->trip_count) {
++        barrier->generation++;
++        barrier->count = 0;
++        pthread_cond_broadcast(&barrier->cond);
++        ret = PTHREAD_BARRIER_SERIAL_THREAD;
++    } else {
++        while (generation == barrier->generation) {
++            pthread_cond_wait(&barrier->cond, &barrier->mutex);
++        }
++    }
++
++    pthread_mutex_unlock(&barrier->mutex);
++
++    return ret;
++}
++#endif
++
+ pthread_mutex_t finished_size_mutex;
+ pthread_cond_t finished_size_cond;
+ pthread_mutex_t finished_size_sender_mutex;

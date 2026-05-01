@@ -53,6 +53,11 @@ packages:
     externals:
     - spec: flex@2.6.4+lex
       prefix: /opt/homebrew/opt/flex
+  fio:
+    buildable: false
+    externals:
+    - spec: fio@3.42~doc~gui~libaio
+      prefix: /opt/homebrew
   m4:
     externals:
     - spec: m4@1.4.21

@@ -133,10 +133,10 @@ definitions:
   - intel-mpi-benchmarks
   - ior+hdf5+ncmpi
   - mdtest
-  - h5bench+all
+  - h5bench+exerciser+metadata
   - fio
   - osu-micro-benchmarks
-  - babelstream+omp
+  - babelstream languages:=fortran build_system=makefile foption=OpenMP
   when: platform == "darwin"
 - macos_profiling_specs:
   - hwloc

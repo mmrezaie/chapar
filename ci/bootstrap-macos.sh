@@ -28,6 +28,7 @@ packages=(
     coreutils
     diffutils
     findutils
+    fio
     flex
     gawk
     gcc
@@ -65,6 +66,7 @@ mkdir -p "${HOME}/privatemodules/chapar-runs" "${HOME}/privatemodules/skipper-ca
 
 command -v gcc-15 >/dev/null 2>&1 || die "Homebrew gcc-15 is missing"
 command -v g++-15 >/dev/null 2>&1 || die "Homebrew g++-15 is missing"
+command -v "${brew_prefix}/bin/fio" >/dev/null 2>&1 || die "Homebrew fio is missing"
 command -v gfortran >/dev/null 2>&1 || die "Homebrew gfortran is missing"
 command -v "${brew_prefix}/opt/m4/bin/m4" >/dev/null 2>&1 || die "Homebrew m4 is missing"
 command -v "${brew_prefix}/bin/nvim" >/dev/null 2>&1 || die "Homebrew neovim is missing"
@@ -76,6 +78,7 @@ fi
 [ -x "${brew_prefix}/bin/ccache" ] || die "ccache is missing at ${brew_prefix}/bin/ccache"
 ccache_version="$("${brew_prefix}/bin/ccache" --version)"
 ccache_version="${ccache_version%%$'\n'*}"
+fio_version="$("${brew_prefix}/bin/fio" --version)"
 m4_version="$("${brew_prefix}/opt/m4/bin/m4" --version)"
 m4_version="${m4_version%%$'\n'*}"
 nvim_version="$("${brew_prefix}/bin/nvim" --version)"
@@ -85,6 +88,7 @@ openblas_version="$(brew list --versions openblas)"
 echo "macOS:       $(sw_vers -productVersion)"
 echo "arch:        $(uname -m)"
 echo "brew:        ${brew_prefix}"
+echo "fio:         ${fio_version}"
 echo "gcc:         $(gcc-15 -dumpfullversion)"
 echo "gfortran:    $(gfortran -dumpfullversion)"
 echo "m4:          ${m4_version}"

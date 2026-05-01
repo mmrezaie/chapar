@@ -1,0 +1,27 @@
+diff --git a/src_c/IMB_declare.h b/src_c/IMB_declare.h
+index bcb7f77..7077047 100644
+--- a/src_c/IMB_declare.h
++++ b/src_c/IMB_declare.h
+@@ -51,7 +51,9 @@ In
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#ifndef __APPLE__
+ #include <malloc.h>
++#endif
+ #include <stddef.h>
+ #include <assert.h>
+ #include "IMB_appl_errors.h"
+diff --git a/src_cpp/args_parser.cpp b/src_cpp/args_parser.cpp
+index ae30d51..837d945 100644
+--- a/src_cpp/args_parser.cpp
++++ b/src_cpp/args_parser.cpp
+@@ -270,7 +270,7 @@ void args_parser::print_err(error_t err, string option, string extra) {
+     last_error_extra = extra;
+ }
+ 
+-#ifdef WIN_IMB
++#if defined(WIN_IMB) || defined(__APPLE__)
+ std::string basename(const char *name) {
+ 	std::string file_name(name);
+ 	const size_t i = file_name.find_last_of("\\/");

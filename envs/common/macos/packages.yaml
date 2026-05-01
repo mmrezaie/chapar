@@ -38,3 +38,18 @@ packages:
   openblas:
     require:
     - threads=openmp
+  babelstream:
+    require:
+    - '%fortran=gcc'
+  hpcg:
+    require:
+    - '%cxx=gcc'
+  hpl:
+    require:
+    - '%c=gcc'
+  intel-mpi-benchmarks:
+    require:
+    - '%c,cxx=gcc'
+  stream:
+    require:
+    - '%c,fortran=gcc'

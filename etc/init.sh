@@ -13,6 +13,7 @@ _chapar_etc_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _chapar_root="$(cd "${_chapar_etc_dir}/.." && pwd)"
 _chapar_spack_root="${CHAPAR_SPACK_ROOT:-${HOME}/.local/opt/spack}"
 _chapar_spack_setup="${_chapar_spack_root}/share/spack/setup-env.sh"
+export CHAPAR_ROOT="${_chapar_root}"
 
 if [ ! -r "${_chapar_spack_setup}" ]; then
     echo "ERROR: could not find Spack at ${_chapar_spack_root}" >&2
