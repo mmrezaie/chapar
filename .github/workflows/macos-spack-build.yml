@@ -78,7 +78,7 @@ jobs:
       - name: Run Spack canary build
         env:
           INPUT_GIT_REF: ${{ inputs.git_ref || '' }}
-          DEFAULT_GIT_REF: ${{ github.ref_name }}
+          DEFAULT_GIT_REF: ${{ github.sha }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REPO_DIR: ${{ github.workspace }}
           SECTION: ${{ inputs.section || 'mpi' }}

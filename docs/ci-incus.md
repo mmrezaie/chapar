@@ -53,11 +53,25 @@ ci/register-incus-runner.sh --container chapar-rocky9-builder
 
 The helper installs the GitHub runner under `/opt/actions-runner`, creates an `actions` user with passwordless sudo, registers the runner, and starts it as a service. Passwordless sudo is required because the workflow bootstraps Rocky RPM dependencies before running Spack.
 
+Enable container autostart on the Incus host so the runner services come back after host reboot:
+
+```bash
+incus config set chapar-rocky8-builder boot.autostart true
+incus config set chapar-rocky9-builder boot.autostart true
+```
+
 Verify the runners from GitHub or from the containers:
 
 ```bash
-incus exec chapar-rocky8-builder -- /opt/actions-runner/svc.sh status
-incus exec chapar-rocky9-builder -- /opt/actions-runner/svc.sh status
+incus exec chapar-rocky8-builder -- bash -lc 'cd /opt/actions-runner && ./svc.sh status'
+incus exec chapar-rocky9-builder -- bash -lc 'cd /opt/actions-runner && ./svc.sh status'
+```
+
+Start or restart a runner manually if GitHub shows a job waiting for labels such as `self-hosted`, `chapar`, and `rocky9`:
+
+```bash
+incus start chapar-rocky9-builder
+incus exec chapar-rocky9-builder -- bash -lc 'cd /opt/actions-runner && ./svc.sh stop && ./svc.sh start'
 ```
 
 ## Resources Mount

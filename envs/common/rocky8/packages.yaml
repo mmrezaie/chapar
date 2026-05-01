@@ -21,6 +21,9 @@ packages:
   libffi:
     require:
     - '@3.2.1'
+  elfutils:
+    require:
+    - ~nls
   hdf5:
     require:
     - +mpi+fortran+hl

@@ -119,6 +119,9 @@ sudo -u actions ./config.sh \
     --replace
 
 ./svc.sh install actions
+if [ -f .service ]; then
+    systemctl enable "$(cat .service)"
+fi
 ./svc.sh start
 ./svc.sh status || true
 '

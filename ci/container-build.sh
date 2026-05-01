@@ -103,6 +103,7 @@ case "${SECTION}" in
 esac
 
 for env_name in "${ENV_NAMES[@]}"; do
+    echo "==> Building Spack environment: ${env_name}"
     build_env "${env_name}"
 done
 
