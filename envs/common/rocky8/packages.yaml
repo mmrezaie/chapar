@@ -23,7 +23,7 @@ packages:
     - '@3.2.1'
   elfutils:
     require:
-    - ~nls
+    - ~debuginfod~nls
   hdf5:
     require:
     - +mpi+fortran+hl

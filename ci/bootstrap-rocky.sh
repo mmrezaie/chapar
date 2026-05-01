@@ -66,6 +66,7 @@ as_root dnf -y install \
     util-linux \
     which \
     xz \
+    zlib-devel \
     zstd
 
 source /etc/os-release

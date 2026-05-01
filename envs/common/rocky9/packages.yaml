@@ -26,7 +26,7 @@ packages:
     - '@3.2.1'
   elfutils:
     require:
-    - ~nls
+    - ~debuginfod~nls
   cuda:
     require:
     - '@13.0.2'
