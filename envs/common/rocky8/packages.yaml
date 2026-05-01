@@ -27,6 +27,9 @@ packages:
   scorep:
     require:
     - ~gcc-plugin
+  scalasca:
+    require:
+    - ^openmpi
   hwloc:
     require:
     - ~nvml
