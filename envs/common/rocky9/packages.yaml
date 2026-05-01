@@ -1,7 +1,15 @@
 packages:
   all:
-    require: "%gcc@11.5.0"
     target: [x86_64_v4]
+  c:
+    require:
+    - gcc@11.5.0
+  cxx:
+    require:
+    - gcc@11.5.0
+  fortran:
+    require:
+    - gcc@11.5.0
   openmpi:
     require:
     - +cuda
@@ -62,6 +70,7 @@ packages:
     - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   scorep:
     require:
+    - +fortran
     - ~gcc-plugin
   scalasca:
     require:

@@ -1,6 +1,15 @@
 packages:
   all:
     target: [x86_64_v4]
+  c:
+    require:
+    - gcc@8.5.0
+  cxx:
+    require:
+    - gcc@8.5.0
+  fortran:
+    require:
+    - gcc@8.5.0
   openmpi:
     require:
     - fabrics=verbs,ucx,ofi
@@ -26,6 +35,7 @@ packages:
     - ~debuginfod~nls
   scorep:
     require:
+    - +fortran
     - ~gcc-plugin
   scalasca:
     require:
