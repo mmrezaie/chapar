@@ -119,7 +119,7 @@ definitions:
   - papi+infiniband+cuda
   - scorep+mpi+papi+cuda
   - caliper+mpi+papi+cuda+libunwind+libdw
-  - hwloc+cuda+pci+nvml
+  - hwloc+cuda+pci~nvml
   when: os == "rocky9"
 - macos_toolchain_specs:
   - gcc@15.2.0
