@@ -24,6 +24,9 @@ packages:
   elfutils:
     require:
     - ~debuginfod~nls
+  scorep:
+    require:
+    - ~gcc-plugin
   hwloc:
     require:
     - ~nvml
