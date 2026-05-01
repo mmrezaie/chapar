@@ -24,6 +24,9 @@ packages:
   elfutils:
     require:
     - ~debuginfod~nls
+  hwloc:
+    require:
+    - ~nvml
   hdf5:
     require:
     - +mpi+fortran+hl

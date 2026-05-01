@@ -80,7 +80,7 @@ definitions:
   - papi+infiniband
   - scorep~cuda+mpi+papi
   - caliper~cuda+mpi+papi+libunwind+libdw
-  - hwloc+pci
+  - hwloc+pci~nvml
   when: os == "rocky8"
 - rocky9_toolchain_specs:
   - gcc@13.4.0+profiled
