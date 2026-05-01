@@ -65,6 +65,11 @@ packages:
     externals:
     - spec: python@3.12.13+bz2+crypt+ctypes+dbm+lzma+pyexpat+pythoncmd+readline+sqlite3+ssl~tkinter+uuid+zlib
       prefix: /opt/homebrew/opt/python@3.12
+  openblas:
+    buildable: false
+    externals:
+    - spec: openblas@0.3.33+fortran+pic+shared threads=openmp
+      prefix: /opt/homebrew/opt/openblas
   openssl:
     externals:
     - spec: openssl@3.6.2
