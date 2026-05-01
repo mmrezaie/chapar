@@ -40,7 +40,7 @@ packages:
     - threads=openmp
   babelstream:
     require:
-    - '%fortran=gcc'
+    - '%c,fortran=gcc'
   hpcg:
     require:
     - '%cxx=gcc'
