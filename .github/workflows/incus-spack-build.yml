@@ -1,4 +1,4 @@
-name: Incus Spack Build
+name: Incus hpcsim Build
 
 on:
   push:
@@ -7,41 +7,26 @@ on:
     paths:
       - .github/incus-spack-build.trigger
       - .github/workflows/incus-spack-build.yml
+      - ci/**
+      - envs/hpcsim/**
+      - etc/**
+      - Makefile
   workflow_dispatch:
     inputs:
       os:
         description: Target Rocky Linux version
         required: true
         type: choice
-        default: rocky9
-        options:
-          - rocky9
-          - rocky8
-          - all
-      flavor:
-        description: Environment flavor
-        required: true
-        type: choice
-        default: canary
-        options:
-          - canary
-          - prod
-      section:
-        description: Section or integration target
-        required: true
-        type: choice
         default: all
         options:
           - all
-          - full
-          - toolchain
-          - devtools
-          - python
-          - mpi
-          - libs
-          - gpu
-          - benchmarks
-          - profiling
+          - rocky8
+          - rocky9
+      release_id:
+        description: Optional hpcsim release ID; defaults to the workflow run ID
+        required: false
+        type: string
+        default: ""
       git_ref:
         description: Optional branch, tag, or SHA to build; defaults to workflow ref
         required: false
@@ -52,8 +37,13 @@ on:
         required: true
         type: string
         default: develop
-      push_buildcache:
-        description: Publish successful build outputs to the NAS buildcache
+      publish_current:
+        description: Promote this release by updating the OS current symlink
+        required: true
+        type: boolean
+        default: false
+      publish_buildcache:
+        description: Publish successful build outputs to the hpcsim buildcache
         required: true
         type: boolean
         default: true
@@ -67,28 +57,27 @@ on:
         required: true
         type: string
         default: chapar
-      resources_root:
-        description: CI output root inside containers
+      hpcsim_root:
+        description: Shared hpcsim output root inside containers
         required: true
         type: string
-        default: /resources/chapar
+        default: /resources/share/hpcsim
 
 permissions:
   contents: read
 
-concurrency:
-  group: chapar-incus-builders
-  cancel-in-progress: false
-
 jobs:
   build:
-    name: Build ${{ inputs.flavor || 'canary' }} ${{ inputs.section || 'benchmarks' }} on ${{ matrix.os_name }}
+    name: Build hpcsim on ${{ matrix.os_name }}
     strategy:
       fail-fast: false
       matrix:
-        os_name: ${{ fromJSON((inputs.os || 'rocky9') == 'all' && '["rocky8","rocky9"]' || format('["{0}"]', inputs.os || 'rocky9')) }}
+        os_name: ${{ fromJSON((inputs.os || 'all') == 'all' && '["rocky8","rocky9"]' || format('["{0}"]', inputs.os || 'rocky9')) }}
     runs-on: ${{ fromJSON(format('["self-hosted","{0}","{1}"]', inputs.runner_label || 'chapar', matrix.os_name)) }}
     timeout-minutes: 1440
+    concurrency:
+      group: chapar-incus-builders-${{ matrix.os_name }}
+      cancel-in-progress: false
 
     steps:
       - name: Check out workflow scripts
@@ -97,45 +86,47 @@ jobs:
       - name: Bootstrap Rocky dependencies
         run: bash ci/bootstrap-rocky.sh
 
-      - name: Verify NAS resources mount
+      - name: Verify hpcsim resources mount
         env:
-          RESOURCES_ROOT: ${{ inputs.resources_root || '/resources/chapar' }}
+          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/share/hpcsim' }}
           OS_NAME: ${{ matrix.os_name }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
 
-          mkdir -p "${RESOURCES_ROOT}"
-          fs_type="$(findmnt -n -T "${RESOURCES_ROOT}" -o FSTYPE)"
-          source="$(findmnt -n -T "${RESOURCES_ROOT}" -o SOURCE)"
-          echo "resources root: ${RESOURCES_ROOT}"
-          echo "mount source:   ${source}"
-          echo "mount type:     ${fs_type}"
+          mkdir -p "${HPCSIM_ROOT}/${OS_NAME}"
+          fs_type="$(findmnt -n -T "${HPCSIM_ROOT}" -o FSTYPE)"
+          source="$(findmnt -n -T "${HPCSIM_ROOT}" -o SOURCE)"
+          echo "hpcsim root: ${HPCSIM_ROOT}"
+          echo "mount source: ${source}"
+          echo "mount type:   ${fs_type}"
 
           case "${fs_type}" in
             nfs|nfs4) ;;
-            *) echo "ERROR: ${RESOURCES_ROOT} must be on the NAS NFS mount, got ${fs_type}" >&2; exit 1 ;;
+            *) echo "ERROR: ${HPCSIM_ROOT} must be on the resources NFS mount, got ${fs_type}" >&2; exit 1 ;;
           esac
 
-          test_dir="${RESOURCES_ROOT}/.ci-write-test-${RUN_ID}-${OS_NAME}"
+          test_dir="${HPCSIM_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
           mkdir -p "${test_dir}"
           rmdir "${test_dir}"
 
-      - name: Run Spack build
+      - name: Run hpcsim build
         env:
           INPUT_GIT_REF: ${{ inputs.git_ref || '' }}
           DEFAULT_GIT_REF: ${{ github.sha }}
+          INPUT_RELEASE_ID: ${{ inputs.release_id || '' }}
+          DEFAULT_RELEASE_ID: ${{ github.run_id }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REPO_DIR: ${{ github.workspace }}
-          FLAVOR: ${{ inputs.flavor || 'canary' }}
-          SECTION: ${{ inputs.section || 'benchmarks' }}
           OS_NAME: ${{ matrix.os_name }}
-          PUSH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.push_buildcache == false && 'false' || 'true' }}
+          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/share/hpcsim' }}
+          PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
+          PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1' }}
-          RESOURCES_ROOT: ${{ inputs.resources_root || '/resources/chapar' }}
           RUN_ID: ${{ github.run_id }}
           SPACK_REF: ${{ inputs.spack_ref || 'develop' }}
           CHAPAR_UPDATE_SPACK: true
         run: |
           export GIT_REF="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
+          export RELEASE_ID="${INPUT_RELEASE_ID:-${DEFAULT_RELEASE_ID}}"
           bash ci/container-build.sh

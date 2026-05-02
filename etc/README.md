@@ -1,175 +1,75 @@
 # Chapar Spack Configuration
 
-Spack configuration split into **system** and **user** scopes, with OS overlays
-for **rocky8**, **rocky9**, and **macOS** (Spack >= v1.0). Upstream Spack lives
-in each user's `~/.local/opt/spack`; Chapar keeps policy and environments
-outside that checkout.
+Spack configuration is split into **system** and **user** scopes, with OS
+user's `~/.local/opt/spack`; Chapar keeps policy and environments outside that
+checkout.
 
 ## Directory Layout
 
-```
+```text
 etc/
-├── system/                 # System scope — shared by ALL users on the machine
-│   ├── include.yaml        # Routes rocky8/rocky9/macos, then linux fallback, then base/
-│   ├── base/               # Cross-platform settings
-│   │   ├── concretizer.yaml
-│   │   ├── config.yaml     # System-level config (build_jobs, ccache, …)
-│   │   ├── mirrors.yaml
-│   │   ├── packages.yaml   # Virtual providers, permissions (no externals here)
-│   │   └── repos.yaml
-│   ├── rocky8/             # Rocky Linux 8 OS-specific settings
-│   │   └── packages.yaml
-│   ├── rocky9/             # Rocky Linux 9 OS-specific settings
-│   │   └── packages.yaml
-│   ├── macos/              # macOS OS-specific settings
-│   │   └── packages.yaml
-│   ├── darwin/             # macOS-only externals
-│   │   └── packages.yaml
-│   └── linux/              # Linux-only externals
-│       └── packages.yaml
-│
-└── user/                   # User scope — per-user settings
-    ├── include.yaml        # Routes rocky8/rocky9/macos, then linux fallback, then base/
-    ├── base/               # Cross-platform user settings
-    │   ├── config.yaml     # install_tree, template_dirs, build_stage, …
-    │   └── modules.yaml    # Module generation (tcl/lmod roots, naming)
-    ├── rocky8/             # Rocky Linux 8 user overrides
-    │   └── config.yaml
-    ├── rocky9/             # Rocky Linux 9 user overrides
-    │   └── config.yaml
-    ├── macos/              # macOS user overrides
-    │   └── config.yaml
-    ├── darwin/             # Platform-level macOS overrides (optional)
-    └── linux/              # Platform-level Linux overrides (optional)
+|-- system/                 # System scope shared by all users on a machine
+|   |-- include.yaml        # Routes rocky8/rocky9/macos, linux fallback, base
+|   |-- base/               # Cross-platform settings
+|   |   |-- concretizer.yaml
+|   |   |-- config.yaml
+|   |   |-- mirrors.yaml
+|   |   |-- packages.yaml   # Virtual providers and shared package policy
+|   |   `-- repos.yaml
+|   |-- rocky8/             # Rocky 8 compiler, ccache, libc externals
+|   |-- rocky9/             # Rocky 9 compiler, ccache, libc externals
+|   |-- macos/              # macOS compiler and ccache externals
+|   `-- linux/              # Generic Linux fallback
+`-- user/                   # User scope for per-user paths and overrides
+    |-- include.yaml
+    |-- base/
+    |   |-- config.yaml
+    |   `-- modules.yaml
+    |-- rocky8/
+    |-- rocky9/
+    `-- macos/
 ```
 
-## Spack Scope Precedence (low → high)
+## Scope Precedence
 
-| # | Scope       | Default Path                        | Purpose                        |
-|---|-------------|-------------------------------------|--------------------------------|
-| 1 | defaults    | `$SPACK_ROOT/etc/spack/defaults/`   | Factory settings (don't edit)  |
-| 2 | **system**  | `/etc/spack/`                       | Machine-wide, all users        |
-| 3 | site        | `$SPACK_ROOT/etc/spack/site/`       | Per-instance settings          |
-| 4 | **user**    | `~/.spack/`                         | Per-user settings              |
-| 5 | spack       | `$SPACK_ROOT/etc/spack/`            | Top-level instance override    |
-| 6 | environment | `spack.yaml`                        | Environment-specific           |
-| 7 | command line| `-C` / `--config-scope`             | Highest precedence             |
+Spack applies scopes in this order, from low to high precedence:
 
-Higher-precedence scopes override lower ones. This repo provides configs for
-scopes **2 (system)** and **4 (user)**.
+| # | Scope | Default Path | Purpose |
+|---|-------|--------------|---------|
+| 1 | defaults | `$SPACK_ROOT/etc/spack/defaults/` | Factory settings |
+| 2 | system | `/etc/spack/` | Machine-wide policy |
+| 3 | site | `$SPACK_ROOT/etc/spack/site/` | Per-instance settings |
+| 4 | user | `~/.spack/` | Per-user settings |
+| 5 | spack | `$SPACK_ROOT/etc/spack/` | Spack checkout settings |
+| 6 | environment | `spack.yaml` | hpcsim environment policy |
+| 7 | command line | `-C` or `--config-scope` | Release-time overrides |
 
-## How to Deploy
+This repository provides scopes 2 and 4. `envs/hpcsim/release.sh` uses a
+temporary command-line scope to direct installs and modules into
+`/resources/share/hpcsim/<os>`.
 
-### Install Spack
+## Initialization
 
-Install upstream Spack once per user under `~/.local/opt/spack`:
+Install upstream Spack once per user:
 
 ```bash
 bash /path/to/chapar/etc/install-spack.sh
 ```
 
-This clones `https://github.com/spack/spack.git` with `--depth=2`, matching the
-standard Spack source-checkout setup. To pin a release or branch during install:
-
-```bash
-SPACK_REF=releases/latest bash /path/to/chapar/etc/install-spack.sh
-```
-
-### Project Init Script (Recommended)
-
-If you want to keep the upstream Spack repository unmodified and still use this
-repo's `etc/` config with a fast tmp cache, initialize your shell with:
+Initialize a shell with this checkout's scopes:
 
 ```bash
 source /path/to/chapar/etc/init.sh
 ```
 
-This script:
+The initializer sets `SPACK_USER_CONFIG_PATH`, `SPACK_SYSTEM_CONFIG_PATH`, and a
+fast local `SPACK_USER_CACHE_PATH`. If environment modules are available and a
+current hpcsim release exists for the detected OS, it adds the resolved release
+module path to `MODULEPATH`.
 
-- sets `SPACK_ROOT` to `~/.local/opt/spack`
-- sources `~/.local/opt/spack/share/spack/setup-env.sh`
-- sets `SPACK_USER_CONFIG_PATH` to `chapar/etc/user`
-- sets `SPACK_SYSTEM_CONFIG_PATH` to `chapar/etc/system`
-- defaults `SPACK_USER_CACHE_PATH` to `/tmp/$USER/spack-cache`
-- creates the cache directory if it does not exist
+## Platform Routing
 
-### System Scope (all users)
-
-Use a symlink so updates in this repo are picked up immediately (no copy step).
-This requires root/admin access since it lives outside any user's home
-directory.
-
-```bash
-# Default location (recommended)
-sudo ln -sfn /path/to/chapar/etc/system /etc/spack
-
-# Custom location
-export SPACK_SYSTEM_CONFIG_PATH=/opt/spack/config/system
-sudo ln -sfn /path/to/chapar/etc/system "$SPACK_SYSTEM_CONFIG_PATH"
-```
-
-On a shared HPC cluster this is typically managed by the sysadmin. All users
-who source Chapar with `etc/init.sh` will pick up these settings while keeping
-their own Spack checkout under `~/.local/opt/spack`.
-
-### User Scope (single user)
-
-Use a symlink so user-scope updates are always in sync with this repo.
-
-```bash
-# Default location
-ln -sfn /path/to/chapar/etc/user ~/.spack
-
-# Custom location
-export SPACK_USER_CONFIG_PATH=~/my-spack-config
-ln -sfn /path/to/chapar/etc/user "$SPACK_USER_CONFIG_PATH"
-```
-
-Each user can have their own copy and customize install paths, module roots,
-etc. without affecting other users.
-
-### One-Command Linking Helper
-
-From the repo root:
-
-```bash
-# Link user scope
-bash ./etc/link-scopes.sh --user
-
-# Link system scope (needs sudo)
-sudo bash ./etc/link-scopes.sh --system
-```
-
-Or link both at once:
-
-```bash
-sudo bash ./etc/link-scopes.sh --all
-```
-
-When run with `sudo`, the helper links system scope under `/etc/spack` and links
-user scope for the original invoking user (`$SUDO_USER`), not root.
-
-### Quick Validation
-
-After deploying, verify the merged configuration:
-
-```bash
-# See all active scopes and their paths
-spack config scopes -p
-
-# View merged config for any section
-spack config get config
-spack config get packages
-spack config get concretizer
-
-# Trace which scope each setting comes from
-spack config blame config
-```
-
-## Platform Routing via include.yaml
-
-Each scope has an `include.yaml` that tells Spack to load OS-specific overlays
-first, then a Linux fallback overlay, then fall back to `base/`:
+Both system and user scopes use this include pattern:
 
 ```yaml
 include:
@@ -188,124 +88,83 @@ include:
 - path: base
 ```
 
-The OS overlays (`rocky8`, `rocky9`, and `macos`) are selected first when the
-`when:` condition matches. The Linux platform fallback is included only when
-`platform == "linux"`. The `optional: true` flag means Spack won't error if an
-included directory is missing and just skips it.
+OS overlays appear before `base`, so OS-specific settings override shared
+defaults when necessary.
 
-Because OS and platform overlays appear **above** `base` in the include list,
-their settings take precedence over base settings when there are conflicts.
-This include layout works the same whether scopes are copied or symlinked.
+## External Package Policy
 
-You can check your current platform with:
+Use OS externals sparingly. The hpcsim environment should mostly depend on
+Spack-built packages so Rocky8, Rocky9, and macOS stay as similar as practical.
+
+Expected system externals:
+
+- Rocky: system GCC, `glibc`, `ccache`, and the site CUDA toolkit on GPU Rocky9 builders.
+- macOS: Apple Clang, Homebrew GCC/GFortran, and optionally `ccache`.
+
+Do not add ordinary link-time dependencies such as OpenSSL, zlib, libpng, curl,
+OpenBLAS, HDF5, or NetCDF as generic OS externals. Add such externals only for a
+documented site reason and only when development headers, libraries, and
+pkg-config/CMake metadata are guaranteed to match.
+
+## hpcsim Releases
+
+Build a release without touching active module trees:
 
 ```bash
-spack arch --platform
+bash envs/hpcsim/release.sh build 2026-05-02
 ```
 
-## Skipper Canary Release Workflow
-
-When `envs/skipper` changes, use an isolated release root first, validate it,
-then promote it by switching symlinks. This avoids touching currently deployed
-packages during testing.
-
-For Rocky 8/9 overlays in this repo, skipper currently targets `x86_64_v4`.
+Validate modules from that exact release:
 
 ```bash
-# 1) Build canary release in isolated roots
-bash envs/skipper/release.sh build 2026-04-21
+bash envs/hpcsim/release.sh module-use 2026-05-02
+```
 
-# 2) Load canary module tree and run validations
-bash envs/skipper/release.sh test-hints 2026-04-21
+Promote only after validation succeeds:
 
-# 3) Promote only after validation succeeds
-bash envs/skipper/release.sh promote 2026-04-21 --yes
+```bash
+bash envs/hpcsim/release.sh promote 2026-05-02
 ```
 
 Release layout:
 
-- Install prefixes: `/share/base/releases/<release-id>/bin`
-- Modules: `/share/base/releases/<release-id>/modulefiles`
-- Active release symlink: `/share/base/current`
-- Compatibility links updated on promote:
-  `/share/base/bin`, `/share/base/modulefiles`, `/share/base/lmods`
+- Install store: `/resources/share/hpcsim/<os>/store`
+- Modules: `/resources/share/hpcsim/<os>/releases/<release-id>/modulefiles`
+- Active release symlink: `/resources/share/hpcsim/<os>/current`
+- Buildcache: `/resources/share/hpcsim/<os>/buildcache`
 
-## What Goes Where
+The store is shared per OS and package prefixes include hashes. Module trees are
+release-specific. This allows new modules and packages to be added without
+rewriting the module tree used by already-running jobs.
 
-| Setting                    | Scope    | Why                                               |
-|----------------------------|----------|----------------------------------------------------|
-| External packages          | system   | Externals depend on what's installed on the machine |
-| Virtual providers          | system   | Org-wide policy (prefer openblas, openmpi, etc.)   |
-| Mirrors                    | system   | Shared infrastructure                              |
-| Repos                      | system   | Shared package repositories                        |
-| Concretizer policy         | system   | Consistent solver behavior across users            |
-| build_jobs, ccache         | system   | Machine resources, shared tool availability        |
-| environments_root          | user     | Per-user managed environment storage (`~/.spack/environments`) |
-| install_tree (user paths)  | user     | Each user installs to their own directory          |
-| Module roots               | user     | Each user generates modules in their own tree      |
-| build_stage, caches        | user     | Per-user temp and cache directories                |
+## Validation Commands
 
-## Build Parallelism
-
-Chapar sets `config:build_jobs` in `etc/system/base/config.yaml` to a high
-ceiling. Spack computes the actual job count as the smaller of that configured
-value and the CPUs available to the current process, so this makes package
-builds use all available host cores by default without hard-coding a specific
-machine size.
-
-Users can still cap one build explicitly:
+Check active scopes and merged settings:
 
 ```bash
-spack install -j 8
-```
-
-## Linux Packages
-
-The `etc/system/linux/packages.yaml` file is intentionally a neutral fallback.
-It is loaded for any Linux distribution that does not match a more specific
-overlay, so it must not declare Rocky-specific compiler or core OS externals.
-
-Rocky-specific compiler entries belong in the Rocky overlays:
-
-- Rocky Linux 8: `etc/system/rocky8/packages.yaml`, system GCC `8.5.0`.
-- Rocky Linux 9: `etc/system/rocky9/packages.yaml`, system GCC 11, commonly
-  `11.5.0` on current Rocky 9 point releases.
-
-On a new user machine, first check the compiler reported by the OS. On
-RPM-based Linux systems such as Fedora and Rocky, install and check the system
-compiler packages first:
-
-```bash
-sudo dnf install gcc gcc-c++ gcc-gfortran
-rpm -q gcc gcc-c++ gcc-gfortran
-gcc -dumpfullversion -dumpversion
-g++ -dumpfullversion -dumpversion
-gfortran -dumpfullversion -dumpversion || true
-```
-
-Then let Spack discover and record the compiler in the user scope:
-
-```bash
-spack compiler find --scope user /usr/bin
-spack external find --scope user gcc
+spack config scopes -p
+spack -e envs/hpcsim config get config
+spack -e envs/hpcsim config get packages
+spack -e envs/hpcsim config get modules
 spack config blame packages
 ```
 
-For a managed Rocky machine, an administrator can instead discover externals
-into the system scope and merge the generated results into the matching Rocky
-overlay:
+Check the detected platform and OS:
 
 ```bash
-spack external find --scope system
+spack arch
+spack arch --platform
 ```
 
-## Environment Variables Reference
+## Environment Variables
 
-| Variable                     | Default              | Purpose                              |
-|------------------------------|----------------------|--------------------------------------|
-| `CHAPAR_SPACK_ROOT`          | `~/.local/opt/spack` | Override the Spack checkout path for testing |
-| `SPACK_ROOT`                 | `~/.local/opt/spack` | Set by `etc/init.sh` before sourcing Spack |
-| `SPACK_SYSTEM_CONFIG_PATH`   | `/etc/spack/`        | Override system scope location       |
-| `SPACK_USER_CONFIG_PATH`     | `~/.spack/`          | Override user scope location         |
-| `SPACK_USER_CACHE_PATH`      | `~/.spack/`          | Override user cache location         |
-| `SPACK_DISABLE_LOCAL_CONFIG` | (unset)              | Set to `true` to disable system+user |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `CHAPAR_SPACK_ROOT` | `~/.local/opt/spack` | Override the Spack checkout path |
+| `SPACK_ROOT` | `~/.local/opt/spack` | Set by `etc/init.sh` before sourcing Spack |
+| `SPACK_SYSTEM_CONFIG_PATH` | `/etc/spack/` | Override system scope location |
+| `SPACK_USER_CONFIG_PATH` | `~/.spack/` | Override user scope location |
+| `SPACK_USER_CACHE_PATH` | `/tmp/$USER/spack-cache` | Fast local cache root from `etc/init.sh` |
+| `HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim release root |
+| `OS_NAME` | auto-detected | `rocky8`, `rocky9`, or `macos` for release commands |
+| `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |

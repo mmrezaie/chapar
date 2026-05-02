@@ -49,7 +49,39 @@ if type module >/dev/null 2>&1; then
             esac
         done
     fi
+
+    _chapar_detect_hpcsim_os() {
+        case "$(uname -s)" in
+            Darwin)
+                printf '%s\n' macos
+                ;;
+            Linux)
+                if [ -r /etc/os-release ]; then
+                    local ID=""
+                    local VERSION_ID=""
+                    # shellcheck disable=SC1091
+                    . /etc/os-release
+                    case "${ID}:${VERSION_ID%%.*}" in
+                        rocky:8|rhel:8|almalinux:8|centos:8) printf '%s\n' rocky8 ;;
+                        rocky:9|rhel:9|almalinux:9|centos:9) printf '%s\n' rocky9 ;;
+                    esac
+                fi
+                ;;
+        esac
+    }
+
+    _chapar_hpcsim_os="$(_chapar_detect_hpcsim_os 2>/dev/null || true)"
+    _chapar_hpcsim_current="/resources/share/hpcsim/${_chapar_hpcsim_os}/current"
+    if [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
+        _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
+        _chapar_hpcsim_arch="$(spack arch 2>/dev/null || true)"
+        if [ -n "${_chapar_hpcsim_release}" ] && [ -n "${_chapar_hpcsim_arch}" ] && [ -d "${_chapar_hpcsim_release}/modulefiles/${_chapar_hpcsim_arch}" ]; then
+            module use "${_chapar_hpcsim_release}/modulefiles/${_chapar_hpcsim_arch}" >/dev/null 2>&1 || true
+        fi
+    fi
 fi
 
 unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_root
 unset _chapar_module_root _chapar_module_archdir
+unset _chapar_hpcsim_os _chapar_hpcsim_current _chapar_hpcsim_release _chapar_hpcsim_arch
+unset -f _chapar_detect_hpcsim_os 2>/dev/null || true

@@ -1,6 +1,8 @@
-# macOS Spack CI
+# macOS hpcsim CI
 
-Chapar builds macOS canary environments on a native macOS self-hosted GitHub Actions runner. Do not use Docker for macOS artifacts: Docker Desktop and Colima run Linux VMs on macOS, so Spack would build Linux binaries, not Darwin/macOS module trees.
+Chapar builds macOS hpcsim releases on a native macOS self-hosted GitHub Actions
+runner. Do not use Docker for macOS artifacts: Docker Desktop and Colima run
+Linux VMs on macOS, so Spack would build Linux binaries.
 
 ## Runner Model
 
@@ -11,33 +13,30 @@ Use a native runner on the macOS host with these labels:
 - `macos`
 - `arm64`
 
-The workflow target is `.github/workflows/macos-spack-build.yml`. It builds the `skipper-canary` environments and writes Spack installs/modules through the existing canary location policy:
+The workflow target is `.github/workflows/macos-spack-build.yml`. It builds
+`envs/hpcsim` and writes releases under:
 
-- `~/privatemodules/skipper-canary/bin`
-- `~/privatemodules/skipper-canary/modulefiles`
-- `~/privatemodules/skipper-canary/lmods`
-- `~/privatemodules/chapar-runs/runs/<run-id>/macos/canary/<section>`
-- `~/privatemodules/chapar-runs/buildcache/macos/canary` when buildcache publishing is enabled
+```text
+/resources/share/hpcsim/macos
+```
 
-The workflow uses a dedicated Spack checkout at `~/.local/opt/spack-chapar-macos` so canary CI can track the requested `spack_ref` without modifying a user's normal `~/.local/opt/spack` checkout.
+The workflow uses a dedicated Spack checkout at
+`~/.local/opt/spack-chapar-macos` so CI can track the requested `spack_ref`
+without modifying a user's normal `~/.local/opt/spack` checkout.
 
 ## Register Runner
 
-Create a short-lived self-hosted runner token from GitHub repository Settings, Actions, Runners, New self-hosted runner. Then run:
+Create a short-lived self-hosted runner token from GitHub repository Settings,
+Actions, Runners, New self-hosted runner. Then run:
 
 ```bash
 export GITHUB_RUNNER_TOKEN=<registration-token>
 ci/register-macos-runner.sh --token "${GITHUB_RUNNER_TOKEN}"
 ```
 
-The helper downloads the latest GitHub Actions runner for the current macOS architecture, configures it as `chapar-macos-builder`, and starts it as a launchd service.
-
-Verify the service from the runner directory:
-
-```bash
-cd ~/actions-runner/chapar
-./svc.sh status
-```
+The helper downloads the latest GitHub Actions runner for the current macOS
+architecture, configures it as `chapar-macos-builder`, and starts it as a
+launchd service.
 
 ## Bootstrap
 
@@ -47,31 +46,45 @@ The workflow runs:
 ci/bootstrap-macos.sh
 ```
 
-The script verifies Xcode command line tools, Homebrew, GCC/GFortran 15, ccache, GNU build tools, environment modules, and creates `~/privatemodules` directories. Missing Homebrew packages are installed idempotently.
+The script verifies Xcode command line tools, Homebrew, GCC/GFortran 15,
+ccache, GNU build tools, environment modules, and supporting build utilities.
+Missing Homebrew packages are installed idempotently.
 
-For manual setup:
+Manual setup:
 
 ```bash
 xcode-select --install
-brew install gcc ccache cmake ninja pkgconf autoconf automake libtool m4 bison flex fio gettext openblas openssl@3 python@3.12 neovim make gawk gnu-sed coreutils diffutils findutils grep rsync texinfo modules
+brew install gcc ccache cmake ninja pkgconf autoconf automake libtool m4 bison flex gettext openssl@3 python@3.12 make gawk gnu-sed coreutils diffutils findutils grep rsync texinfo modules
 ```
 
 ## Workflow
 
 Manual dispatch inputs:
 
-- `section`: `full`, `all`, or one section such as `mpi`, `libs`, or `benchmarks`.
+- `release_id`: optional release ID. Empty means the workflow run ID.
 - `git_ref`: optional Chapar branch, tag, or SHA.
-- `spack_ref`: Spack branch, tag, or SHA. Default is `develop` for canary freshness.
-- `push_buildcache`: optional local file buildcache under `~/privatemodules/chapar-runs`.
-- `spack_install_args`: default `-p 1`.
-- `resources_root`: run/buildcache root. Empty means `~/privatemodules/chapar-runs`.
+- `spack_ref`: Spack branch, tag, or SHA.
+- `publish_current`: update `/resources/share/hpcsim/macos/current` after build.
+- `publish_buildcache`: push to `/resources/share/hpcsim/macos/buildcache`.
+- `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
+- `hpcsim_root`: shared output root, default `/resources/share/hpcsim`.
 
-The push fallback is path-filtered to `.github/macos-spack-build.trigger` and validates the canary `mpi` section on `main`.
+The push fallback is path-filtered to hpcsim environment, CI, workflow, and
+configuration files.
+
+## Output Layout
+
+- `/resources/share/hpcsim/macos/store`
+- `/resources/share/hpcsim/macos/releases/<release-id>`
+- `/resources/share/hpcsim/macos/current`
+- `/resources/share/hpcsim/macos/buildcache`
+- `/resources/share/hpcsim/macos/runs/<run-id>`
 
 ## Thunderbolt Networking
 
-Stock macOS does not expose Linux verbs/RDMA-CM devices for Thunderbolt Bridge. In practice, Thunderbolt Bridge is an IP interface, so MPI should use TCP over that interface rather than true RDMA verbs.
+Stock macOS does not expose Linux verbs/RDMA-CM devices for Thunderbolt Bridge.
+In practice, Thunderbolt Bridge is an IP interface, so MPI should use TCP over
+that interface rather than true RDMA verbs.
 
 Chapar macOS MPI policy uses OpenMPI with libfabric/OFI TCP providers:
 
@@ -90,12 +103,6 @@ export OMPI_MCA_mtl=ofi
 mpirun -np 2 ./osu_latency
 ```
 
-If you use OpenMPI's TCP BTL path instead of OFI, select the Thunderbolt interface explicitly:
-
-```bash
-export OMPI_MCA_pml=ob1
-export OMPI_MCA_btl=self,tcp
-export OMPI_MCA_btl_tcp_if_include=<thunderbolt-interface>
-```
-
-True RDMA validation still requires a platform that exposes a supported RDMA stack to user space. The macOS CI validates buildability and high-speed IP MPI readiness, not Linux-style InfiniBand/RoCE verbs behavior.
+True RDMA validation still requires a platform that exposes a supported RDMA
+stack to user space. The macOS CI validates buildability and high-speed IP MPI
+readiness, not Linux-style InfiniBand/RoCE verbs behavior.

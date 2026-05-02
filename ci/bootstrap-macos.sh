@@ -28,7 +28,6 @@ packages=(
     coreutils
     diffutils
     findutils
-    fio
     flex
     gawk
     gcc
@@ -40,9 +39,7 @@ packages=(
     m4
     make
     modules
-    neovim
     ninja
-    openblas
     openssl@3
     pkgconf
     python@3.12
@@ -62,15 +59,14 @@ if [ "${#missing[@]}" -gt 0 ]; then
     brew install "${missing[@]}"
 fi
 
-mkdir -p "${HOME}/privatemodules/chapar-runs" "${HOME}/privatemodules/skipper-canary"
+if [ -d /resources/share ] && [ -w /resources/share ]; then
+    mkdir -p /resources/share/hpcsim/macos
+fi
 
 command -v gcc-15 >/dev/null 2>&1 || die "Homebrew gcc-15 is missing"
 command -v g++-15 >/dev/null 2>&1 || die "Homebrew g++-15 is missing"
-command -v "${brew_prefix}/bin/fio" >/dev/null 2>&1 || die "Homebrew fio is missing"
 command -v gfortran >/dev/null 2>&1 || die "Homebrew gfortran is missing"
 command -v "${brew_prefix}/opt/m4/bin/m4" >/dev/null 2>&1 || die "Homebrew m4 is missing"
-command -v "${brew_prefix}/bin/nvim" >/dev/null 2>&1 || die "Homebrew neovim is missing"
-[ -d "${brew_prefix}/opt/openblas/lib" ] || die "Homebrew openblas is missing"
 command -v "${brew_prefix}/opt/python@3.12/bin/python3.12" >/dev/null 2>&1 || die "Homebrew python@3.12 is missing"
 if [ ! -x "${brew_prefix}/bin/ccache" ]; then
     brew link ccache >/dev/null 2>&1 || true
@@ -78,22 +74,15 @@ fi
 [ -x "${brew_prefix}/bin/ccache" ] || die "ccache is missing at ${brew_prefix}/bin/ccache"
 ccache_version="$("${brew_prefix}/bin/ccache" --version)"
 ccache_version="${ccache_version%%$'\n'*}"
-fio_version="$("${brew_prefix}/bin/fio" --version)"
 m4_version="$("${brew_prefix}/opt/m4/bin/m4" --version)"
 m4_version="${m4_version%%$'\n'*}"
-nvim_version="$("${brew_prefix}/bin/nvim" --version)"
-nvim_version="${nvim_version%%$'\n'*}"
-openblas_version="$(brew list --versions openblas)"
 
 echo "macOS:       $(sw_vers -productVersion)"
 echo "arch:        $(uname -m)"
 echo "brew:        ${brew_prefix}"
-echo "fio:         ${fio_version}"
 echo "gcc:         $(gcc-15 -dumpfullversion)"
 echo "gfortran:    $(gfortran -dumpfullversion)"
 echo "m4:          ${m4_version}"
-echo "neovim:      ${nvim_version}"
-echo "openblas:    ${openblas_version}"
 echo "python:      $("${brew_prefix}/opt/python@3.12/bin/python3.12" --version)"
 echo "ccache:      ${ccache_version}"
-echo "privatemods: ${HOME}/privatemodules"
+echo "hpcsim root: ${HPCSIM_ROOT:-/resources/share/hpcsim}"

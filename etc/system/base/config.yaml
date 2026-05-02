@@ -1,5 +1,5 @@
 config:
-  environments_root: /share/base/envs
+  environments_root: /resources/share/hpcsim/environments
   # Spack caps this to the host CPUs it can use, so a high value means
   # "use all available cores" without hard-coding a site-specific core count.
   build_jobs: 999999

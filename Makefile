@@ -1,69 +1,38 @@
 SPACK_INIT := ./etc/init.sh
-CANARY_ENV := skipper-canary
-PROD_ENV := skipper
-SECTIONS := toolchain devtools python mpi libs gpu benchmarks profiling
+ENV := hpcsim
+RELEASE_ID ?=
 SPACK_INSTALL_ARGS ?=
 
-.PHONY: help
+.PHONY: help build release promote module-use check clean-locks
+
 help:
 	@printf '%s\n' \
-	  'Chapar section build targets:' \
-	  '  make canary              Build all canary sections, then full canary' \
-	  '  make prod                Build all production sections, then full prod' \
-	  '  make canary-sections     Build only canary section environments' \
-	  '  make prod-sections       Build only production section environments' \
-	  '  make canary-full         Build full canary integration environment' \
-	  '  make prod-full           Build full production integration environment' \
-	  '  make canary-<section>    Build one canary section' \
-	  '  make prod-<section>      Build one production section' \
-	  '  make check               Validate all skipper environment configs' \
-	  '  make clean-locks         Remove generated section/full lockfiles' \
+	  'Chapar hpcsim targets:' \
+	  '  make build              Concretize and install envs/hpcsim with active scopes' \
+	  '  make release            Build a staged hpcsim release under /resources/share/hpcsim/<os>' \
+	  '  make promote            Promote RELEASE_ID for the current OS' \
+	  '  make module-use         Print module use command for RELEASE_ID or current' \
+	  '  make check              Validate the hpcsim environment config' \
+	  '  make clean-locks        Remove generated hpcsim lockfile' \
 	  '' \
-	  'Sections:' \
-	  '  $(SECTIONS)'
+	  'Variables:' \
+	  '  RELEASE_ID=$(RELEASE_ID) (blank means generated for release/current for module-use)' \
+	  '  SPACK_INSTALL_ARGS=$(SPACK_INSTALL_ARGS)'
 
-.PHONY: canary prod canary-sections prod-sections canary-full prod-full check clean-locks
-.PHONY: $(addprefix canary-,$(SECTIONS)) $(addprefix prod-,$(SECTIONS))
+build:
+	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(ENV) concretize -f && spack -e ./envs/$(ENV) install $(SPACK_INSTALL_ARGS) && spack -e ./envs/$(ENV) module tcl refresh -y'
 
-define CANARY_SECTION_TARGET
-canary-$(1):
-	bash -lc 'source $$(SPACK_INIT) && spack -e ./envs/$$(CANARY_ENV)-$(1) concretize -f && spack -e ./envs/$$(CANARY_ENV)-$(1) install $$(SPACK_INSTALL_ARGS)'
-endef
+release:
+	bash -lc 'source $(SPACK_INIT) && release_id="$(RELEASE_ID)" && : "$${release_id:=$$(date -u +%Y%m%d%H%M%S)}" && SPACK_INSTALL_ARGS="$(SPACK_INSTALL_ARGS)" bash ./envs/$(ENV)/release.sh build "$${release_id}"'
 
-define PROD_SECTION_TARGET
-prod-$(1):
-	bash -lc 'source $$(SPACK_INIT) && spack -e ./envs/$$(PROD_ENV)-$(1) concretize -f && spack -e ./envs/$$(PROD_ENV)-$(1) install $$(SPACK_INSTALL_ARGS)'
-endef
+promote:
+	bash -lc 'source $(SPACK_INIT) && test -n "$(RELEASE_ID)" && bash ./envs/$(ENV)/release.sh promote "$(RELEASE_ID)"'
 
-$(foreach section,$(SECTIONS),$(eval $(call CANARY_SECTION_TARGET,$(section))))
-$(foreach section,$(SECTIONS),$(eval $(call PROD_SECTION_TARGET,$(section))))
-
-canary:
-	$(MAKE) canary-sections
-	$(MAKE) canary-full
-
-prod:
-	$(MAKE) prod-sections
-	$(MAKE) prod-full
-
-canary-sections:
-	@for section in $(SECTIONS); do \
-	  $(MAKE) canary-$$section; \
-	done
-
-prod-sections:
-	@for section in $(SECTIONS); do \
-	  $(MAKE) prod-$$section; \
-	done
-
-canary-full:
-	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(CANARY_ENV) concretize -f && spack -e ./envs/$(CANARY_ENV) install $(SPACK_INSTALL_ARGS)'
-
-prod-full:
-	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(PROD_ENV) concretize -f && spack -e ./envs/$(PROD_ENV) install $(SPACK_INSTALL_ARGS)'
+module-use:
+	bash -lc 'source $(SPACK_INIT) && release_id="$(RELEASE_ID)" && if [ -n "$${release_id}" ]; then bash ./envs/$(ENV)/release.sh module-use "$${release_id}"; else bash ./envs/$(ENV)/release.sh module-use; fi'
 
 check:
-	bash -lc 'source $(SPACK_INIT) && for env in envs/skipper*; do [ -f "$$env/spack.yaml" ] || continue; spack -e "./$$env" config get config >/dev/null && spack -e "./$$env" config get packages >/dev/null && spack -e "./$$env" config get modules >/dev/null || exit 1; done'
+	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(ENV) config get config >/dev/null && spack -e ./envs/$(ENV) config get packages >/dev/null && spack -e ./envs/$(ENV) config get modules >/dev/null'
 
 clean-locks:
-	rm -f envs/skipper*/spack.lock
+	rm -f envs/$(ENV)/spack.lock

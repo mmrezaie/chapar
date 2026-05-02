@@ -1,0 +1,251 @@
+# Single shared HPC simulation environment.
+#
+# Keep the package list here. OS-specific entries should stay conditional and
+# limited to real platform differences, not release or section differences.
+spack:
+  repos: []
+
+  definitions:
+  - common_devtools_specs:
+    - autoconf
+    - cmake
+    - ninja
+    - meson
+    - pkgconf
+    - libffi
+    - neovim
+    - npm
+    - tmux
+    - tcl
+    - tk
+    - imagemagick@7.1.1-39
+  - common_python_specs:
+    - python@3.10:3.10+optimizations+tkinter
+    - python@3.11:3.11+optimizations+tkinter
+    - python@3.12:3.12+optimizations+tkinter
+    - python@3.13:3.13+optimizations+tkinter
+    - python@3.14:3.14+optimizations+tkinter
+  - common_hpc_library_specs:
+    - openblas threads=openmp %gcc
+    - fftw+mpi+openmp precision=double,float %gcc
+    - netlib-scalapack
+    - hdf5+mpi+fortran+hl
+    - parallel-netcdf
+    - netcdf-c+mpi+parallel-netcdf
+    - netcdf-fortran
+  - linux_devtools_specs:
+    - numactl
+    - pulseaudio@13.0 ^fftw~mpi
+    when: platform == "linux"
+  - linux_debug_specs:
+    - gdb+python
+    - valgrind+mpi
+    when: platform == "linux"
+  - linux_benchmark_specs:
+    - hpl+openmp
+    - hpcg+openmp
+    - stream+openmp
+    - intel-mpi-benchmarks
+    - qperf+verbs
+    - ior+hdf5+ncmpi
+    - mdtest
+    - h5bench+exerciser+metadata
+    - fio
+    when: platform == "linux"
+  - linux_profiling_specs:
+    - likwid
+    - scalasca
+    - tau+mpi+papi+openmp~cuda
+    - darshan-runtime+mpi+hdf5+parallel-netcdf
+    - darshan-util
+    when: platform == "linux"
+  - rocky8_toolchain_specs:
+    - gcc@13.4.0+profiled
+    - gcc@14.3.0+profiled
+    - gcc@15.2.0+profiled
+    - intel-oneapi-compilers@2024.1.0
+    - intel-oneapi-compilers@2023.1.0
+    when: os == "rocky8"
+  - rocky8_mpi_specs:
+    - ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
+    - libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - openmpi@4.1.8 fabrics=verbs,ucx,ofi schedulers=none ^ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem ^libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@1.22.0~cuda fabrics=mlx,verbs
+    when: os == "rocky8"
+  - rocky8_benchmark_specs:
+    - osu-micro-benchmarks
+    when: os == "rocky8"
+  - rocky8_profiling_specs:
+    - hpctoolkit@2024.01.stable~cuda+mpi+python
+    - papi+infiniband
+    - scorep~cuda+mpi+papi
+    - caliper~cuda+mpi+papi+libunwind+libdw
+    - hwloc+pci~nvml
+    when: os == "rocky8"
+  - rocky9_toolchain_specs:
+    - gcc@13.4.0+profiled
+    - gcc@14.3.0+profiled
+    - gcc@15.2.0+profiled
+    - intel-oneapi-compilers@2025.3.1
+    - intel-oneapi-compilers@2024.1.0
+    - intel-oneapi-compilers@2023.1.0
+    - cuda@13.0.2
+    when: os == "rocky9"
+  - rocky9_mpi_specs:
+    - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - openmpi@4.1.8+cuda fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - openmpi@5.0.8+cuda fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@1.22.0~cuda fabrics=mlx,verbs
+    when: os == "rocky9"
+  - rocky9_gpu_specs:
+    - nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - nvshmem+cuda+mpi+ucx+libfabric+nccl cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - nvbandwidth+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - cuda-memtest
+    - nvtop+cuda support=nvidia cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    when: os == "rocky9"
+  - rocky9_benchmark_specs:
+    - osu-micro-benchmarks
+    - babelstream+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - nccl-tests+mpi+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    when: os == "rocky9"
+  - rocky9_profiling_specs:
+    - hpctoolkit@2024.01.stable+cuda+mpi+python
+    - hpctoolkit@2025.0.1+cuda+mpi+python~auditor_default
+    - nvtx+python
+    - papi+infiniband+cuda
+    - scorep+mpi+papi+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - caliper+mpi+papi+cuda+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    when: os == "rocky9"
+  - macos_toolchain_specs:
+    - gcc@15.2.0
+    when: platform == "darwin"
+  - macos_mpi_specs:
+    - libfabric@1.22.0 fabrics=tcp,sockets,udp
+    - openmpi@4.1.8 fabrics=ofi schedulers=none
+    - openmpi@5.0.8 fabrics=ofi schedulers=none
+    when: platform == "darwin"
+  - macos_benchmark_specs:
+    - hpl+openmp %gcc
+    - hpcg+openmp %gcc
+    - stream+openmp %gcc
+    - intel-mpi-benchmarks %gcc
+    - ior+hdf5+ncmpi
+    - mdtest
+    - h5bench+exerciser+metadata
+    - fio
+    - osu-micro-benchmarks
+    - babelstream languages:=fortran build_system=makefile foption=OpenMP %gcc
+    when: platform == "darwin"
+  - macos_profiling_specs:
+    - hwloc
+    when: platform == "darwin"
+
+  specs:
+  - $common_devtools_specs
+  - $common_python_specs
+  - $common_hpc_library_specs
+  - $linux_devtools_specs
+  - $linux_debug_specs
+  - $linux_benchmark_specs
+  - $linux_profiling_specs
+  - $rocky8_toolchain_specs
+  - $rocky8_mpi_specs
+  - $rocky8_benchmark_specs
+  - $rocky8_profiling_specs
+  - $rocky9_toolchain_specs
+  - $rocky9_mpi_specs
+  - $rocky9_gpu_specs
+  - $rocky9_benchmark_specs
+  - $rocky9_profiling_specs
+  - $macos_toolchain_specs
+  - $macos_mpi_specs
+  - $macos_benchmark_specs
+  - $macos_profiling_specs
+
+  packages:
+    all:
+      providers:
+        mpi: [openmpi, intel-oneapi-mpi]
+        blas: [openblas]
+        lapack: [openblas]
+        scalapack: [netlib-scalapack]
+    zlib-api:
+      require:
+      - zlib-ng+compat
+    libtool:
+      require:
+      - '@2.4.7:'
+    libffi:
+      require:
+      - '@3.4.7:'
+    elfutils:
+      require:
+      - ~debuginfod~nls
+    hdf5:
+      require:
+      - +mpi+fortran+hl
+    netcdf-c:
+      require:
+      - +mpi+parallel-netcdf
+    openblas:
+      require:
+      - threads=openmp
+    openmpi:
+      require:
+      - schedulers=none
+    gdrcopy:
+      require:
+      - +cuda
+      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    nccl:
+      require:
+      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    nccl-tests:
+      require:
+      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    nvshmem:
+      require:
+      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    nvbandwidth:
+      require:
+      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    nvtop:
+      require:
+      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    scorep:
+      require:
+      - +fortran
+      - ~gcc-plugin
+    scalasca:
+      require:
+      - ^openmpi
+    hwloc:
+      require:
+      - ~nvml
+
+  modules:
+    default:
+      enable:
+      - tcl
+      tcl:
+        naming_scheme: '{name}/{version}'
+        hash_length: 0
+        exclude_implicits: true
+        pulseaudio:
+          environment:
+            prepend_path:
+              LD_LIBRARY_PATH: '{prefix}/lib'
+
+  config:
+    deprecated: true
+    install_missing: true
+
+  view: false
+  concretizer:
+    unify: when_possible

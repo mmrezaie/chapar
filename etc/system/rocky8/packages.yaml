@@ -1,8 +1,17 @@
 # Rocky Linux 8 external packages.
-# Keep this scope limited to compilers, command-line build tools, and libc.
-# Link-time dependency libraries should come from Spack unless a site-specific
-# external is intentional and its development metadata is guaranteed present.
+# Keep this scope limited to bootstrap compilers, ccache, and libc. Link-time
+# libraries and normal build dependencies should be built by Spack so Rocky 8,
+# Rocky 9, and macOS stay as similar as practical.
 packages:
+  c:
+    require:
+    - gcc@8.5.0
+  cxx:
+    require:
+    - gcc@8.5.0
+  fortran:
+    require:
+    - gcc@8.5.0
   gcc:
     externals:
     - spec: gcc@8.5.0 languages:='c,c++,fortran'
@@ -12,85 +21,9 @@ packages:
           c: /usr/bin/gcc
           cxx: /usr/bin/g++
           fortran: /usr/bin/gfortran
-  gmake:
-    externals:
-    - spec: gmake@4.2.1
-      prefix: /usr
-  bison:
-    externals:
-    - spec: bison@3.0.4
-      prefix: /usr
-  openssh:
-    externals:
-    - spec: openssh@8.0p1
-      prefix: /usr
-  git:
-    externals:
-    - spec: git@2.43.7~tcltk
-      prefix: /usr
-  flex:
-    externals:
-    - spec: flex@2.6.1+lex
-      prefix: /usr
-  m4:
-    externals:
-    - spec: m4@1.4.18
-      prefix: /usr
   ccache:
     externals:
     - spec: ccache@3.7.7
-      prefix: /usr
-  perl:
-    externals:
-    - spec: perl@5.26.3~cpanm+opcode+open+shared+threads
-      prefix: /usr
-  cmake:
-    externals:
-    - spec: cmake@3.26.5
-      prefix: /usr
-  autoconf:
-    externals:
-    - spec: autoconf@2.69
-      prefix: /usr
-  automake:
-    externals:
-    - spec: automake@1.16.1
-      prefix: /usr
-  binutils:
-    externals:
-    - spec: binutils@2.30.125~gold~headers
-      prefix: /usr
-  coreutils:
-    externals:
-    - spec: coreutils@8.30
-      prefix: /usr
-  findutils:
-    externals:
-    - spec: findutils@4.6.0
-      prefix: /usr
-  diffutils:
-    externals:
-    - spec: diffutils@3.6
-      prefix: /usr
-  gawk:
-    externals:
-    - spec: gawk@4.2.1
-      prefix: /usr
-  sed:
-    externals:
-    - spec: sed@4.5
-      prefix: /usr
-  tar:
-    externals:
-    - spec: tar@1.30
-      prefix: /usr
-  texinfo:
-    externals:
-    - spec: texinfo@6.5
-      prefix: /usr
-  groff:
-    externals:
-    - spec: groff@1.22.3
       prefix: /usr
   glibc:
     buildable: false

@@ -1,6 +1,6 @@
 # Rocky Builder Dependencies
 
-This document records the host/container setup that was needed to make the Incus CI smoke path work on the `chapar-rocky9-builder` container, and should be kept aligned with `ci/bootstrap-rocky.sh`.
+This document records the host/container setup needed for the Rocky Incus hpcsim builders, and should be kept aligned with `ci/bootstrap-rocky.sh`.
 
 ## Tested Smoke Path
 
@@ -9,18 +9,17 @@ The validated host-side smoke command was:
 ```bash
 ci/incus-build.sh \
   --os rocky9 \
-  --flavor canary \
-  --section toolchain \
-  --git-ref sectionification \
+  --release-id smoke-local-rocky9 \
+  --git-ref simplify-hpcsim \
   --repo-url file:///resources/chapar/ci-test/chapar.git \
   --resources-source /resources \
-  --resources-root /resources/chapar \
-  --run-id smoke-local-rocky9-toolchain-serialized \
-  --push-buildcache false \
+  --hpcsim-root /resources/share/hpcsim \
+  --run-id smoke-local-rocky9 \
+  --publish-buildcache false \
   --keep-running
 ```
 
-The test completed successfully on Rocky Linux 9.7 and installed these root toolchain specs:
+The old sectioned smoke test completed successfully on Rocky Linux 9.7 and installed these root toolchain specs. The current hpcsim workflow builds the full `envs/hpcsim` environment instead of a section:
 
 - `cuda@13.0.2`
 - `gcc@13.4.0`
@@ -33,7 +32,7 @@ The test completed successfully on Rocky Linux 9.7 and installed these root tool
 Artifacts were written under:
 
 ```text
-/resources/chapar/runs/smoke-local-rocky9-toolchain-serialized/rocky9/canary/toolchain
+/resources/share/hpcsim/rocky9/runs/smoke-local-rocky9
 ```
 
 ## Enabled Repositories
@@ -121,7 +120,7 @@ dnf -y install gh
 ## Why These Extras Matter
 
 - `ccache` is required because `etc/system/base/config.yaml` enables Spack ccache support.
-- Compilers, `autoconf`, `automake`, `bison`, `flex`, `m4`, `cmake`, `texinfo`, `groff`, and core GNU tools are declared as `/usr` externals in `etc/system/rocky8/packages.yaml` and `etc/system/rocky9/packages.yaml`; if they are missing, Spack may still concretize but later fail during builds.
+- System GCC and `glibc` are modeled as Rocky externals; ordinary build tools and link-time libraries are intentionally not modeled as externals.
 - `libtool` is built by Spack because packages such as PulseAudio link against `libltdl`; modeling the OS command-line tool as a generic external can miss the development library metadata.
 - `zlib-api` is constrained to Spack `zlib-ng+compat` on Rocky so libpng and other consumers see matching headers, libraries, and pkg-config metadata.
 - Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
@@ -142,7 +141,7 @@ The Intel oneAPI offline installers share Intel cache state under `/var/intel/in
 SPACK_INSTALL_ARGS="-p 1"
 ```
 
-Override `SPACK_INSTALL_ARGS` only when you know a selected section does not contain Intel oneAPI installers or another package with shared global installer state.
+Override `SPACK_INSTALL_ARGS` only when you know the selected hpcsim build does not contain Intel oneAPI installers or another package with shared global installer state.
 
 For local runs, pass the override through the Incus wrapper:
 

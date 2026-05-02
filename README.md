@@ -1,21 +1,21 @@
 # Chapar
 
-Chapar is a reproducible Spack setup for building similar HPC software
-environments on macOS, Rocky Linux 8, and Rocky Linux 9.
+Chapar is a reproducible Spack setup for building one shared HPC simulation
+software environment, `hpcsim`, on macOS, Rocky Linux 8, and Rocky Linux 9.
 
 Each user keeps upstream Spack in `~/.local/opt/spack`, following Spack's
-standard source-checkout workflow. Chapar does not vendor Spack. It keeps all
-site policy, user paths, package preferences, module layout, and environment
-definitions outside the Spack repository.
+standard source-checkout workflow. Chapar keeps site policy, package choices,
+module layout, and environment definitions outside the Spack repository.
 
 ## Goals
 
-- Use the same per-user Spack install path on every supported OS.
-- Keep upstream Spack clean so it can be updated independently.
-- Share one environment definition while allowing OS-specific compiler,
-  external package, target, and filesystem differences.
-- Let users generate their own installs and module trees without modifying the
-  upstream Spack checkout.
+- Keep one package list in `envs/hpcsim/spack.yaml`.
+- Avoid canary/prod and package-section environment splits.
+- Prefer Spack-built dependencies over OS-provided libraries and tools.
+- Keep only necessary externals for compilers, libc, ccache, and unavoidable
+  platform runtime pieces.
+- Publish shared releases under `/resources/share/hpcsim/<os>` without
+  disturbing jobs that already loaded older modules.
 
 ## Layout
 
@@ -28,8 +28,8 @@ definitions outside the Spack repository.
 |   |-- user/           # User Spack scope and OS overlays
 |   `-- README.md       # Detailed config-scope documentation
 |-- envs/
-|   `-- skipper/        # Example shared Spack environment
-`-- docs/               # Supporting documentation and presentation material
+|   `-- hpcsim/         # Single shared Spack environment and release helper
+`-- docs/               # CI and runner documentation
 ```
 
 ## Quick Start
@@ -47,15 +47,15 @@ Install upstream Spack once for the current user if it is not already present:
 bash ./etc/install-spack.sh
 ```
 
-Then initialize the shell from this checkout:
+Initialize the shell from this checkout:
 
 ```bash
 source ./etc/init.sh
 ```
 
-`etc/init.sh` loads Spack from `~/.local/opt/spack` and binds Spack's system and
-user configuration scopes to this Chapar checkout. It does not modify the Spack
-checkout.
+`etc/init.sh` loads Spack from `~/.local/opt/spack`, binds Spack's system and
+user configuration scopes to this Chapar checkout, and adds the current hpcsim
+module tree for the detected OS when it exists.
 
 Verify the active configuration:
 
@@ -63,101 +63,89 @@ Verify the active configuration:
 spack --version
 spack config scopes -p
 spack arch
-spack config blame config
-```
-
-## Compiler Discovery
-
-Before concretizing on a new machine, confirm which compiler the OS actually
-provides. On RPM-based Linux systems such as Fedora and Rocky, install and
-check the system compiler packages first:
-
-```bash
-sudo dnf install gcc gcc-c++ gcc-gfortran
-rpm -q gcc gcc-c++ gcc-gfortran
-gcc -dumpfullversion -dumpversion
-g++ -dumpfullversion -dumpversion
-gfortran -dumpfullversion -dumpversion || true
-```
-
-Then let Spack record the detected compiler in the user scope:
-
-```bash
-spack compiler find --scope user /usr/bin
-spack external find --scope user gcc
 spack config blame packages
 ```
 
-This is especially important on non-Rocky Linux systems such as Fedora. Fedora
-44 does not provide Rocky 8's `gcc@8.5.0`, so it should rely on discovered
-user-scope compiler entries or a Fedora-specific overlay instead of the Rocky
-8/Rocky 9 system overlays.
+## Building hpcsim
 
-## Building The Shared Environment
-
-Use the Rocky Linux production environment under `envs/skipper`:
+For local validation with the active Spack scopes:
 
 ```bash
-spack -e envs/skipper concretize -f
-spack -e envs/skipper install
-spack -e envs/skipper module tcl refresh -y
+spack -e envs/hpcsim concretize -f
+spack -e envs/hpcsim install
+spack -e envs/hpcsim module tcl refresh -y
 ```
 
-`skipper` is intended for Rocky Linux 8 and Rocky Linux 9 production builds and
-keeps its install and module roots under `/share/base`.
-
-For canary builds, use `envs/skipper-canary`. It keeps the same package specs
-but loads install roots, module roots, build stages, and cache locations from
-`envs/skipper-canary/locations.yaml`:
+For shared deployment, use the release helper. It builds packages into a
+per-OS shared store and writes modules into a release-specific staging tree:
 
 ```bash
-spack -e envs/skipper-canary concretize -f
-spack -e envs/skipper-canary install
-spack -e envs/skipper-canary module tcl refresh -y
+bash envs/hpcsim/release.sh build 2026-05-02
+bash envs/hpcsim/release.sh module-use 2026-05-02
+bash envs/hpcsim/release.sh promote 2026-05-02
 ```
 
-## Long-Term Buildcache
-
-Active builds should use the local tmpfs/user cache paths for performance. On
-systems where `/share/base` is slow, do not keep `/share/base/buildcache` in the
-default mirror list; otherwise every install can spend time checking or reading
-large binary tarballs over the slow mount.
-
-After a successful build, push binaries explicitly for long-term reuse:
-
-```bash
-mkdir -p /share/base/buildcache
-spack -e envs/skipper-canary buildcache push --unsigned --update-index file:///share/base/buildcache
-```
-
-When you want to consume that archive explicitly, add it as a user-scope binary
-mirror for that session or user:
-
-```bash
-spack mirror add --scope user --type binary --unsigned shared-buildcache file:///share/base/buildcache
-spack -e envs/skipper-canary install --use-buildcache=auto
-```
-
-Remove it from the hot path when you are done using the slow archive:
-
-```bash
-spack mirror remove --scope user shared-buildcache
-```
-
-Both environments have OS overlays:
+Default release layout:
 
 ```text
-envs/skipper/rocky8/
-envs/skipper/rocky9/
-envs/skipper-canary/rocky8/
-envs/skipper-canary/rocky9/
-envs/skipper-canary/macos/
+/resources/share/hpcsim/<os>/store
+/resources/share/hpcsim/<os>/releases/<release-id>
+/resources/share/hpcsim/<os>/current -> releases/<release-id>
+/resources/share/hpcsim/<os>/buildcache
 ```
 
-Those overlays are selected by Spack `when:` rules in each environment's
-`spack.yaml`. Use them for platform-specific targets or package constraints
-only. Keep common specs, variants, and module policy in the top-level
-environment file whenever possible.
+Supported OS names are `rocky8`, `rocky9`, and `macos`. The helper auto-detects
+the OS, or you can set `OS_NAME` explicitly:
+
+```bash
+OS_NAME=rocky9 bash envs/hpcsim/release.sh build 2026-05-02
+```
+
+## Loading Modules
+
+After `etc/init.sh`, the current hpcsim module tree is added automatically when
+`/resources/share/hpcsim/<os>/current` exists. To print the exact command for a
+specific release:
+
+```bash
+bash envs/hpcsim/release.sh module-use 2026-05-02
+```
+
+The helper resolves the release directory before printing `module use`. That
+keeps long-running jobs tied to the release they loaded instead of the mutable
+`current` symlink.
+
+## Safe Deployment Model
+
+New builds must not overwrite active module trees. The release helper builds in
+`releases/.<release-id>.staging.<pid>`, then renames that staging tree to
+`releases/<release-id>` only after install and module generation succeed.
+
+Promotion only updates the per-OS `current` symlink. Do not run `spack uninstall`,
+`spack gc`, or manual cleanup against `/resources/share/hpcsim/<os>/store` while
+users may still have jobs running from older releases.
+
+Rollback is switching `current` back to an older release:
+
+```bash
+bash envs/hpcsim/release.sh promote <previous-release-id>
+```
+
+## Buildcache
+
+Buildcache output is per OS:
+
+```text
+/resources/share/hpcsim/rocky8/buildcache
+/resources/share/hpcsim/rocky9/buildcache
+/resources/share/hpcsim/macos/buildcache
+```
+
+Push explicitly after a successful build if CI did not do it:
+
+```bash
+ci/push-buildcache.sh --env-path envs/hpcsim --os rocky9
+```
 
 ## Configuration Model
 
@@ -167,93 +155,48 @@ Chapar uses normal Spack configuration scopes:
 - `etc/system/base`: common providers, mirrors, concretizer policy, repos, and
   other shared settings.
 - `etc/system/rocky8`, `etc/system/rocky9`, `etc/system/macos`: OS-specific
-  externals and compiler definitions.
-- `etc/user`: per-user install roots, module roots, caches, and build stages.
-- `envs/skipper`: environment-level specs and release-specific settings.
+  bootstrap compiler, libc, and ccache externals.
+- `etc/user`: per-user paths and optional user-local settings.
+- `envs/hpcsim/spack.yaml`: the shared hpcsim package list and module policy.
 
 Both `etc/system/include.yaml` and `etc/user/include.yaml` route to the matching
 OS overlay first and then to shared `base` config.
 
-## OS Notes
+## External Package Policy
 
-Rocky Linux 8 and Rocky Linux 9 should keep system-provided packages such as
-`glibc`, system compilers, and basic build tools in their own `packages.yaml`
-overlays. Rocky 8 uses system GCC `8.5.0`; Rocky 9 uses system GCC 11, commonly
-`11.5.0` on current Rocky 9 point releases. Run this on each real machine after
-initialization to discover local externals:
+Rocky and macOS overlays intentionally avoid modeling ordinary link-time
+libraries such as OpenSSL, zlib, libpng, curl, OpenBLAS, HDF5, or NetCDF as OS
+externals. Spack should build those unless a site-specific external is explicitly
+modeled with matching development metadata.
 
-```bash
-spack external find --scope system
-```
+Expected externals are:
 
-macOS should keep Apple Clang, Homebrew GCC, SDK-provided libraries, and
-Homebrew tools in the macOS overlay. Users should install command line tools
-and any expected Homebrew dependencies before concretizing:
+- OS/bootstrap compilers.
+- `glibc` on Rocky.
+- The site CUDA toolkit on GPU Rocky9 builders.
+- Apple Clang and Homebrew GCC/GFortran on macOS.
+- `ccache` where the platform enables Spack ccache support.
 
-```bash
-xcode-select --install
-brew install gcc ccache
-```
+## CI
 
-Native macOS GitHub Actions runners are documented in `docs/ci-macos.md`.
-Docker on macOS builds Linux artifacts, so use a native runner for Darwin module
-trees under `~/privatemodules`.
+Rocky builds use existing self-hosted Incus runners with labels `chapar,rocky8`
+and `chapar,rocky9`. The workflow matrix can build Rocky8 and Rocky9 in parallel
+because concurrency is scoped per OS.
 
-The goal is similar environments, not byte-identical concrete specs across
-different operating systems. The shared package repo pin, shared environment
-specs, and shared policy make the environments comparable; OS overlays capture
-unavoidable platform differences.
+macOS builds use the existing native macOS self-hosted runner. Docker is not used
+for macOS artifacts because it would build Linux binaries.
+
+Manual workflow inputs include `release_id`, `publish_current`,
+`publish_buildcache`, `spack_ref`, `spack_install_args`, and `hpcsim_root`.
 
 ## Build Parallelism
 
 Chapar sets Spack's `config:build_jobs` to a high ceiling in
 `etc/system/base/config.yaml`. Spack automatically clamps that value to the
-number of CPUs available on the host, including CPU affinity limits when
-supported, so package builds use all available cores by default.
+number of CPUs available on the host.
 
 Users can still override this for a single command:
 
 ```bash
-spack -e envs/skipper install -j 8
+spack -e envs/hpcsim install -j 8
 ```
-
-## Customization Rules
-
-- Do not modify `~/.local/opt/spack` for Chapar policy.
-- Put shared machine or site settings in `etc/system`.
-- Put user paths and user-local settings in `etc/user`.
-- Put environment package lists in `envs/<name>/spack.yaml`.
-- Put OS-specific differences in `rocky8`, `rocky9`, or `macos` overlays.
-- Prefer adding a new overlay or config file over patching upstream Spack.
-
-## Shared Deployment
-
-For a shared cluster, an administrator can link the system scope:
-
-```bash
-sudo ln -sfn /path/to/chapar/etc/system /etc/spack
-```
-
-Individual users can link the user scope:
-
-```bash
-ln -sfn /path/to/chapar/etc/user ~/.spack
-```
-
-For development or isolated testing, sourcing `etc/init.sh` is usually simpler
-because it binds both scopes to this checkout without requiring installation
-under `/etc`.
-
-## Release Workflow
-
-The `envs/skipper/release.sh` helper builds canary releases into isolated roots,
-then promotes them by updating symlinks after validation:
-
-```bash
-bash envs/skipper/release.sh build 2026-04-24
-bash envs/skipper/release.sh test-hints 2026-04-24
-bash envs/skipper/release.sh promote 2026-04-24 --yes
-```
-
-See `etc/README.md` for detailed scope precedence, deployment options, and
-validation commands.

@@ -1,4 +1,4 @@
-name: macOS Spack Build
+name: macOS hpcsim Build
 
 on:
   push:
@@ -7,35 +7,34 @@ on:
     paths:
       - .github/macos-spack-build.trigger
       - .github/workflows/macos-spack-build.yml
+      - ci/**
+      - envs/hpcsim/**
+      - etc/**
+      - Makefile
   workflow_dispatch:
     inputs:
-      section:
-        description: Section or integration target
-        required: true
-        type: choice
-        default: full
-        options:
-          - all
-          - full
-          - toolchain
-          - devtools
-          - python
-          - mpi
-          - libs
-          - benchmarks
-          - profiling
+      release_id:
+        description: Optional hpcsim release ID; defaults to the workflow run ID
+        required: false
+        type: string
+        default: ""
       git_ref:
         description: Optional branch, tag, or SHA to build; defaults to workflow ref
         required: false
         type: string
         default: ""
       spack_ref:
-        description: Spack branch, tag, or SHA to use for canary builds
+        description: Spack branch, tag, or SHA to use for builds
         required: true
         type: string
         default: develop
-      push_buildcache:
-        description: Publish successful build outputs to a local macOS buildcache
+      publish_current:
+        description: Promote this release by updating the macOS current symlink
+        required: true
+        type: boolean
+        default: false
+      publish_buildcache:
+        description: Publish successful build outputs to the macOS hpcsim buildcache
         required: true
         type: boolean
         default: false
@@ -49,11 +48,11 @@ on:
         required: true
         type: string
         default: chapar
-      resources_root:
-        description: Run logs/buildcache root; empty uses ~/privatemodules/chapar-runs
-        required: false
+      hpcsim_root:
+        description: Shared hpcsim output root on the macOS runner
+        required: true
         type: string
-        default: ""
+        default: /resources/share/hpcsim
 
 permissions:
   contents: read
@@ -64,7 +63,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build canary ${{ inputs.section || 'mpi' }} on macOS
+    name: Build hpcsim on macOS
     runs-on: ${{ fromJSON(format('["self-hosted","{0}","macos","arm64"]', inputs.runner_label || 'chapar')) }}
     timeout-minutes: 1440
 
@@ -75,25 +74,38 @@ jobs:
       - name: Bootstrap macOS dependencies
         run: bash ci/bootstrap-macos.sh
 
-      - name: Run Spack canary build
+      - name: Verify hpcsim resources path
+        env:
+          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/share/hpcsim' }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${HPCSIM_ROOT}/macos"
+          df -P "${HPCSIM_ROOT}"
+          test_dir="${HPCSIM_ROOT}/macos/.ci-write-test-${RUN_ID}"
+          mkdir -p "${test_dir}"
+          rmdir "${test_dir}"
+
+      - name: Run hpcsim build
         env:
           INPUT_GIT_REF: ${{ inputs.git_ref || '' }}
           DEFAULT_GIT_REF: ${{ github.sha }}
+          INPUT_RELEASE_ID: ${{ inputs.release_id || '' }}
+          DEFAULT_RELEASE_ID: ${{ github.run_id }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REPO_DIR: ${{ github.workspace }}
-          SECTION: ${{ inputs.section || 'mpi' }}
-          PUSH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.push_buildcache == true && 'true' || 'false' }}
+          OS_NAME: macos
+          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/share/hpcsim' }}
+          PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
+          PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == true && 'true' || 'false' }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1' }}
-          RESOURCES_ROOT_INPUT: ${{ inputs.resources_root || '' }}
           RUN_ID: ${{ github.run_id }}
           SPACK_REF: ${{ inputs.spack_ref || 'develop' }}
           CHAPAR_UPDATE_SPACK: true
         run: |
           set -euo pipefail
           export GIT_REF="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
-          export FLAVOR=canary
-          export OS_NAME=macos
-          export RESOURCES_ROOT="${RESOURCES_ROOT_INPUT:-${HOME}/privatemodules/chapar-runs}"
+          export RELEASE_ID="${INPUT_RELEASE_ID:-${DEFAULT_RELEASE_ID}}"
           export CHAPAR_SPACK_ROOT="${HOME}/.local/opt/spack-chapar-macos"
-          mkdir -p "${RESOURCES_ROOT}"
           bash ci/container-build.sh
