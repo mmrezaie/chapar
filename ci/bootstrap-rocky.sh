@@ -51,6 +51,7 @@ as_root dnf -y install \
     make \
     nfs-utils \
     openssl \
+    openssl-devel \
     openssh-clients \
     patch \
     perl \
