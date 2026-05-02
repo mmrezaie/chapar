@@ -62,13 +62,14 @@ sudo mkdir -p /resources
 sudo mount -t nfs -o vers=4.2 10.151.98.25:/mnt/resources /resources
 ```
 
-The hpcsim output root is:
+The default CI hpcsim output root is the existing writable CI resources tree:
 
 ```text
-/resources/share/hpcsim
+/resources/chapar/hpcsim
 ```
 
-The CI user in each container must be able to write below that path.
+For production releases under `/resources/share/hpcsim`, pre-create that NAS
+path with suitable ACLs and pass it as the workflow `hpcsim_root` input.
 
 ## Manual Workflow
 
@@ -84,7 +85,7 @@ Inputs:
 - `spack_ref`: Spack branch, tag, or SHA.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
 - `runner_label`: common custom runner label, default `chapar`.
-- `hpcsim_root`: shared output root, default `/resources/share/hpcsim`.
+- `hpcsim_root`: shared output root, default `/resources/chapar/hpcsim`.
 
 When `os=all`, GitHub schedules independent Rocky8 and Rocky9 matrix jobs. The
 job-level concurrency group includes `matrix.os_name`, so Rocky8 and Rocky9 can
@@ -109,25 +110,25 @@ RESOURCES_SOURCE=/mnt/resources ci/incus-build.sh --os all --release-id 2026-05-
 
 ## Output Layout
 
-Default shared output:
+Default CI output:
 
-- `/resources/share/hpcsim/rocky8/store`
-- `/resources/share/hpcsim/rocky8/releases/<release-id>`
-- `/resources/share/hpcsim/rocky8/current`
-- `/resources/share/hpcsim/rocky8/buildcache`
-- `/resources/share/hpcsim/rocky9/store`
-- `/resources/share/hpcsim/rocky9/releases/<release-id>`
-- `/resources/share/hpcsim/rocky9/current`
-- `/resources/share/hpcsim/rocky9/buildcache`
+- `/resources/chapar/hpcsim/rocky8/store`
+- `/resources/chapar/hpcsim/rocky8/releases/<release-id>`
+- `/resources/chapar/hpcsim/rocky8/current`
+- `/resources/chapar/hpcsim/rocky8/buildcache`
+- `/resources/chapar/hpcsim/rocky9/store`
+- `/resources/chapar/hpcsim/rocky9/releases/<release-id>`
+- `/resources/chapar/hpcsim/rocky9/current`
+- `/resources/chapar/hpcsim/rocky9/buildcache`
 
 Per-run logs and concrete environment files:
 
-- `/resources/share/hpcsim/<os>/runs/<run-id>/logs/build.log`
-- `/resources/share/hpcsim/<os>/runs/<run-id>/commit.txt`
-- `/resources/share/hpcsim/<os>/runs/<run-id>/spack-version.txt`
-- `/resources/share/hpcsim/<os>/runs/<run-id>/release-id.txt`
-- `/resources/share/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.yaml`
-- `/resources/share/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.lock`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/logs/build.log`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/commit.txt`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/spack-version.txt`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/release-id.txt`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.yaml`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.lock`
 
 ## Build Behavior
 

@@ -61,7 +61,7 @@ on:
         description: Shared hpcsim output root inside containers
         required: true
         type: string
-        default: /resources/share/hpcsim
+        default: /resources/chapar/hpcsim
 
 permissions:
   contents: read
@@ -88,7 +88,7 @@ jobs:
 
       - name: Verify hpcsim resources mount
         env:
-          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/share/hpcsim' }}
+          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
           OS_NAME: ${{ matrix.os_name }}
           RUN_ID: ${{ github.run_id }}
         run: |
@@ -119,7 +119,7 @@ jobs:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REPO_DIR: ${{ github.workspace }}
           OS_NAME: ${{ matrix.os_name }}
-          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/share/hpcsim' }}
+          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
           PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
           PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1' }}
