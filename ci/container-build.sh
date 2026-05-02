@@ -84,6 +84,13 @@ build_env() {
 
     spack -e "${env_path}" concretize -f
     spack -e "${env_path}" install "${SPACK_INSTALL_ARGS_ARRAY[@]}"
+}
+
+refresh_modules() {
+    local env_name="$1"
+    local env_path="./envs/${env_name}"
+
+    echo "==> Refreshing Tcl modulefiles: ${env_name}"
     spack -e "${env_path}" module tcl refresh -y
 }
 
@@ -106,6 +113,16 @@ esac
 for env_name in "${ENV_NAMES[@]}"; do
     echo "==> Building Spack environment: ${env_name}"
     build_env "${env_name}"
+done
+
+MODULE_ENV_NAMES=()
+case "${SECTION}" in
+    all) MODULE_ENV_NAMES+=("${BASE_ENV}") ;;
+    *) MODULE_ENV_NAMES+=("${ENV_NAMES[@]}") ;;
+esac
+
+for env_name in "${MODULE_ENV_NAMES[@]}"; do
+    refresh_modules "${env_name}"
 done
 
 if [ "${PUSH_BUILDCACHE}" = "true" ]; then
