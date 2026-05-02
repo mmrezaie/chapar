@@ -118,7 +118,7 @@ spack:
     - hpctoolkit@2025.0.1+cuda+mpi+python~auditor_default
     - nvtx+python
     - papi+infiniband+cuda
-    - scorep+mpi+papi+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - scorep+mpi+papi+cuda
     - caliper+mpi+papi+cuda+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     when: os == "rocky9"
