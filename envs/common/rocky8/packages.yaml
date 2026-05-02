@@ -27,6 +27,9 @@ packages:
     require:
     - ~cuda
     - fabrics=mlx,verbs
+  freetype:
+    require:
+    - build_system=cmake
   libffi:
     require:
     - '@3.2.1'
