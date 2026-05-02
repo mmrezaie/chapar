@@ -131,10 +131,12 @@ trap stop_container EXIT
 incus exec "${INSTANCE}" -- rm -f \
     /tmp/chapar-bootstrap-rocky.sh \
     /tmp/chapar-container-build.sh \
+    /tmp/chapar-prepare-hpcsim-root.sh \
     /tmp/chapar-push-buildcache.sh
 
 incus file push ci/bootstrap-rocky.sh "${INSTANCE}/tmp/chapar-bootstrap-rocky.sh"
 incus file push ci/container-build.sh "${INSTANCE}/tmp/chapar-container-build.sh"
+incus file push ci/prepare-hpcsim-root.sh "${INSTANCE}/tmp/chapar-prepare-hpcsim-root.sh"
 incus file push ci/push-buildcache.sh "${INSTANCE}/tmp/chapar-push-buildcache.sh"
 
 incus exec "${INSTANCE}" -- bash /tmp/chapar-bootstrap-rocky.sh
@@ -149,6 +151,7 @@ incus exec "${INSTANCE}" \
     --env "RELEASE_ID=${RELEASE_ID}" \
     --env "PUBLISH_CURRENT=${PUBLISH_CURRENT}" \
     --env "PUBLISH_BUILDCACHE=${PUBLISH_BUILDCACHE}" \
+    --env "PREPARE_HPCSIM_ROOT_SCRIPT=/tmp/chapar-prepare-hpcsim-root.sh" \
     --env "PUSH_BUILDCACHE_SCRIPT=/tmp/chapar-push-buildcache.sh" \
     --env "SPACK_INSTALL_ARGS=${SPACK_INSTALL_ARGS}" \
     -- bash /tmp/chapar-container-build.sh

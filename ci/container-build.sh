@@ -11,6 +11,7 @@ set -euo pipefail
 : "${PUBLISH_CURRENT:=false}"
 : "${PUBLISH_BUILDCACHE:=true}"
 : "${PUSH_BUILDCACHE_SCRIPT:=./ci/push-buildcache.sh}"
+: "${PREPARE_HPCSIM_ROOT_SCRIPT:=./ci/prepare-hpcsim-root.sh}"
 : "${SPACK_INSTALL_ARGS:=-p 1}"
 : "${CHAPAR_UPDATE_SPACK:=false}"
 
@@ -33,6 +34,7 @@ OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
 RUN_ROOT="${OS_ROOT}/runs/${RUN_ID}"
 LOG_DIR="${RUN_ROOT}/logs"
 ENV_DIR="${RUN_ROOT}/concrete-envs"
+bash "${PREPARE_HPCSIM_ROOT_SCRIPT}"
 mkdir -p "${LOG_DIR}" "${ENV_DIR}"
 exec > >(tee -a "${LOG_DIR}/build.log") 2>&1
 

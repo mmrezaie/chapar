@@ -94,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p "${HPCSIM_ROOT}/${OS_NAME}"
+          bash ci/prepare-hpcsim-root.sh
           fs_type="$(findmnt -n -T "${HPCSIM_ROOT}" -o FSTYPE)"
           source="$(findmnt -n -T "${HPCSIM_ROOT}" -o SOURCE)"
           echo "hpcsim root: ${HPCSIM_ROOT}"

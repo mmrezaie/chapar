@@ -14,10 +14,11 @@ Use a native runner on the macOS host with these labels:
 - `arm64`
 
 The workflow target is `.github/workflows/macos-spack-build.yml`. It builds
-`envs/hpcsim` and writes releases under:
+`envs/hpcsim` and writes releases under the workflow `hpcsim_root` input. When
+that input is empty, the macOS runner uses a writable user-local default:
 
 ```text
-/resources/share/hpcsim/macos
+~/resources/share/hpcsim/macos
 ```
 
 The workflow uses a dedicated Spack checkout at
@@ -67,18 +68,18 @@ Manual dispatch inputs:
 - `publish_current`: update `/resources/share/hpcsim/macos/current` after build.
 - `publish_buildcache`: push to `/resources/share/hpcsim/macos/buildcache`.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
-- `hpcsim_root`: shared output root, default `/resources/share/hpcsim`.
+- `hpcsim_root`: shared output root. Empty means `~/resources/share/hpcsim`.
 
 The push fallback is path-filtered to hpcsim environment, CI, workflow, and
 configuration files.
 
 ## Output Layout
 
-- `/resources/share/hpcsim/macos/store`
-- `/resources/share/hpcsim/macos/releases/<release-id>`
-- `/resources/share/hpcsim/macos/current`
-- `/resources/share/hpcsim/macos/buildcache`
-- `/resources/share/hpcsim/macos/runs/<run-id>`
+- `<hpcsim_root>/macos/store`
+- `<hpcsim_root>/macos/releases/<release-id>`
+- `<hpcsim_root>/macos/current`
+- `<hpcsim_root>/macos/buildcache`
+- `<hpcsim_root>/macos/runs/<run-id>`
 
 ## Thunderbolt Networking
 
