@@ -92,6 +92,7 @@ dnf -y install \
   gzip \
   hostname \
   jq \
+  libpng-devel \
   libtool \
   m4 \
   make \
@@ -125,6 +126,7 @@ dnf -y install gh
 
 - `ccache` is required because `etc/system/base/config.yaml` enables Spack ccache support.
 - `autoconf`, `automake`, `bison`, `flex`, `m4`, `libtool`, `cmake`, `texinfo`, `groff`, and core GNU tools are declared as `/usr` externals in `etc/system/rocky8/packages.yaml` and `etc/system/rocky9/packages.yaml`; if they are missing, Spack may still concretize but later fail during builds.
+- `libpng-devel` is required on Rocky8 because `/usr` libpng is declared as an external for FreeType's autotools PNG detection.
 - `openssl-devel` is required because `/usr` OpenSSL may be selected as an external; consumers such as `libevent+openssl` need headers and `openssl.pc`.
 - `zlib-devel` is required because `/usr` zlib is declared as an external; GCC bootstrap stages include `zlib.h` when building LTO support.
 - `gh` is not required by the build itself, but is useful for manual debugging and GitHub operations inside persistent builder containers.

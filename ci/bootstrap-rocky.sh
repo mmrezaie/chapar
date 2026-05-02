@@ -46,6 +46,7 @@ as_root dnf -y install \
     gzip \
     hostname \
     jq \
+    libpng-devel \
     libtool \
     m4 \
     make \
