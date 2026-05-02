@@ -92,7 +92,6 @@ dnf -y install \
   gzip \
   hostname \
   jq \
-  libtool \
   m4 \
   make \
   nfs-utils \
@@ -122,7 +121,9 @@ dnf -y install gh
 ## Why These Extras Matter
 
 - `ccache` is required because `etc/system/base/config.yaml` enables Spack ccache support.
-- Compilers, `autoconf`, `automake`, `bison`, `flex`, `m4`, `libtool`, `cmake`, `texinfo`, `groff`, and core GNU tools are declared as `/usr` externals in `etc/system/rocky8/packages.yaml` and `etc/system/rocky9/packages.yaml`; if they are missing, Spack may still concretize but later fail during builds.
+- Compilers, `autoconf`, `automake`, `bison`, `flex`, `m4`, `cmake`, `texinfo`, `groff`, and core GNU tools are declared as `/usr` externals in `etc/system/rocky8/packages.yaml` and `etc/system/rocky9/packages.yaml`; if they are missing, Spack may still concretize but later fail during builds.
+- `libtool` is built by Spack because packages such as PulseAudio link against `libltdl`; modeling the OS command-line tool as a generic external can miss the development library metadata.
+- `zlib-api` is constrained to Spack `zlib-ng+compat` on Rocky so libpng and other consumers see matching headers, libraries, and pkg-config metadata.
 - Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
 - `gh` is not required by the build itself, but is useful for manual debugging and GitHub operations inside persistent builder containers.
 - `nfs-utils` supports resource/NAS access and diagnostics.

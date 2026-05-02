@@ -84,6 +84,7 @@ build_env() {
 
     spack -e "${env_path}" concretize -f
     spack -e "${env_path}" install "${SPACK_INSTALL_ARGS_ARRAY[@]}"
+    spack -e "${env_path}" module tcl refresh -y
 }
 
 ENV_NAMES=()

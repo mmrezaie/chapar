@@ -46,7 +46,6 @@ as_root dnf -y install \
     gzip \
     hostname \
     jq \
-    libtool \
     m4 \
     make \
     nfs-utils \

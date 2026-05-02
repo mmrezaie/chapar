@@ -27,6 +27,12 @@ packages:
     require:
     - ~cuda
     - fabrics=mlx,verbs
+  zlib-api:
+    require:
+    - zlib-ng+compat
+  libtool:
+    require:
+    - '@2.4.7'
   libffi:
     require:
     - '@3.2.1'
