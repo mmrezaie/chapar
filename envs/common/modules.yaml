@@ -5,7 +5,6 @@ modules:
     tcl:
       projections:
         all: '{name}/{version}'
-        meson: '{name}/{version}-{hash:7}'
       hash_length: 0
       exclude_implicits: true
       pulseaudio:

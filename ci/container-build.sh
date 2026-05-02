@@ -88,10 +88,26 @@ build_env() {
 
 refresh_modules() {
     local env_name="$1"
+    local delete_tree="${2:-false}"
     local env_path="./envs/${env_name}"
+    local refresh_args=(-y)
+    local root_specs=()
 
-    echo "==> Refreshing Tcl modulefiles: ${env_name}"
-    spack -e "${env_path}" module tcl refresh -y
+    while IFS= read -r root_spec; do
+        root_specs+=("${root_spec}")
+    done < <(spack -e "${env_path}" find -r -H)
+
+    if [ "${#root_specs[@]}" -eq 0 ]; then
+        echo "==> No environment roots to refresh Tcl modulefiles for: ${env_name}"
+        return
+    fi
+
+    if [ "${delete_tree}" = "true" ]; then
+        refresh_args+=(--delete-tree)
+    fi
+
+    echo "==> Refreshing Tcl modulefiles for environment roots: ${env_name}"
+    spack -e "${env_path}" module tcl refresh "${refresh_args[@]}" "${root_specs[@]}"
 }
 
 ENV_NAMES=()
@@ -121,8 +137,13 @@ case "${SECTION}" in
     *) MODULE_ENV_NAMES+=("${ENV_NAMES[@]}") ;;
 esac
 
+DELETE_MODULE_TREE=false
+case "${SECTION}" in
+    all|full) DELETE_MODULE_TREE=true ;;
+esac
+
 for env_name in "${MODULE_ENV_NAMES[@]}"; do
-    refresh_modules "${env_name}"
+    refresh_modules "${env_name}" "${DELETE_MODULE_TREE}"
 done
 
 if [ "${PUSH_BUILDCACHE}" = "true" ]; then
