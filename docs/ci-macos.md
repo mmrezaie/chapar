@@ -64,7 +64,7 @@ Manual dispatch inputs:
 - `git_ref`: optional Chapar branch, tag, or SHA.
 - `spack_ref`: Spack branch, tag, or SHA. Default is `develop` for canary freshness.
 - `push_buildcache`: optional local file buildcache under `~/privatemodules/chapar-runs`.
-- `spack_install_args`: default `-p 1 --fail-fast`.
+- `spack_install_args`: default `-p 1`.
 - `resources_root`: run/buildcache root. Empty means `~/privatemodules/chapar-runs`.
 
 The push fallback is path-filtered to `.github/macos-spack-build.trigger` and validates the canary `mpi` section on `main`.

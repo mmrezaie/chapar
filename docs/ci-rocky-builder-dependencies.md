@@ -92,13 +92,11 @@ dnf -y install \
   gzip \
   hostname \
   jq \
-  libpng-devel \
   libtool \
   m4 \
   make \
   nfs-utils \
   openssl \
-  openssl-devel \
   openssh-clients \
   patch \
   perl \
@@ -114,7 +112,6 @@ dnf -y install \
   util-linux \
   which \
   xz \
-  zlib-devel \
   zstd
 
 dnf -y install epel-release
@@ -125,10 +122,8 @@ dnf -y install gh
 ## Why These Extras Matter
 
 - `ccache` is required because `etc/system/base/config.yaml` enables Spack ccache support.
-- `autoconf`, `automake`, `bison`, `flex`, `m4`, `libtool`, `cmake`, `texinfo`, `groff`, and core GNU tools are declared as `/usr` externals in `etc/system/rocky8/packages.yaml` and `etc/system/rocky9/packages.yaml`; if they are missing, Spack may still concretize but later fail during builds.
-- `libpng-devel` is required on Rocky8 because `/usr` libpng is declared as an external for FreeType's autotools PNG detection.
-- `openssl-devel` is required because `/usr` OpenSSL may be selected as an external; consumers such as `libevent+openssl` need headers and `openssl.pc`.
-- `zlib-devel` is required because `/usr` zlib is declared as an external; GCC bootstrap stages include `zlib.h` when building LTO support.
+- Compilers, `autoconf`, `automake`, `bison`, `flex`, `m4`, `libtool`, `cmake`, `texinfo`, `groff`, and core GNU tools are declared as `/usr` externals in `etc/system/rocky8/packages.yaml` and `etc/system/rocky9/packages.yaml`; if they are missing, Spack may still concretize but later fail during builds.
+- Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
 - `gh` is not required by the build itself, but is useful for manual debugging and GitHub operations inside persistent builder containers.
 - `nfs-utils` supports resource/NAS access and diagnostics.
 
@@ -143,7 +138,7 @@ If a production cluster needs XPMEM, install and load the kernel module on match
 The Intel oneAPI offline installers share Intel cache state under `/var/intel/installercache`. Running multiple oneAPI compiler installs concurrently corrupted that cache during testing. The container CI driver therefore defaults to serialized package installation:
 
 ```bash
-SPACK_INSTALL_ARGS="-p 1 --fail-fast"
+SPACK_INSTALL_ARGS="-p 1"
 ```
 
 Override `SPACK_INSTALL_ARGS` only when you know a selected section does not contain Intel oneAPI installers or another package with shared global installer state.
@@ -151,7 +146,7 @@ Override `SPACK_INSTALL_ARGS` only when you know a selected section does not con
 For local runs, pass the override through the Incus wrapper:
 
 ```bash
-ci/incus-build.sh --spack-install-args "-p 4 --fail-fast" ...
+ci/incus-build.sh --spack-install-args "-p 4" ...
 ```
 
 For GitHub Actions, use the manual workflow `spack_install_args` input.

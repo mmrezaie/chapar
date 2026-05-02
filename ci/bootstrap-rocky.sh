@@ -46,13 +46,11 @@ as_root dnf -y install \
     gzip \
     hostname \
     jq \
-    libpng-devel \
     libtool \
     m4 \
     make \
     nfs-utils \
     openssl \
-    openssl-devel \
     openssh-clients \
     patch \
     perl \
@@ -68,7 +66,6 @@ as_root dnf -y install \
     util-linux \
     which \
     xz \
-    zlib-devel \
     zstd
 
 source /etc/os-release

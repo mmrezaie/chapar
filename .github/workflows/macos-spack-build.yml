@@ -43,7 +43,7 @@ on:
         description: Arguments passed to spack install on the macOS runner
         required: true
         type: string
-        default: -p 1 --fail-fast
+        default: -p 1
       runner_label:
         description: Common custom label on the macOS self-hosted runner
         required: true
@@ -83,7 +83,7 @@ jobs:
           REPO_DIR: ${{ github.workspace }}
           SECTION: ${{ inputs.section || 'mpi' }}
           PUSH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.push_buildcache == true && 'true' || 'false' }}
-          SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1 --fail-fast' }}
+          SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1' }}
           RESOURCES_ROOT_INPUT: ${{ inputs.resources_root || '' }}
           RUN_ID: ${{ github.run_id }}
           SPACK_REF: ${{ inputs.spack_ref || 'develop' }}

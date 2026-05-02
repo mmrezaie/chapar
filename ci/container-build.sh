@@ -11,7 +11,7 @@ set -euo pipefail
 : "${RESOURCES_ROOT:=/resources/chapar}"
 : "${RUN_ID:=manual}"
 : "${PUSH_BUILDCACHE_SCRIPT:=./ci/push-buildcache.sh}"
-: "${SPACK_INSTALL_ARGS:=-p 1 --fail-fast}"
+: "${SPACK_INSTALL_ARGS:=-p 1}"
 : "${CHAPAR_UPDATE_SPACK:=false}"
 
 case "${OS_NAME}" in

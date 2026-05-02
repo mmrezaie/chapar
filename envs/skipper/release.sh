@@ -113,7 +113,7 @@ cmd_build() {
     echo "  modules:  ${RELEASE_MODULES}"
 
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
-    spack -e "${ENV_PATH}" -C "${scope_dir}" install --fail-fast
+    spack -e "${ENV_PATH}" -C "${scope_dir}" install
     spack -e "${ENV_PATH}" -C "${scope_dir}" module tcl refresh -y
 
     arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"

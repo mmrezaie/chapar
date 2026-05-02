@@ -17,7 +17,7 @@ Options:
   --repo-dir PATH                 Repo clone path inside container (default: /root/workspace/chapar)
   --run-id ID                     Output run identifier (default: GitHub run ID or timestamp)
   --push-buildcache true|false    Push Spack buildcache after build (default: true)
-  --spack-install-args ARGS       Extra args for spack install (default: -p 1 --fail-fast)
+  --spack-install-args ARGS       Extra args for spack install (default: -p 1)
   --keep-running                  Leave container running instead of stopping it
   -h, --help                      Show this help
 USAGE
@@ -33,7 +33,7 @@ RESOURCES_SOURCE="${RESOURCES_SOURCE:-/resources}"
 RESOURCES_ROOT="${RESOURCES_ROOT:-/resources/chapar}"
 REPO_DIR="${REPO_DIR:-/root/workspace/chapar}"
 PUSH_BUILDCACHE="${PUSH_BUILDCACHE:-true}"
-SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:--p 1 --fail-fast}"
+SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:--p 1}"
 KEEP_RUNNING="false"
 CONTAINER_PREFIX="${CONTAINER_PREFIX:-chapar}"
 RUN_ID="${GITHUB_RUN_ID:-manual-$(date +%Y%m%d%H%M%S)}"

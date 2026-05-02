@@ -1,5 +1,7 @@
-# Rocky Linux 9 external packages
-# Run `spack external find` on your Rocky Linux 9 machine and merge the results here.
+# Rocky Linux 9 external packages.
+# Keep this scope limited to compilers, command-line build tools, and libc.
+# Link-time dependency libraries should come from Spack unless a site-specific
+# external is intentional and its development metadata is guaranteed present.
 packages:
   gcc:
     externals:
@@ -13,10 +15,6 @@ packages:
   gmake:
     externals:
     - spec: gmake@4.2.1
-      prefix: /usr
-  gettext:
-    externals:
-    - spec: gettext@0.19.8.1
       prefix: /usr
   bison:
     externals:
@@ -42,25 +40,9 @@ packages:
     externals:
     - spec: ccache@3.7.7
       prefix: /usr
-  python:
-    externals:
-    - spec: python@3.12.8+bz2+crypt+ctypes+dbm+lzma+pyexpat+pythoncmd+readline+sqlite3+ssl~tkinter+uuid+zlib
-      prefix: /usr
-  openssl:
-    externals:
-    - spec: openssl@1.1.1k
-      prefix: /usr
-  curl:
-    externals:
-    - spec: curl@7.61.1+gssapi+ldap+nghttp2
-      prefix: /usr
   perl:
     externals:
     - spec: perl@5.26.3~cpanm+opcode+open+shared+threads
-      prefix: /usr
-  zlib:
-    externals:
-    - spec: zlib@1.2.11
       prefix: /usr
   cmake:
     externals:

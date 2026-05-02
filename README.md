@@ -99,7 +99,7 @@ Use the Rocky Linux production environment under `envs/skipper`:
 
 ```bash
 spack -e envs/skipper concretize -f
-spack -e envs/skipper install --fail-fast
+spack -e envs/skipper install
 spack -e envs/skipper module tcl refresh -y
 ```
 
@@ -112,7 +112,7 @@ but loads install roots, module roots, build stages, and cache locations from
 
 ```bash
 spack -e envs/skipper-canary concretize -f
-spack -e envs/skipper-canary install --fail-fast
+spack -e envs/skipper-canary install
 spack -e envs/skipper-canary module tcl refresh -y
 ```
 
@@ -135,7 +135,7 @@ mirror for that session or user:
 
 ```bash
 spack mirror add --scope user --type binary --unsigned shared-buildcache file:///share/base/buildcache
-spack -e envs/skipper-canary install --use-buildcache=auto --fail-fast
+spack -e envs/skipper-canary install --use-buildcache=auto
 ```
 
 Remove it from the hot path when you are done using the slow archive:

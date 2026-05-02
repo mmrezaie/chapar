@@ -119,7 +119,7 @@ Inputs:
 - `section`: `all`, `full`, or one section environment.
 - `git_ref`: optional branch, tag, or SHA. Empty means the workflow branch/tag.
 - `push_buildcache`: publish successful outputs to the NAS buildcache.
-- `spack_install_args`: arguments passed to `spack install`, default `-p 1 --fail-fast`.
+- `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
 - `runner_label`: common custom runner label, default `chapar`.
 - `resources_root`: output root inside the container, default `/resources/chapar`.
 
