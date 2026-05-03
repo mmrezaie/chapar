@@ -27,12 +27,12 @@ spack:
     - python@3.14:3.14+optimizations+tkinter
   - common_hpc_library_specs:
     - fftw+mpi+openmp precision=double,float %gcc
-    - netlib-scalapack
     - hdf5+mpi+fortran+hl
     - parallel-netcdf
     - netcdf-c+mpi+parallel-netcdf
     - netcdf-fortran
   - linux_hpc_library_specs:
+    - netlib-scalapack
     - openblas threads=openmp %gcc
     when: platform == "linux"
   - linux_devtools_specs:
@@ -132,9 +132,12 @@ spack:
     - openmpi@4.1.8 fabrics=ofi schedulers=none
     - openmpi@5.0.8 fabrics=ofi schedulers=none
     when: platform == "darwin"
+  - macos_hpc_library_specs:
+    - netlib-scalapack ^veclibfort
+    when: platform == "darwin"
   - macos_benchmark_specs:
-    - hpl+openmp %gcc
-    - hpcg+openmp %gcc
+    - hpl+openmp %gcc ^veclibfort
+    - hpcg+openmp %gcc ^veclibfort
     - stream~openmp %gcc
     - intel-mpi-benchmarks %gcc
     - ior+hdf5+ncmpi
@@ -166,6 +169,7 @@ spack:
   - $rocky9_profiling_specs
   - $macos_toolchain_specs
   - $macos_mpi_specs
+  - $macos_hpc_library_specs
   - $macos_benchmark_specs
   - $macos_profiling_specs
 
