@@ -83,7 +83,7 @@ config:
   install_tree:
     root: ${STORE_ROOT}
     projections:
-      all: "{architecture}-{compiler.name}-{compiler.version}-{name}-{version}-{hash}"
+      all: "{name}-{version}-{hash}"
   template_dirs:
   - ${OS_ROOT}/templates
   license_dir: ${OS_ROOT}/licenses

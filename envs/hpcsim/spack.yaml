@@ -14,7 +14,7 @@ spack:
     - pkgconf
     - libffi
     - neovim
-    - npm
+    - npm@9.9.4 ^node-js@20.18.3
     - tmux
     - tcl
     - tk
@@ -26,13 +26,15 @@ spack:
     - python@3.13:3.13+optimizations+tkinter
     - python@3.14:3.14+optimizations+tkinter
   - common_hpc_library_specs:
-    - openblas threads=openmp %gcc
     - fftw+mpi+openmp precision=double,float %gcc
     - netlib-scalapack
     - hdf5+mpi+fortran+hl
     - parallel-netcdf
     - netcdf-c+mpi+parallel-netcdf
     - netcdf-fortran
+  - linux_hpc_library_specs:
+    - openblas threads=openmp %gcc
+    when: platform == "linux"
   - linux_devtools_specs:
     - numactl
     - pulseaudio@13.0 ^fftw~mpi
@@ -133,14 +135,12 @@ spack:
   - macos_benchmark_specs:
     - hpl+openmp %gcc
     - hpcg+openmp %gcc
-    - stream+openmp %gcc
+    - stream~openmp %gcc
     - intel-mpi-benchmarks %gcc
     - ior+hdf5+ncmpi
     - mdtest
     - h5bench+exerciser+metadata
-    - fio
     - osu-micro-benchmarks
-    - babelstream languages:=fortran build_system=makefile foption=OpenMP %gcc
     when: platform == "darwin"
   - macos_profiling_specs:
     - hwloc
@@ -150,6 +150,7 @@ spack:
   - $common_devtools_specs
   - $common_python_specs
   - $common_hpc_library_specs
+  - $linux_hpc_library_specs
   - $linux_devtools_specs
   - $linux_debug_specs
   - $linux_benchmark_specs
