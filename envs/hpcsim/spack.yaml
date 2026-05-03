@@ -133,11 +133,11 @@ spack:
     - openmpi@5.0.8 fabrics=ofi schedulers=none
     when: platform == "darwin"
   - macos_hpc_library_specs:
-    - netlib-scalapack ^veclibfort
+    - netlib-scalapack ^[virtuals=blas] veclibfort ^[virtuals=lapack] veclibfort
     when: platform == "darwin"
   - macos_benchmark_specs:
-    - hpl+openmp %gcc ^veclibfort
-    - hpcg+openmp %gcc ^veclibfort
+    - hpl+openmp %gcc ^[virtuals=blas] veclibfort
+    - hpcg+openmp %gcc ^[virtuals=blas] veclibfort
     - stream~openmp %gcc
     - intel-mpi-benchmarks %gcc
     - ior+hdf5+ncmpi
