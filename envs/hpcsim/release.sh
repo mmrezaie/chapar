@@ -133,7 +133,7 @@ config:
   source_cache: \$user_cache_path/source
   misc_cache: \$user_cache_path/cache
   install_missing: true
-  binary_index_ttl: 0
+  binary_index_ttl: 600
 EOF
 
     cat > "${scope_dir}/mirrors.yaml" <<EOF
@@ -166,6 +166,12 @@ refresh_buildcache_index() {
     echo "    buildcache: ${BUILDCACHE_ROOT}"
     if ! spack -C "${BUILD_SCOPE_DIR}" buildcache update-index "file://${BUILDCACHE_ROOT}"; then
         echo "WARNING: failed to update hpcsim buildcache index: ${BUILDCACHE_ROOT}" >&2
+    fi
+}
+
+trust_buildcache_keys() {
+    if ! spack -C "${BUILD_SCOPE_DIR}" buildcache keys --install --trust; then
+        echo "WARNING: failed to install buildcache keys; signed online caches may be skipped" >&2
     fi
 }
 
@@ -260,6 +266,7 @@ cmd_build() {
     echo "    staging:  ${staging_dir}"
 
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
+    trust_buildcache_keys
     case "${OS_NAME}" in
         rocky8|rocky9)
             # Node 24 needs GCC > 12; make a fast Spack GCC compiler concrete first.

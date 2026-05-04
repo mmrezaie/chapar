@@ -1,4 +1,14 @@
 mirrors:
-  spack-public:
+  hpcsim-source:
     binary: false
     url: https://mirror.spack.io
+  spack-public:
+    binary: true
+    signed: true
+    source: false
+    url: https://cache.spack.io
+  e4s-public:
+    binary: true
+    signed: true
+    source: false
+    url: https://cache.e4s.io
