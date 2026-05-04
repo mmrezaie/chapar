@@ -139,6 +139,10 @@ repository to the requested ref, sources `./etc/init.sh`, and runs:
 bash envs/hpcsim/release.sh build <release-id>
 ```
 
+The release helper adds `/resources/chapar/hpcsim/<os>/buildcache` as an
+unsigned binary mirror before concretization and install. Matching cached
+binaries are reused; only missing concrete hashes build from source.
+
 If `publish_buildcache` is true, CI pushes a file buildcache for the same OS. If
 `publish_current` is true, CI promotes the release after the build and buildcache
 push complete.

@@ -82,7 +82,7 @@ fi
 source ./etc/init.sh
 spack --version | tee "${RUN_ROOT}/spack-version.txt"
 
-export HPCSIM_ROOT OS_NAME SPACK_INSTALL_ARGS
+export HPCSIM_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
 bash ./envs/hpcsim/release.sh build "${RELEASE_ID}"
 
 if [ "${PUBLISH_BUILDCACHE}" = "true" ]; then

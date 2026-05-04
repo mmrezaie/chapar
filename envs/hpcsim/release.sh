@@ -5,6 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_PATH="${ENV_PATH:-${SCRIPT_DIR}}"
 HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
 SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:-}"
+PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-false}"
+BUILD_SCOPE_DIR=""
+REFRESH_BUILDCACHE_ON_EXIT="false"
 
 usage() {
     cat <<'EOF'
@@ -94,6 +97,17 @@ config:
   source_cache: \$user_cache_path/source
   misc_cache: \$user_cache_path/cache
   install_missing: true
+  binary_index_ttl: 0
+EOF
+
+    cat > "${scope_dir}/mirrors.yaml" <<EOF
+mirrors:
+  hpcsim-${OS_NAME}:
+    url: file://${BUILDCACHE_ROOT}
+    source: false
+    binary: true
+    signed: false
+    autopush: ${PUBLISH_BUILDCACHE}
 EOF
 
     cat > "${scope_dir}/modules.yaml" <<EOF
@@ -105,6 +119,32 @@ modules:
 EOF
 
     printf '%s\n' "${scope_dir}"
+}
+
+refresh_buildcache_index() {
+    [ "${PUBLISH_BUILDCACHE}" = "true" ] || return 0
+    [ -n "${BUILD_SCOPE_DIR}" ] || return 0
+    [ -d "${BUILD_SCOPE_DIR}" ] || return 0
+
+    echo "==> Updating hpcsim buildcache index"
+    echo "    buildcache: ${BUILDCACHE_ROOT}"
+    if ! spack -C "${BUILD_SCOPE_DIR}" buildcache update-index "file://${BUILDCACHE_ROOT}"; then
+        echo "WARNING: failed to update hpcsim buildcache index: ${BUILDCACHE_ROOT}" >&2
+    fi
+}
+
+cleanup_build() {
+    local status="$?"
+
+    if [ "${REFRESH_BUILDCACHE_ON_EXIT}" = "true" ]; then
+        refresh_buildcache_index || true
+    fi
+
+    if [ -n "${BUILD_SCOPE_DIR}" ] && [ -d "${BUILD_SCOPE_DIR}" ]; then
+        rm -rf "${BUILD_SCOPE_DIR}"
+    fi
+
+    exit "${status}"
 }
 
 copy_manifest() {
@@ -152,6 +192,10 @@ cmd_build() {
         ""|--promote) ;;
         *) die "unknown build option: ${promote}" ;;
     esac
+    case "${PUBLISH_BUILDCACHE}" in
+        true|false) ;;
+        *) die "PUBLISH_BUILDCACHE must be true or false" ;;
+    esac
 
     ensure_cmd spack
     set_paths
@@ -163,16 +207,22 @@ cmd_build() {
 
     mkdir -p "${STORE_ROOT}" "${RELEASES_ROOT}" "${BUILDCACHE_ROOT}" "${staging_dir}/logs"
     scope_dir="$(make_scope "${staging_dir}")"
-    trap 'rm -rf "'"${scope_dir}"'"' EXIT
+    BUILD_SCOPE_DIR="${scope_dir}"
+    REFRESH_BUILDCACHE_ON_EXIT="${PUBLISH_BUILDCACHE}"
+    trap cleanup_build EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
     echo "==> Building hpcsim release"
     echo "    os:       ${OS_NAME}"
     echo "    release:  ${RELEASE_ID}"
     echo "    env:      ${ENV_PATH}"
     echo "    store:    ${STORE_ROOT}"
+    echo "    buildcache: ${BUILDCACHE_ROOT}"
     echo "    staging:  ${staging_dir}"
 
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
+    spack -C "${scope_dir}" buildcache update-index "file://${BUILDCACHE_ROOT}" || true
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     spack -e "${ENV_PATH}" -C "${scope_dir}" install "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" module tcl refresh -y

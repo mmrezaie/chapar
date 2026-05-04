@@ -140,6 +140,10 @@ The store is shared per OS and package prefixes include hashes. Module trees are
 release-specific. This allows new modules and packages to be added without
 rewriting the module tree used by already-running jobs.
 
+Release builds attach the matching per-OS buildcache as an unsigned binary
+mirror in their generated Spack scope, so previously pushed binaries are
+preferred before falling back to source builds.
+
 ## Validation Commands
 
 Check active scopes and merged settings:

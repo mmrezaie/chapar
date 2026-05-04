@@ -145,6 +145,13 @@ Buildcache output is per OS:
 /resources/share/hpcsim/macos/buildcache
 ```
 
+Release builds add the matching per-OS buildcache as an unsigned binary mirror
+before concretization and install. Existing binaries are reused when their
+concrete hashes match; missing binaries are built from source. When
+`PUBLISH_BUILDCACHE=true`, source-built packages are pushed as they complete and
+the buildcache index is refreshed on exit so a later rebuild can reuse partial
+progress.
+
 Push explicitly after a successful build if CI did not do it:
 
 ```bash

@@ -81,6 +81,10 @@ configuration files.
 - `<hpcsim_root>/macos/buildcache`
 - `<hpcsim_root>/macos/runs/<run-id>`
 
+The release helper adds `<hpcsim_root>/macos/buildcache` as an unsigned binary
+mirror before concretization and install. Matching cached binaries are reused;
+only missing concrete hashes build from source.
+
 ## Thunderbolt Networking
 
 Stock macOS does not expose Linux verbs/RDMA-CM devices for Thunderbolt Bridge.
