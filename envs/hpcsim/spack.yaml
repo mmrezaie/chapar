@@ -187,6 +187,9 @@ spack:
     zlib-api:
       require:
       - zlib-ng+compat
+    cmake:
+      require:
+      - ~qtgui
     libtool:
       require:
       - '@2.4.7:'
