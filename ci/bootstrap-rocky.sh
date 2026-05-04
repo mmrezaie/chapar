@@ -76,6 +76,8 @@ esac
 as_root dnf -y install epel-release
 as_root dnf -y install ccache
 
+as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh /etc/profile.d/zz-chapar-hpcsim.sh
+
 if ! command -v gh >/dev/null 2>&1; then
     as_root dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
     as_root dnf -y install gh

@@ -16,6 +16,7 @@ ENV_PATH=""
 OS_NAME=""
 HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
 BUILDCACHE_DIR=""
+SCOPE_DIR=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -42,13 +43,26 @@ if [ -z "${BUILDCACHE_DIR}" ]; then
     BUILDCACHE_DIR="${HPCSIM_ROOT}/${OS_NAME}/buildcache"
 fi
 
+OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
+STORE_ROOT="${OS_ROOT}/store"
+SCOPE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/hpcsim-buildcache-scope.XXXXXX")"
+trap 'rm -rf "${SCOPE_DIR}"' EXIT
+
+cat > "${SCOPE_DIR}/config.yaml" <<EOF
+config:
+  install_tree:
+    root: ${STORE_ROOT}
+    projections:
+      all: "{name}-{version}-{hash}"
+EOF
+
 mkdir -p "${BUILDCACHE_DIR}"
 
 echo "==> Pushing hpcsim buildcache"
 echo "    env:        ${ENV_PATH}"
 echo "    buildcache: ${BUILDCACHE_DIR}"
 
-spack -e "${ENV_PATH}" buildcache push \
+spack -e "${ENV_PATH}" -C "${SCOPE_DIR}" buildcache push \
     --unsigned \
     --update-index \
     "file://${BUILDCACHE_DIR}"

@@ -74,14 +74,20 @@ if type module >/dev/null 2>&1; then
     _chapar_hpcsim_current="/resources/share/hpcsim/${_chapar_hpcsim_os}/current"
     if [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
         _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
-        _chapar_hpcsim_arch="$(spack arch 2>/dev/null || true)"
-        if [ -n "${_chapar_hpcsim_release}" ] && [ -n "${_chapar_hpcsim_arch}" ] && [ -d "${_chapar_hpcsim_release}/modulefiles/${_chapar_hpcsim_arch}" ]; then
-            module use "${_chapar_hpcsim_release}/modulefiles/${_chapar_hpcsim_arch}" >/dev/null 2>&1 || true
+        _chapar_hpcsim_module_root="${_chapar_hpcsim_release}/modulefiles"
+        if [ -n "${_chapar_hpcsim_release}" ] && [ -d "${_chapar_hpcsim_module_root}" ]; then
+            for _chapar_hpcsim_module_dir in "${_chapar_hpcsim_module_root}"/*; do
+                [ -d "${_chapar_hpcsim_module_dir}" ] || continue
+                case "$(basename "${_chapar_hpcsim_module_dir}")" in
+                    *-*-*) module use "${_chapar_hpcsim_module_dir}" >/dev/null 2>&1 || true ;;
+                esac
+            done
         fi
     fi
 fi
 
 unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_root
 unset _chapar_module_root _chapar_module_archdir
-unset _chapar_hpcsim_os _chapar_hpcsim_current _chapar_hpcsim_release _chapar_hpcsim_arch
+unset _chapar_hpcsim_os _chapar_hpcsim_current _chapar_hpcsim_release
+unset _chapar_hpcsim_module_root _chapar_hpcsim_module_dir
 unset -f _chapar_detect_hpcsim_os 2>/dev/null || true

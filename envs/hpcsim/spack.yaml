@@ -14,7 +14,6 @@ spack:
     - pkgconf
     - libffi
     - neovim
-    - npm@9.9.4 ^node-js@20.18.3
     - tmux
     - tcl
     - tk
@@ -36,8 +35,9 @@ spack:
     - openblas threads=openmp %gcc
     when: platform == "linux"
   - linux_devtools_specs:
+    - npm@9.9.4 %gcc ^node-js@20.18.3 %gcc
     - numactl
-    - pulseaudio@13.0 ^fftw~mpi
+    - pulseaudio@13.0 %gcc ^fftw~mpi
     when: platform == "linux"
   - linux_debug_specs:
     - gdb+python
@@ -62,9 +62,9 @@ spack:
     - darshan-util
     when: platform == "linux"
   - rocky8_toolchain_specs:
-    - gcc@13.4.0+profiled
-    - gcc@14.3.0+profiled
-    - gcc@15.2.0+profiled
+    - gcc@13.4.0+profiled %gcc
+    - gcc@14.3.0+profiled %gcc
+    - gcc@15.2.0~profiled %gcc
     - intel-oneapi-compilers@2024.1.0
     - intel-oneapi-compilers@2023.1.0
     when: os == "rocky8"
@@ -127,6 +127,9 @@ spack:
   - macos_toolchain_specs:
     - gcc@15.2.0
     when: platform == "darwin"
+  - macos_devtools_specs:
+    - npm@9.9.4 ^node-js@20.18.3
+    when: platform == "darwin"
   - macos_mpi_specs:
     - libfabric@1.22.0 fabrics=tcp,sockets,udp
     - openmpi@4.1.8 fabrics=ofi schedulers=none
@@ -168,6 +171,7 @@ spack:
   - $rocky9_benchmark_specs
   - $rocky9_profiling_specs
   - $macos_toolchain_specs
+  - $macos_devtools_specs
   - $macos_mpi_specs
   - $macos_hpc_library_specs
   - $macos_benchmark_specs

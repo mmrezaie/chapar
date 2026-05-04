@@ -219,15 +219,22 @@ cmd_promote() {
 cmd_module_use() {
     local release_id="${1:-}"
     local release_dir
-    local arch_triplet
+    local module_root
+    local module_dir
 
-
-    ensure_cmd spack
     release_dir="$(resolve_release_dir "${release_id}")"
-    arch_triplet="$(spack -e "${ENV_PATH}" arch)"
+    module_root="${release_dir}/modulefiles"
+
+    [ -d "${module_root}" ] || die "missing modulefiles directory: ${module_root}"
+
+    for module_dir in "${module_root}"/*; do
+        [ -d "${module_dir}" ] || continue
+        case "$(basename "${module_dir}")" in
+            *-*-*) printf 'module use %s\n' "${module_dir}" ;;
+        esac
+    done
 
     cat <<EOF
-module use ${release_dir}/modulefiles/${arch_triplet}
 module --ignore_cache avail
 EOF
 }
