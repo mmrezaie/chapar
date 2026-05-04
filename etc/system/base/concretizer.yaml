@@ -33,6 +33,6 @@ concretizer:
   error_on_timeout: true
   static_analysis: false
   concretization_cache:
-    enable: false
+    enable: true
   externals:
     completion: default_variants

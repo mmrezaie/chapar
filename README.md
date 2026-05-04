@@ -200,6 +200,9 @@ for macOS artifacts because it would build Linux binaries.
 
 Manual workflow inputs include `release_id`, `publish_current`,
 `publish_buildcache`, `spack_ref`, `spack_install_args`, and `hpcsim_root`.
+The default `spack_ref` is pinned to keep concretization and buildcache hashes
+stable across rebuilds; override it only when intentionally testing a Spack
+update.
 
 ## Build Parallelism
 

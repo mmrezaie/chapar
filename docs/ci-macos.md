@@ -64,7 +64,7 @@ Manual dispatch inputs:
 
 - `release_id`: optional release ID. Empty means the workflow run ID.
 - `git_ref`: optional Chapar branch, tag, or SHA.
-- `spack_ref`: Spack branch, tag, or SHA.
+- `spack_ref`: Spack branch, tag, or SHA. The default is pinned for cache stability.
 - `publish_current`: update `/resources/share/hpcsim/macos/current` after build.
 - `publish_buildcache`: push to `/resources/share/hpcsim/macos/buildcache`.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
@@ -90,6 +90,9 @@ mirror before concretization and install. Matching cached binaries are reused;
 only missing concrete hashes build from source. When `publish_buildcache` is
 true, newly source-built packages are pushed during install and the buildcache
 index is refreshed on exit.
+
+CI sets `SPACK_USER_CACHE_PATH` under `~/.cache/chapar/spack` so Spack source,
+misc, and concretization caches can persist across runs.
 
 ## Thunderbolt Networking
 

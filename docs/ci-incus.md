@@ -82,7 +82,7 @@ Inputs:
 - `git_ref`: optional branch, tag, or SHA. Empty means the workflow ref.
 - `publish_current`: update `/resources/share/hpcsim/<os>/current` after build.
 - `publish_buildcache`: push to `/resources/share/hpcsim/<os>/buildcache`.
-- `spack_ref`: Spack branch, tag, or SHA.
+- `spack_ref`: Spack branch, tag, or SHA. The default is pinned for cache stability.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
 - `runner_label`: common custom runner label, default `chapar`.
 - `hpcsim_root`: shared output root, default `/resources/chapar/hpcsim`.
@@ -130,6 +130,7 @@ Per-run logs and concrete environment files:
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/logs/build.log`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/commit.txt`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/spack-version.txt`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/spack-commit.txt`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/release-id.txt`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.yaml`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.lock`
@@ -148,5 +149,9 @@ unsigned binary mirror before concretization and install. Matching cached
 binaries are reused; only missing concrete hashes build from source. When
 `publish_buildcache` is true, newly source-built packages are pushed during the
 install and the buildcache index is refreshed on exit.
+
+CI sets `SPACK_USER_CACHE_PATH` under `/var/tmp/chapar-spack-cache/<os>` so
+Spack source, misc, and concretization caches can persist across runs without
+using the shared NFS store.
 
 If `publish_current` is true, CI promotes the release after the build completes.

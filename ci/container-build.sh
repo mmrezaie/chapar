@@ -46,6 +46,7 @@ echo "    publish buildcache: ${PUBLISH_BUILDCACHE}"
 echo "    ref:               ${GIT_REF}"
 echo "    repo dir:          ${REPO_DIR}"
 echo "    hpcsim root:       ${HPCSIM_ROOT}"
+echo "    spack user cache:  ${SPACK_USER_CACHE_PATH:-}"
 echo "    output:            ${RUN_ROOT}"
 
 mkdir -p "$(dirname "${REPO_DIR}")"
@@ -81,6 +82,7 @@ fi
 
 source ./etc/init.sh
 spack --version | tee "${RUN_ROOT}/spack-version.txt"
+git -C "${SPACK_ROOT}" rev-parse HEAD | tee "${RUN_ROOT}/spack-commit.txt"
 
 export HPCSIM_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
 bash ./envs/hpcsim/release.sh build "${RELEASE_ID}"
