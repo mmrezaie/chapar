@@ -262,8 +262,8 @@ cmd_build() {
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
     case "${OS_NAME}" in
         rocky8|rocky9)
-            # Node 24 needs GCC > 12; make the Spack GCC root concrete first.
-            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@13.4.0+profiled %gcc"
+            # Node 24 needs GCC > 12; make a fast Spack GCC compiler concrete first.
+            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@13.4.0~profiled %gcc"
             ;;
     esac
 
