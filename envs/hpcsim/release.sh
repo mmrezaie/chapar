@@ -235,7 +235,7 @@ cmd_module_use() {
     done
 
     cat <<EOF
-module --ignore_cache avail
+module avail
 EOF
 }
 
