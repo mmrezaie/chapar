@@ -222,7 +222,6 @@ cmd_build() {
     echo "    staging:  ${staging_dir}"
 
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
-    spack -C "${scope_dir}" buildcache update-index "file://${BUILDCACHE_ROOT}" || true
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     spack -e "${ENV_PATH}" -C "${scope_dir}" install "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" module tcl refresh -y

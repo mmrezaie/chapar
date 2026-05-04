@@ -83,7 +83,9 @@ configuration files.
 
 The release helper adds `<hpcsim_root>/macos/buildcache` as an unsigned binary
 mirror before concretization and install. Matching cached binaries are reused;
-only missing concrete hashes build from source.
+only missing concrete hashes build from source. When `publish_buildcache` is
+true, newly source-built packages are pushed during install and the buildcache
+index is refreshed on exit.
 
 ## Thunderbolt Networking
 

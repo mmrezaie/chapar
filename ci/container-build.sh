@@ -85,13 +85,6 @@ spack --version | tee "${RUN_ROOT}/spack-version.txt"
 export HPCSIM_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
 bash ./envs/hpcsim/release.sh build "${RELEASE_ID}"
 
-if [ "${PUBLISH_BUILDCACHE}" = "true" ]; then
-    bash "${PUSH_BUILDCACHE_SCRIPT}" \
-        --env-path ./envs/hpcsim \
-        --os "${OS_NAME}" \
-        --hpcsim-root "${HPCSIM_ROOT}"
-fi
-
 if [ "${PUBLISH_CURRENT}" = "true" ]; then
     bash ./envs/hpcsim/release.sh promote "${RELEASE_ID}"
 fi

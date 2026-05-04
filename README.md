@@ -152,7 +152,8 @@ concrete hashes match; missing binaries are built from source. When
 the buildcache index is refreshed on exit so a later rebuild can reuse partial
 progress.
 
-Push explicitly after a successful build if CI did not do it:
+Push explicitly only when repairing or backfilling a buildcache outside the CI
+release path:
 
 ```bash
 ci/push-buildcache.sh --env-path envs/hpcsim --os rocky9
