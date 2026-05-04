@@ -29,6 +29,8 @@ The old sectioned smoke test completed successfully on Rocky Linux 9.7 and insta
 - `intel-oneapi-compilers@2024.1.0`
 - `intel-oneapi-compilers@2025.3.1`
 
+CUDA is now expected to be installed by Spack for hpcsim GPU builds rather than provided by the host/container. The builders do not need a local CUDA toolkit or a GPU to build CUDA-dependent packages, though runtime GPU Direct behavior still depends on NVIDIA drivers, GPUs, and fabric hardware on the target nodes.
+
 Artifacts were written under:
 
 ```text

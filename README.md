@@ -185,7 +185,7 @@ Expected externals are:
 
 - OS/bootstrap compilers.
 - `glibc` on Rocky.
-- The site CUDA toolkit on GPU Rocky9 builders.
+- CUDA should be built by Spack for hpcsim GPU packages, not modeled as a host external.
 - Apple Clang and Homebrew GCC/GFortran on macOS.
 - `ccache` where the platform enables Spack ccache support.
 

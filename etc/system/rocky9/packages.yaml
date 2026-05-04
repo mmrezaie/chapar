@@ -1,7 +1,7 @@
 # Rocky Linux 9 external packages.
-# Keep this scope limited to bootstrap compilers, ccache, libc, and the site CUDA
-# toolkit. Link-time libraries and normal build dependencies should be built by
-# Spack so Rocky 8, Rocky 9, and macOS stay as similar as practical.
+# Keep this scope limited to bootstrap compilers, ccache, and libc. Link-time
+# libraries, CUDA, and normal build dependencies should be built by Spack so
+# Rocky 8, Rocky 9, and macOS stay as similar as practical.
 packages:
   c:
     require:
@@ -25,11 +25,6 @@ packages:
     externals:
     - spec: ccache@3.7.7
       prefix: /usr
-  cuda:
-    buildable: false
-    externals:
-    - spec: cuda@13.0.2
-      prefix: /usr/local/cuda
   glibc:
     buildable: false
     externals:

@@ -101,7 +101,7 @@ Spack-built packages so Rocky8, Rocky9, and macOS stay as similar as practical.
 
 Expected system externals:
 
-- Rocky: system GCC, `glibc`, `ccache`, and the site CUDA toolkit on GPU Rocky9 builders.
+- Rocky: system GCC, `glibc`, and `ccache`. CUDA should be built by Spack for hpcsim GPU packages.
 - macOS: Apple Clang, Homebrew GCC/GFortran, and optionally `ccache`.
 
 Do not add ordinary link-time dependencies such as OpenSSL, zlib, libpng, curl,
