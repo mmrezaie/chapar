@@ -4,10 +4,42 @@ set -euo pipefail
 : "${HPCSIM_ROOT:=/resources/share/hpcsim}"
 : "${OS_NAME:?OS_NAME is required}"
 
+die() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+validate_hpcsim_root() {
+    local home_root="${HOME}/resources/share/hpcsim"
+
+    case "${HPCSIM_ROOT}" in
+        /*) ;;
+        *) die "HPCSIM_ROOT must be an absolute path: ${HPCSIM_ROOT}" ;;
+    esac
+
+    case "${HPCSIM_ROOT}" in
+        /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
+            die "HPCSIM_ROOT is not an approved simple shared hpcsim path: ${HPCSIM_ROOT}"
+            ;;
+    esac
+
+    case "${HPCSIM_ROOT}" in
+        /resources/share/hpcsim|/resources/share/hpcsim/*|/resources/chapar/hpcsim|/resources/chapar/hpcsim/*|"${home_root}"|"${home_root}"/*)
+            ;;
+        *)
+            if [ "${CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT:-false}" != "true" ]; then
+                die "HPCSIM_ROOT must be under /resources/share/hpcsim, /resources/chapar/hpcsim, or ${home_root}; set CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true for local testing"
+            fi
+            ;;
+    esac
+}
+
 case "${OS_NAME}" in
     rocky8|rocky9|macos) ;;
-    *) echo "ERROR: OS_NAME must be rocky8, rocky9, or macos, got ${OS_NAME}" >&2; exit 1 ;;
+    *) die "OS_NAME must be rocky8, rocky9, or macos, got ${OS_NAME}" ;;
 esac
+
+validate_hpcsim_root
 
 run_as_root() {
     if [ "$(id -u)" -eq 0 ]; then

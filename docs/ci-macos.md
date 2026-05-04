@@ -70,6 +70,10 @@ Manual dispatch inputs:
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
 - `hpcsim_root`: shared output root. Empty means `~/resources/share/hpcsim`.
 
+`hpcsim_root` must stay under the default `~/resources/share/hpcsim`,
+`/resources/chapar/hpcsim`, or `/resources/share/hpcsim` unless
+`CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true` is set for a controlled local test.
+
 The push fallback is path-filtered to hpcsim environment, CI, workflow, and
 configuration files.
 

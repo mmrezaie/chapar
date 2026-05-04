@@ -175,3 +175,4 @@ spack arch --platform
 | `HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim release root |
 | `OS_NAME` | auto-detected | `rocky8`, `rocky9`, or `macos` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |
+| `CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT` | `false` | Allow non-standard absolute `HPCSIM_ROOT` values for local tests |

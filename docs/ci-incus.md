@@ -87,6 +87,10 @@ Inputs:
 - `runner_label`: common custom runner label, default `chapar`.
 - `hpcsim_root`: shared output root, default `/resources/chapar/hpcsim`.
 
+`hpcsim_root` must stay under `/resources/chapar/hpcsim` or
+`/resources/share/hpcsim` unless `CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true` is set
+for a controlled local test.
+
 When `os=all`, GitHub schedules independent Rocky8 and Rocky9 matrix jobs. The
 job-level concurrency group includes `matrix.os_name`, so Rocky8 and Rocky9 can
 build at the same time while repeated jobs for the same OS remain serialized.

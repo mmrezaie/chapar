@@ -39,6 +39,41 @@ ensure_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "required command '$1' not found"
 }
 
+validate_release_id() {
+    local release_id="$1"
+
+    case "${release_id}" in
+        ""|.|..|*/*|*[!A-Za-z0-9._-]*)
+            die "release-id must match [A-Za-z0-9._-]+ and cannot be '.' or '..': ${release_id}"
+            ;;
+    esac
+}
+
+validate_hpcsim_root() {
+    local home_root="${HOME}/resources/share/hpcsim"
+
+    case "${HPCSIM_ROOT}" in
+        /*) ;;
+        *) die "HPCSIM_ROOT must be an absolute path: ${HPCSIM_ROOT}" ;;
+    esac
+
+    case "${HPCSIM_ROOT}" in
+        /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
+            die "HPCSIM_ROOT is not an approved simple shared hpcsim path: ${HPCSIM_ROOT}"
+            ;;
+    esac
+
+    case "${HPCSIM_ROOT}" in
+        /resources/share/hpcsim|/resources/share/hpcsim/*|/resources/chapar/hpcsim|/resources/chapar/hpcsim/*|"${home_root}"|"${home_root}"/*)
+            ;;
+        *)
+            if [ "${CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT:-false}" != "true" ]; then
+                die "HPCSIM_ROOT must be under /resources/share/hpcsim, /resources/chapar/hpcsim, or ${home_root}; set CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true for local testing"
+            fi
+            ;;
+    esac
+}
+
 detect_os() {
     local detected="${OS_NAME:-}"
 
@@ -69,6 +104,7 @@ detect_os() {
 
 set_paths() {
     OS_NAME="$(detect_os)"
+    validate_hpcsim_root
     OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
     STORE_ROOT="${OS_ROOT}/store"
     RELEASES_ROOT="${OS_ROOT}/releases"
@@ -170,6 +206,7 @@ resolve_release_dir() {
 
     set_paths
     if [ -n "${release_id}" ]; then
+        validate_release_id "${release_id}"
         release_dir="${RELEASES_ROOT}/${release_id}"
     else
         release_dir="${CURRENT_LINK}"
@@ -188,6 +225,7 @@ cmd_build() {
     local arch_triplet
 
     [ -n "${RELEASE_ID}" ] || die "release-id is required for build"
+    validate_release_id "${RELEASE_ID}"
     case "${promote}" in
         ""|--promote) ;;
         *) die "unknown build option: ${promote}" ;;
@@ -245,6 +283,7 @@ cmd_promote() {
     local tmp_link
 
     [ -n "${release_id}" ] || die "release-id is required for promote"
+    validate_release_id "${release_id}"
     set_paths
     release_dir="${RELEASES_ROOT}/${release_id}"
     [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
