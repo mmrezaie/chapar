@@ -194,8 +194,10 @@ install_cuda_libfabric_specs() {
     local install_args_ref=("$@")
     local cuda_prefix
     local cuda_root
+    local spec_line
     local spec_hash
     local spec_hashes=()
+    local seen_hashes=()
     local saved_cpath="${CPATH:-}"
     local saved_library_path="${LIBRARY_PATH:-}"
 
@@ -204,17 +206,28 @@ install_cuda_libfabric_specs() {
         *) return 0 ;;
     esac
 
-    while IFS= read -r spec_hash; do
+    while IFS= read -r spec_line; do
+        case "${spec_line}" in
+            *libfabric*+cuda*HASH=/*) ;;
+            *) continue ;;
+        esac
+        spec_hash="${spec_line##*HASH=}"
         [ -n "${spec_hash}" ] || continue
+        case " ${seen_hashes[*]} " in
+            *" ${spec_hash} "*) continue ;;
+        esac
+        seen_hashes+=("${spec_hash}")
         spec_hashes+=("${spec_hash}")
-    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -H "libfabric+cuda")
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -d --format "{name} {variants} HASH={/hash}")
 
     [ "${#spec_hashes[@]}" -gt 0 ] || return 0
 
     echo "==> Preinstalling CUDA-aware libfabric specs"
     echo "    count: ${#spec_hashes[@]}"
 
-    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install "${install_args_ref[@]}" "cuda@13.0.2"
+    for spec_hash in "${spec_hashes[@]}"; do
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install "${install_args_ref[@]}" --only dependencies "${spec_hash}"
+    done
     cuda_prefix="$(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "cuda@13.0.2")"
     cuda_root="$(cuda_target_root "${cuda_prefix}")" || die "could not locate CUDA target runtime under ${cuda_prefix}"
     [ -d "${cuda_root}/lib/stubs" ] || die "could not locate CUDA driver stubs under ${cuda_root}/lib/stubs"
@@ -222,7 +235,7 @@ install_cuda_libfabric_specs() {
     export CPATH="${cuda_root}/include${saved_cpath:+:${saved_cpath}}"
     export LIBRARY_PATH="${cuda_root}/lib:${cuda_root}/lib/stubs${saved_library_path:+:${saved_library_path}}"
     for spec_hash in "${spec_hashes[@]}"; do
-        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --dirty "${install_args_ref[@]}" "${spec_hash}"
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --dirty "${install_args_ref[@]}" --only package "${spec_hash}"
     done
     export CPATH="${saved_cpath}"
     export LIBRARY_PATH="${saved_library_path}"
