@@ -63,7 +63,7 @@ if type module >/dev/null 2>&1; then
                     . /etc/os-release
                     case "${ID}:${VERSION_ID%%.*}" in
                         rocky:8|rhel:8|almalinux:8|centos:8) printf '%s\n' rocky8 ;;
-                        rocky:9|rhel:9|almalinux:9|centos:9) printf '%s\n' rocky9 ;;
+                        rocky:9|rhel:9|almalinux:9|centos:9|fedora:*) printf '%s\n' rocky9 ;;
                     esac
                 fi
                 ;;

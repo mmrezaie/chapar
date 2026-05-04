@@ -11,7 +11,7 @@ if type module >/dev/null 2>&1; then
         . /etc/os-release
         case "${ID:-}:${VERSION_ID%%.*}" in
             rocky:8|rhel:8|almalinux:8|centos:8) _chapar_hpcsim_os="rocky8" ;;
-            rocky:9|rhel:9|almalinux:9|centos:9) _chapar_hpcsim_os="rocky9" ;;
+            rocky:9|rhel:9|almalinux:9|centos:9|fedora:*) _chapar_hpcsim_os="rocky9" ;;
         esac
     fi
 
