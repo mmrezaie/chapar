@@ -83,4 +83,10 @@ if ! command -v gh >/dev/null 2>&1; then
     as_root dnf -y install gh
 fi
 
-git config --global --add safe.directory '*' || true
+for safe_dir in \
+    "${GITHUB_WORKSPACE:-}" \
+    /opt/actions-runner/_work/chapar/chapar \
+    /root/workspace/chapar; do
+    [ -n "${safe_dir}" ] || continue
+    git config --global --add safe.directory "${safe_dir}" || true
+done
