@@ -207,7 +207,7 @@ install_cuda_libfabric_specs() {
     while IFS= read -r spec_hash; do
         [ -n "${spec_hash}" ] || continue
         spec_hashes+=("${spec_hash}")
-    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -d -H "libfabric+cuda")
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -H "libfabric+cuda")
 
     [ "${#spec_hashes[@]}" -gt 0 ] || return 0
 
