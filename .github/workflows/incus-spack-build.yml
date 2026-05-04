@@ -10,6 +10,7 @@ on:
       - ci/**
       - envs/hpcsim/**
       - etc/**
+      - spack_repo/**
       - Makefile
   workflow_dispatch:
     inputs:
