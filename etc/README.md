@@ -173,6 +173,7 @@ spack arch --platform
 | `SPACK_USER_CONFIG_PATH` | `~/.spack/` | Override user scope location |
 | `SPACK_USER_CACHE_PATH` | `/tmp/$USER/spack-cache` | Fast local cache root from `etc/init.sh` |
 | `HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim release root |
+| `CHAPAR_HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim root used when adding promoted modules |
 | `OS_NAME` | auto-detected | `rocky8`, `rocky9`, or `macos` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |
 | `CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT` | `false` | Allow non-standard absolute `HPCSIM_ROOT` values for local tests |
