@@ -10,7 +10,7 @@ module layout, and environment definitions outside the Spack repository.
 ## Goals
 
 - Keep one package list in `envs/hpcsim/spack.yaml`.
-- Avoid canary/prod and package-section environment splits.
+- Avoid release-tier and package-section environment splits.
 - Prefer Spack-built dependencies over OS-provided libraries and tools.
 - Keep only necessary externals for compilers, libc, ccache, and unavoidable
   platform runtime pieces.
@@ -67,6 +67,10 @@ spack config blame packages
 ```
 
 ## Building hpcsim
+
+`envs/hpcsim` is the only supported Chapar environment. Stale local
+`envs/skipper*` directories from older workflows are ignored and can be removed;
+they are not referenced by the current CI, release helper, or Spack scopes.
 
 For local validation with the active Spack scopes:
 

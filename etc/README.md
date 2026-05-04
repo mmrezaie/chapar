@@ -48,6 +48,9 @@ This repository provides scopes 2 and 4. `envs/hpcsim/release.sh` uses a
 temporary command-line scope to direct installs and modules into
 `/resources/share/hpcsim/<os>`.
 
+The tracked scopes do not reference legacy sectioned environments. The current
+workflow uses only `envs/hpcsim` plus OS-specific scope overlays.
+
 ## Initialization
 
 Install upstream Spack once per user:

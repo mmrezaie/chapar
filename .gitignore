@@ -9,6 +9,9 @@ __pycache__/
 
 # Spack runtime/cache artifacts (machine-local)
 envs/*/.spack-env/
+
+# Legacy local environment directories; Chapar only tracks envs/hpcsim.
+/envs/skipper*/
 etc/user/cache/
 etc/user/environments/
 etc/user/package_repos/
