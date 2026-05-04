@@ -35,7 +35,7 @@ spack:
     - openblas threads=openmp %gcc
     when: platform == "linux"
   - linux_devtools_specs:
-    - npm@9.9.4 %gcc ^node-js@20.18.3 %gcc
+    - npm@9.9.4 %gcc ^node-js@18 %gcc
     - numactl
     - pulseaudio@13.0 %gcc ^fftw~mpi
     when: platform == "linux"
@@ -128,7 +128,7 @@ spack:
     - gcc@15.2.0
     when: platform == "darwin"
   - macos_devtools_specs:
-    - npm@9.9.4 ^node-js@20.18.3
+    - npm@9.9.4 ^node-js@18
     when: platform == "darwin"
   - macos_mpi_specs:
     - libfabric@1.22.0 fabrics=tcp,sockets,udp
