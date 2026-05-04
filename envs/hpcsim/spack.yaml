@@ -36,7 +36,7 @@ spack:
     when: platform == "linux"
   - linux_devtools_specs:
     - npm@9.9.4 %gcc ^node-js@18 %gcc
-    - npm@11.2.0 %gcc ^node-js@24.2.0 %gcc
+    - npm@11.2.0 %gcc@13.4.0 ^node-js@24.2.0 %gcc@13.4.0
     - numactl
     - pulseaudio@13.0 %gcc ^fftw~mpi
     when: platform == "linux"
@@ -197,6 +197,10 @@ spack:
     cmake:
       require:
       - ~qtgui
+    node-js:
+      require:
+      - spec: ^python@:3.13
+        when: '@24.2.0'
     libtool:
       require:
       - '@2.4.7:'

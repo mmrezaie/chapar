@@ -260,6 +260,13 @@ cmd_build() {
     echo "    staging:  ${staging_dir}"
 
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
+    case "${OS_NAME}" in
+        rocky8|rocky9)
+            # Node 24 needs GCC > 12; make the Spack GCC root concrete first.
+            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@13.4.0+profiled %gcc"
+            ;;
+    esac
+
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     spack -e "${ENV_PATH}" -C "${scope_dir}" install "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" module tcl refresh -y
