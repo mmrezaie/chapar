@@ -175,6 +175,59 @@ trust_buildcache_keys() {
     fi
 }
 
+cuda_target_root() {
+    local cuda_prefix="$1"
+    local candidate
+
+    for candidate in "${cuda_prefix}"/targets/*-linux; do
+        [ -d "${candidate}" ] || continue
+        [ -r "${candidate}/include/cuda_runtime.h" ] || continue
+        compgen -G "${candidate}/lib/libcudart.so*" >/dev/null || continue
+        printf '%s\n' "${candidate}"
+        return 0
+    done
+
+    return 1
+}
+
+install_cuda_libfabric_specs() {
+    local install_args_ref=("$@")
+    local cuda_prefix
+    local cuda_root
+    local spec_hash
+    local spec_hashes=()
+    local saved_cpath="${CPATH:-}"
+    local saved_library_path="${LIBRARY_PATH:-}"
+
+    case "${OS_NAME}" in
+        rocky8|rocky9) ;;
+        *) return 0 ;;
+    esac
+
+    while IFS= read -r spec_hash; do
+        [ -n "${spec_hash}" ] || continue
+        spec_hashes+=("${spec_hash}")
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -d -H "libfabric+cuda")
+
+    [ "${#spec_hashes[@]}" -gt 0 ] || return 0
+
+    echo "==> Preinstalling CUDA-aware libfabric specs"
+    echo "    count: ${#spec_hashes[@]}"
+
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install "${install_args_ref[@]}" "cuda@13.0.2"
+    cuda_prefix="$(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "cuda@13.0.2")"
+    cuda_root="$(cuda_target_root "${cuda_prefix}")" || die "could not locate CUDA target runtime under ${cuda_prefix}"
+    [ -d "${cuda_root}/lib/stubs" ] || die "could not locate CUDA driver stubs under ${cuda_root}/lib/stubs"
+
+    export CPATH="${cuda_root}/include${saved_cpath:+:${saved_cpath}}"
+    export LIBRARY_PATH="${cuda_root}/lib:${cuda_root}/lib/stubs${saved_library_path:+:${saved_library_path}}"
+    for spec_hash in "${spec_hashes[@]}"; do
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --dirty "${install_args_ref[@]}" "${spec_hash}"
+    done
+    export CPATH="${saved_cpath}"
+    export LIBRARY_PATH="${saved_library_path}"
+}
+
 cleanup_build() {
     local status="$?"
 
@@ -275,6 +328,7 @@ cmd_build() {
     esac
 
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
+    install_cuda_libfabric_specs "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" module tcl refresh -y
 
