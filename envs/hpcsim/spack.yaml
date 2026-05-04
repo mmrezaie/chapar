@@ -128,7 +128,7 @@ spack:
     - gcc@15.2.0
     when: platform == "darwin"
   - macos_devtools_specs:
-    - npm@9.9.4 ^node-js@18
+    - npm@11.2.0 ^node-js@22.16.0
     when: platform == "darwin"
   - macos_mpi_specs:
     - libfabric@1.22.0 fabrics=tcp,sockets,udp
@@ -140,7 +140,7 @@ spack:
     when: platform == "darwin"
   - macos_benchmark_specs:
     - hpl+openmp %gcc ^[virtuals=blas] veclibfort
-    - hpcg+openmp %gcc ^[virtuals=blas] veclibfort
+    - hpcg+openmp %gcc ^openmpi@5.0.8 fabrics=ofi schedulers=none ^libfabric@1.22.0 fabrics=tcp,sockets,udp
     - stream~openmp %gcc
     - intel-mpi-benchmarks %gcc
     - ior+hdf5+ncmpi
