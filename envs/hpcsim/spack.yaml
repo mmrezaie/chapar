@@ -190,6 +190,10 @@ spack:
         blas: [openblas]
         lapack: [openblas]
         scalapack: [netlib-scalapack]
+    gcc:
+      require:
+      - spec: +profiled
+        when: '@15.2.0 platform=linux'
     zlib-api:
       require:
       - zlib-ng+compat
@@ -225,10 +229,16 @@ spack:
     openmpi:
       require:
       - schedulers=none
+    libfabric:
+      require:
+      - spec: '%gcc@15.2.0'
+        when: '+cuda platform=linux'
     gdrcopy:
       require:
       - +cuda
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+      - spec: '%gcc@15.2.0'
+        when: '+cuda platform=linux'
     nccl:
       require:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
