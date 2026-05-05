@@ -337,6 +337,7 @@ cmd_build() {
         rocky8|rocky9)
             # Node 24 needs GCC > 12; make a fast Spack GCC compiler concrete first.
             spack -C "${scope_dir}" install "${install_args[@]}" "gcc@13.4.0~profiled %gcc"
+            spack -C "${scope_dir}" mark -i -a "gcc@13.4.0~profiled %gcc"
             ;;
     esac
 
