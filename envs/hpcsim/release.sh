@@ -335,9 +335,8 @@ cmd_build() {
     trust_buildcache_keys
     case "${OS_NAME}" in
         rocky8|rocky9)
-            # Node 24 needs GCC > 12; make a fast Spack GCC compiler concrete first.
-            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@13.4.0~profiled %gcc"
-            spack -C "${scope_dir}" mark -i -a "gcc@13.4.0~profiled %gcc"
+            # Node 24 needs GCC > 12; make hpcsim's optimized GCC compiler concrete first.
+            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15.2.0+profiled %gcc"
             ;;
     esac
 

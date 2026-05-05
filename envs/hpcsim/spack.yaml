@@ -35,7 +35,7 @@ spack:
     - openblas threads=openmp %gcc
     when: platform == "linux"
   - linux_devtools_specs:
-    - npm@11.2.0 %gcc@13.4.0 ^node-js@24.2.0 %gcc@13.4.0
+    - npm@11.2.0 %gcc@15.2.0 ^node-js@24.2.0 %gcc@15.2.0
     - numactl
     - pulseaudio@13.0 %gcc ^fftw~mpi
     when: platform == "linux"
@@ -64,7 +64,7 @@ spack:
   - rocky8_toolchain_specs:
     - gcc@13.4.0+profiled %gcc
     - gcc@14.3.0+profiled %gcc
-    - gcc@15.2.0~profiled %gcc
+    - gcc@15.2.0+profiled %gcc
     - intel-oneapi-compilers@2025.3.1
     - intel-oneapi-compilers@2024.1.0
     - intel-oneapi-compilers@2023.1.0
