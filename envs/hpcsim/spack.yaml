@@ -70,10 +70,10 @@ spack:
     - intel-oneapi-compilers@2023.1.0
     when: os == "rocky8"
   - rocky8_mpi_specs:
-    - ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
-    - libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
+    - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - openmpi@4.1.8 fabrics=verbs,ucx,ofi schedulers=none ^ucx@1.16.0~cuda+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
+    - openmpi@4.1.8+cuda fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
     - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
@@ -87,7 +87,7 @@ spack:
     - papi+infiniband
     - scorep~cuda+mpi+papi
     - caliper~cuda+mpi+papi+libunwind+libdw
-    - hwloc+pci~nvml
+    - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     when: os == "rocky8"
   - rocky9_toolchain_specs:
     - gcc@13.4.0+profiled
@@ -100,7 +100,7 @@ spack:
     when: os == "rocky9"
   - rocky9_mpi_specs:
     - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - libfabric@1.22.0~cuda fabrics=mlx,verbs
+    - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - openmpi@4.1.8+cuda fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - openmpi@5.0.8+cuda fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
@@ -229,8 +229,20 @@ spack:
     openmpi:
       require:
       - schedulers=none
+      - spec: +cuda fabrics=verbs,ucx
+        when: platform=linux
+      - spec: '%gcc@15.2.0'
+        when: '+cuda platform=linux'
+    ucx:
+      require:
+      - spec: +cuda+gdrcopy
+        when: platform=linux
+      - spec: '%gcc@15.2.0'
+        when: '+cuda platform=linux'
     libfabric:
       require:
+      - spec: +cuda+gdrcopy
+        when: platform=linux
       - spec: '%gcc@15.2.0'
         when: '+cuda platform=linux'
     gdrcopy:
@@ -264,6 +276,10 @@ spack:
     hwloc:
       require:
       - ~nvml
+      - spec: +cuda
+        when: platform=linux
+      - spec: '%gcc@15.2.0'
+        when: '+cuda platform=linux'
 
   modules:
     default:
