@@ -35,7 +35,7 @@ spack:
     - openblas threads=openmp %gcc
     when: platform == "linux"
   - linux_devtools_specs:
-    - npm@11.2.0 %gcc@15.2.0 ^node-js@24.2.0 %gcc@15.2.0
+    - npm@11.2.0 ^node-js@24.2.0
     - numactl
     - pulseaudio@13.0 %gcc ^fftw~mpi
     when: platform == "linux"
@@ -203,9 +203,13 @@ spack:
     npm:
       require:
       - '@11.2.0'
+      - spec: '%gcc@15.2.0'
+        when: os=rocky8
     node-js:
       require:
       - '@24.2.0'
+      - spec: '%gcc@15.2.0'
+        when: '@24.2.0 os=rocky8'
       - spec: ^python@:3.13
         when: '@24.2.0'
     libtool:
@@ -238,19 +242,19 @@ spack:
       - spec: +cuda+gdrcopy
         when: platform=linux
       - spec: '%gcc@15.2.0'
-        when: '+cuda platform=linux'
+        when: '+cuda os=rocky8'
     libfabric:
       require:
       - spec: +cuda+gdrcopy
         when: platform=linux
       - spec: '%gcc@15.2.0'
-        when: '+cuda platform=linux'
+        when: '+cuda os=rocky8'
     gdrcopy:
       require:
       - +cuda
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
       - spec: '%gcc@15.2.0'
-        when: '+cuda platform=linux'
+        when: '+cuda os=rocky8'
     nccl:
       require:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
@@ -279,7 +283,7 @@ spack:
       - spec: +cuda
         when: platform=linux
       - spec: '%gcc@15.2.0'
-        when: '+cuda platform=linux'
+        when: '+cuda os=rocky8'
 
   modules:
     default:

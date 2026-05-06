@@ -334,8 +334,8 @@ cmd_build() {
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
     trust_buildcache_keys
     case "${OS_NAME}" in
-        rocky8|rocky9)
-            # Node 24 needs GCC > 12; make hpcsim's optimized GCC compiler concrete first.
+        rocky8)
+            # Rocky 8's system GCC is too old for Node 24 and CUDA 13 host builds.
             spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15.2.0+profiled %gcc"
             ;;
     esac
