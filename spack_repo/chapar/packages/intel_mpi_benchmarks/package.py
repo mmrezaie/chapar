@@ -90,9 +90,9 @@ class IntelMpiBenchmarks(MakefilePackage):
 
     @property
     def parallel(self):
-        if self.spec.satisfies("@:2019"):
-            return False
-        return True
+        # IMB reuses common object names across targets; parallel multi-target
+        # builds can race and leave truncated objects for concurrent link steps.
+        return False
 
     @property
     def build_targets(self):
