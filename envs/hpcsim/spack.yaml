@@ -289,7 +289,7 @@ spack:
       - tcl
       tcl:
         naming_scheme: '{name}/{version}'
-        hash_length: 0
+        hash_length: 7
         exclude_implicits: true
         pulseaudio:
           environment:
