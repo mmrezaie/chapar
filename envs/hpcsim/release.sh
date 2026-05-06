@@ -293,7 +293,7 @@ validate_root_module_names() {
     names_file="${BUILD_SCOPE_DIR}/root-module-names.txt"
     duplicates_file="${BUILD_SCOPE_DIR}/duplicate-root-module-names.txt"
 
-    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -r --no-groups --format "{name}/{version}" > "${names_file}"
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups --format "{name}/{version}" > "${names_file}"
     sort "${names_file}" | uniq -d > "${duplicates_file}"
 
     if [ -s "${duplicates_file}" ]; then
@@ -316,7 +316,7 @@ refresh_root_modules() {
     while IFS= read -r root_hash; do
         [ -n "${root_hash}" ] || continue
         root_hashes+=("${root_hash}")
-    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -r -H --no-groups)
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -H --no-groups)
 
     [ "${#root_hashes[@]}" -gt 0 ] || die "no hpcsim root specs found for module generation"
     spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" module tcl refresh -y "${root_hashes[@]}"

@@ -77,7 +77,7 @@ For local validation with the active Spack scopes:
 ```bash
 spack -e envs/hpcsim concretize -f
 spack -e envs/hpcsim install
-spack -e envs/hpcsim module tcl refresh -y $(spack -e envs/hpcsim find -c -r -H --no-groups)
+spack -e envs/hpcsim module tcl refresh -y $(spack -e envs/hpcsim find -c -H --no-groups)
 ```
 
 For shared deployment, use the release helper. It builds packages into a
