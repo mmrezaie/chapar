@@ -80,6 +80,10 @@ if ! id "${RUNNER_USER}" >/dev/null 2>&1; then
     useradd --create-home --shell /bin/bash --comment "Chapar GitHub CVE runner" "${RUNNER_USER}"
 fi
 
+run_as_runner() {
+    runuser -u "${RUNNER_USER}" -- "$@"
+}
+
 mkdir -p "${RUNNER_DIR}"
 chown "${RUNNER_USER}:${RUNNER_USER}" "${RUNNER_DIR}"
 
@@ -106,10 +110,10 @@ if [ -f .service ]; then
     ./svc.sh uninstall || true
 fi
 if [ -f .runner ]; then
-    sudo -u "${RUNNER_USER}" ./config.sh remove --unattended --token "${TOKEN}" || rm -f .runner .credentials .credentials_rsaparams
+    run_as_runner ./config.sh remove --unattended --token "${TOKEN}" || rm -f .runner .credentials .credentials_rsaparams
 fi
 
-sudo -u "${RUNNER_USER}" ./config.sh \
+run_as_runner ./config.sh \
     --unattended \
     --url "${REPO_URL}" \
     --token "${TOKEN}" \
