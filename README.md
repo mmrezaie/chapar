@@ -76,9 +76,12 @@ For local validation with the active Spack scopes:
 
 ```bash
 spack -e envs/hpcsim concretize -f
-spack -e envs/hpcsim install
-spack -e envs/hpcsim module tcl refresh -y $(spack -e envs/hpcsim find -c -H --no-groups)
+spack -e envs/hpcsim install --only-concrete
 ```
+
+The release helper performs root-only module refreshes. Do not refresh modules
+from every `spack find -c -H` result; that includes dependency-only specs and
+can collide with hpcsim's hashless `{name}/{version}` module names.
 
 For shared deployment, use the release helper. It builds packages into a
 per-OS shared store and writes modules into a release-specific staging tree:

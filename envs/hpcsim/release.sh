@@ -152,6 +152,8 @@ modules:
     roots:
       tcl: ${module_root}/modulefiles
       lmod: ${module_root}/lmods
+    tcl:
+      exclude_implicits: false
 EOF
 
     printf '%s\n' "${scope_dir}"
@@ -240,7 +242,7 @@ install_cuda_libfabric_specs() {
     echo "    missing: ${#missing_hashes[@]} of ${#spec_hashes[@]}"
 
     for spec_hash in "${missing_hashes[@]}"; do
-        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install "${install_args_ref[@]}" --only dependencies "${spec_hash}"
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete "${install_args_ref[@]}" --only dependencies "${spec_hash}"
     done
     cuda_prefix="$(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "cuda@13.0.2")"
     cuda_root="$(cuda_target_root "${cuda_prefix}")" || die "could not locate CUDA target runtime under ${cuda_prefix}"
@@ -249,7 +251,7 @@ install_cuda_libfabric_specs() {
     export CPATH="${cuda_root}/include${saved_cpath:+:${saved_cpath}}"
     export LIBRARY_PATH="${cuda_root}/lib:${cuda_root}/lib/stubs${saved_library_path:+:${saved_library_path}}"
     for spec_hash in "${missing_hashes[@]}"; do
-        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --dirty "${install_args_ref[@]}" --only package "${spec_hash}"
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete --dirty "${install_args_ref[@]}" --only package "${spec_hash}"
     done
     export CPATH="${saved_cpath}"
     export LIBRARY_PATH="${saved_library_path}"
@@ -286,14 +288,33 @@ copy_manifest() {
     } > "${release_dir}/metadata.txt"
 }
 
+write_root_module_specs() {
+    local output_file="$1"
+
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" python -c '
+import spack.environment as ev
+
+env = ev.active_environment()
+if env is None:
+    raise SystemExit("no active Spack environment")
+for spec in env.concrete_roots():
+    print(f"{spec.dag_hash()} {spec.name}/{spec.version}")
+' > "${output_file}"
+}
+
 validate_root_module_names() {
+    local root_specs_file="$1"
     local names_file
     local duplicates_file
+    local module_name
 
     names_file="${BUILD_SCOPE_DIR}/root-module-names.txt"
     duplicates_file="${BUILD_SCOPE_DIR}/duplicate-root-module-names.txt"
 
-    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups --format "{name}/{version}" > "${names_file}"
+    while read -r _ module_name; do
+        [ -n "${module_name}" ] || continue
+        printf '%s\n' "${module_name}"
+    done < "${root_specs_file}" > "${names_file}"
     sort "${names_file}" | uniq -d > "${duplicates_file}"
 
     if [ -s "${duplicates_file}" ]; then
@@ -308,15 +329,20 @@ validate_root_module_names() {
 }
 
 refresh_root_modules() {
+    local root_specs_file
     local root_hash
+    local module_name
     local root_hashes=()
 
-    validate_root_module_names
+    root_specs_file="${BUILD_SCOPE_DIR}/root-module-specs.txt"
+    write_root_module_specs "${root_specs_file}"
+    validate_root_module_names "${root_specs_file}"
 
-    while IFS= read -r root_hash; do
+    while read -r root_hash module_name; do
         [ -n "${root_hash}" ] || continue
-        root_hashes+=("${root_hash}")
-    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -H --no-groups)
+        [ -n "${module_name}" ] || continue
+        root_hashes+=("/${root_hash}")
+    done < "${root_specs_file}"
 
     [ "${#root_hashes[@]}" -gt 0 ] || die "no hpcsim root specs found for module generation"
     spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" module tcl refresh -y "${root_hashes[@]}"
@@ -396,7 +422,7 @@ cmd_build() {
 
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
-    spack -e "${ENV_PATH}" -C "${scope_dir}" install "${install_args[@]}"
+    spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     refresh_root_modules
 
     arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"
