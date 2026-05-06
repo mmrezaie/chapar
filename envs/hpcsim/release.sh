@@ -291,15 +291,9 @@ copy_manifest() {
 write_root_module_specs() {
     local output_file="$1"
 
-    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" python -c '
-import spack.environment as ev
-
-env = ev.active_environment()
-if env is None:
-    raise SystemExit("no active Spack environment")
-for spec in env.concrete_roots():
-    print(f"{spec.dag_hash()} {spec.name}/{spec.version}")
-' > "${output_file}"
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" python -c \
+        'exec("import spack.environment as ev\nimport sys\nenv = ev.active_environment()\nif env is None:\n    sys.exit(\"no active Spack environment\")\nfor spec in env.concrete_roots():\n    print(\"{} {}/{}\".format(spec.dag_hash(), spec.name, spec.version))")' \
+        > "${output_file}"
 }
 
 validate_root_module_names() {
