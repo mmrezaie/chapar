@@ -4,10 +4,10 @@
 # Rocky 8, Rocky 9, and macOS stay as similar as practical.
 packages:
   c:
-    prefer:
+    require:
     - gcc@11.5.0
   cxx:
-    prefer:
+    require:
     - gcc@11.5.0
   fortran:
     require:

@@ -35,7 +35,7 @@ spack:
     - openblas threads=openmp %gcc
     when: platform == "linux"
   - linux_devtools_specs:
-    - npm@11.2.0 ^node-js@24.2.0
+    - npm@11.2.0
     - numactl
     - pulseaudio@13.0 %gcc ^fftw~mpi
     when: platform == "linux"
@@ -205,11 +205,20 @@ spack:
       - '@11.2.0'
       - spec: '%gcc@15.2.0'
         when: os=rocky8
+      - spec: '%gcc@11.5.0'
+        when: os=rocky9
     node-js:
       require:
-      - '@24.2.0'
+      - spec: '@24.2.0'
+        when: os=rocky8
+      - spec: '@22.16.0'
+        when: os=rocky9
+      - spec: '@24.2.0'
+        when: platform=darwin
       - spec: '%gcc@15.2.0'
         when: '@24.2.0 os=rocky8'
+      - spec: '%gcc@11.5.0'
+        when: '@22.16.0 os=rocky9'
       - spec: ^python@:3.13
         when: '@24.2.0'
     libtool:
