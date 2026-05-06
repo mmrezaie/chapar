@@ -150,6 +150,11 @@ binaries are reused; only missing concrete hashes build from source. When
 `publish_buildcache` is true, newly source-built packages are pushed during the
 install and the buildcache index is refreshed on exit.
 
+Release modules are generated only for explicit hpcsim root specs and are named
+`{name}/{version}`. hpcsim module names must not include Spack hashes; if two
+root specs would collide, the release helper fails so the roots can be fixed
+instead of exposing hashed module names.
+
 CI sets `SPACK_USER_CACHE_PATH` under `/var/tmp/chapar-spack-cache/<os>` so
 Spack source, misc, and concretization caches can persist across runs without
 using the shared NFS store.

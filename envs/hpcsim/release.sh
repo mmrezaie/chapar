@@ -272,6 +272,42 @@ copy_manifest() {
     } > "${release_dir}/metadata.txt"
 }
 
+validate_root_module_names() {
+    local names_file
+    local duplicates_file
+
+    names_file="${BUILD_SCOPE_DIR}/root-module-names.txt"
+    duplicates_file="${BUILD_SCOPE_DIR}/duplicate-root-module-names.txt"
+
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -r --no-groups --format "{name}/{version}" > "${names_file}"
+    sort "${names_file}" | uniq -d > "${duplicates_file}"
+
+    if [ -s "${duplicates_file}" ]; then
+        echo "ERROR: hpcsim root module names must be unique because module hashes are disabled." >&2
+        echo "Duplicate root module names:" >&2
+        while IFS= read -r module_name; do
+            echo "  ${module_name}" >&2
+        done < "${duplicates_file}"
+        echo "Fix the root specs instead of adding hash suffixes to module names." >&2
+        return 1
+    fi
+}
+
+refresh_root_modules() {
+    local root_hash
+    local root_hashes=()
+
+    validate_root_module_names
+
+    while IFS= read -r root_hash; do
+        [ -n "${root_hash}" ] || continue
+        root_hashes+=("${root_hash}")
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -r -H --no-groups)
+
+    [ "${#root_hashes[@]}" -gt 0 ] || die "no hpcsim root specs found for module generation"
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" module tcl refresh -y "${root_hashes[@]}"
+}
+
 resolve_release_dir() {
     local release_id="${1:-}"
     local release_dir
@@ -343,7 +379,7 @@ cmd_build() {
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install "${install_args[@]}"
-    spack -e "${ENV_PATH}" -C "${scope_dir}" module tcl refresh -y
+    refresh_root_modules
 
     arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"
     copy_manifest "${staging_dir}"

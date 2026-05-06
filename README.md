@@ -77,7 +77,7 @@ For local validation with the active Spack scopes:
 ```bash
 spack -e envs/hpcsim concretize -f
 spack -e envs/hpcsim install
-spack -e envs/hpcsim module tcl refresh -y
+spack -e envs/hpcsim module tcl refresh -y $(spack -e envs/hpcsim find -c -r -H --no-groups)
 ```
 
 For shared deployment, use the release helper. It builds packages into a
@@ -118,6 +118,12 @@ bash envs/hpcsim/release.sh module-use 2026-05-02
 The helper resolves the release directory before printing `module use`. That
 keeps long-running jobs tied to the release they loaded instead of the mutable
 `current` symlink.
+
+hpcsim module names are always `{name}/{version}` with no hash suffixes. Hashes
+belong in Spack store prefixes and buildcache records, not in user-facing module
+names. If two root specs would produce the same module name, fix the root specs;
+dependency-only duplicate concrete specs are excluded from release module
+generation.
 
 ## Safe Deployment Model
 

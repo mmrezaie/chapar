@@ -297,8 +297,10 @@ spack:
       enable:
       - tcl
       tcl:
+        # hpcsim module names are user-facing and must stay name/version only.
+        # If root specs collide, fix the roots instead of adding hash suffixes.
         naming_scheme: '{name}/{version}'
-        hash_length: 7
+        hash_length: 0
         exclude_implicits: true
         pulseaudio:
           environment:

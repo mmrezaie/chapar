@@ -140,6 +140,12 @@ The store is shared per OS and package prefixes include hashes. Module trees are
 release-specific. This allows new modules and packages to be added without
 rewriting the module tree used by already-running jobs.
 
+hpcsim module names are user-facing and must stay `{name}/{version}` with no
+hash suffixes. Release module generation is limited to explicit environment
+roots; duplicate dependency-only concrete specs must not force hashes into module
+names. If root specs collide on `{name}/{version}`, fix the roots before
+publishing the release.
+
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are
 preferred before falling back to source builds.
