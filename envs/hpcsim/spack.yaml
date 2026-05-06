@@ -205,20 +205,15 @@ spack:
       - '@11.2.0'
       - spec: '%gcc@15.2.0'
         when: os=rocky8
-      - spec: '%gcc@11.5.0'
+      - spec: '%gcc@15.2.0'
         when: os=rocky9
     node-js:
       require:
-      - spec: '@24.2.0'
-        when: os=rocky8
-      - spec: '@22.16.0'
-        when: os=rocky9
-      - spec: '@24.2.0'
-        when: platform=darwin
+      - '@24.2.0'
       - spec: '%gcc@15.2.0'
         when: '@24.2.0 os=rocky8'
-      - spec: '%gcc@11.5.0'
-        when: '@22.16.0 os=rocky9'
+      - spec: '%gcc@15.2.0'
+        when: '@24.2.0 os=rocky9'
       - spec: ^python@:3.13
         when: '@24.2.0'
     libtool:

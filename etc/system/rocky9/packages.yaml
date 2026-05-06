@@ -5,10 +5,10 @@
 packages:
   c:
     require:
-    - gcc@11.5.0
+    - one_of: [gcc@11.5.0, gcc@15.2.0]
   cxx:
     require:
-    - gcc@11.5.0
+    - one_of: [gcc@11.5.0, gcc@15.2.0]
   fortran:
     require:
     - gcc@11.5.0
