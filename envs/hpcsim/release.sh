@@ -197,6 +197,7 @@ install_cuda_libfabric_specs() {
     local spec_line
     local spec_hash
     local spec_hashes=()
+    local missing_hashes=()
     local seen_hashes=()
     local saved_cpath="${CPATH:-}"
     local saved_library_path="${LIBRARY_PATH:-}"
@@ -218,14 +219,27 @@ install_cuda_libfabric_specs() {
         esac
         seen_hashes+=("${spec_hash}")
         spec_hashes+=("${spec_hash}")
-    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -d --format "{name} {variants} HASH={/hash}")
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c -d --no-groups --format "{name} {variants} HASH={/hash}")
 
     [ "${#spec_hashes[@]}" -gt 0 ] || return 0
 
-    echo "==> Preinstalling CUDA-aware libfabric specs"
-    echo "    count: ${#spec_hashes[@]}"
-
     for spec_hash in "${spec_hashes[@]}"; do
+        if spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "${spec_hash}" >/dev/null 2>&1; then
+            continue
+        fi
+        missing_hashes+=("${spec_hash}")
+    done
+
+    if [ "${#missing_hashes[@]}" -eq 0 ]; then
+        echo "==> CUDA-aware libfabric specs already installed"
+        echo "    count: ${#spec_hashes[@]}"
+        return 0
+    fi
+
+    echo "==> Preinstalling CUDA-aware libfabric specs"
+    echo "    missing: ${#missing_hashes[@]} of ${#spec_hashes[@]}"
+
+    for spec_hash in "${missing_hashes[@]}"; do
         spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install "${install_args_ref[@]}" --only dependencies "${spec_hash}"
     done
     cuda_prefix="$(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "cuda@13.0.2")"
@@ -234,7 +248,7 @@ install_cuda_libfabric_specs() {
 
     export CPATH="${cuda_root}/include${saved_cpath:+:${saved_cpath}}"
     export LIBRARY_PATH="${cuda_root}/lib:${cuda_root}/lib/stubs${saved_library_path:+:${saved_library_path}}"
-    for spec_hash in "${spec_hashes[@]}"; do
+    for spec_hash in "${missing_hashes[@]}"; do
         spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --dirty "${install_args_ref[@]}" --only package "${spec_hash}"
     done
     export CPATH="${saved_cpath}"
