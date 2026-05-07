@@ -66,9 +66,10 @@ Manual dispatch inputs:
 - `git_ref`: optional Chapar branch, tag, or SHA.
 - `spack_ref`: Spack branch, tag, or SHA. The default is pinned for cache stability.
 - `publish_current`: update `/resources/share/hpcsim/macos/current` after build.
-- `publish_buildcache`: push to `/resources/share/hpcsim/macos/buildcache`.
+- `publish_buildcache`: push to the configured Chapar buildcache root.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
 - `hpcsim_root`: shared output root. Empty means `~/resources/share/hpcsim`.
+- `buildcache_root`: shared binary cache root. Empty means `~/resources/chapar/cache`.
 
 `hpcsim_root` must stay under the default `~/resources/share/hpcsim`,
 `/resources/chapar/hpcsim`, or `/resources/share/hpcsim` unless
@@ -82,14 +83,20 @@ configuration files.
 - `<hpcsim_root>/macos/store`
 - `<hpcsim_root>/macos/releases/<release-id>`
 - `<hpcsim_root>/macos/current`
-- `<hpcsim_root>/macos/buildcache`
+- `<buildcache_root>/macos`
 - `<hpcsim_root>/macos/runs/<run-id>`
 
-The release helper adds `<hpcsim_root>/macos/buildcache` as an unsigned binary
-mirror before concretization and install. Matching cached binaries are reused;
-only missing concrete hashes build from source. When `publish_buildcache` is
-true, newly source-built packages are pushed during install and the buildcache
-index is refreshed on exit.
+The release helper adds `<buildcache_root>/macos` as the unsigned
+`chapar-buildcache` binary mirror before concretization and install. Matching
+cached binaries are reused; only missing concrete hashes build from source. When
+`publish_buildcache` is true, newly source-built packages are pushed during
+install and the buildcache index is refreshed on exit.
+
+The Linux VM/NAS cache policy uses `/resources/chapar/cache/<os>`. The macOS
+workflow keeps a user-local default because macOS runners may not mount the NAS;
+set `buildcache_root=/resources/chapar/cache` when that mount is available.
+Use `CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT=true` only for controlled local tests
+that need a nonstandard absolute cache path.
 
 CI sets `SPACK_USER_CACHE_PATH` under `~/.cache/chapar/spack` so Spack source,
 misc, and concretization caches can persist across runs.

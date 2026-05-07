@@ -4,9 +4,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_PATH="${ENV_PATH:-${SCRIPT_DIR}}"
 HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
 SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:-}"
 PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-false}"
 BUILD_SCOPE_DIR=""
+BUILDCACHE_MIGRATION_LOCK_DIR=""
 REFRESH_BUILDCACHE_ON_EXIT="false"
 
 usage() {
@@ -20,6 +22,8 @@ Usage:
 Environment:
   ENV_PATH             Spack environment path. Default: envs/hpcsim
   HPCSIM_ROOT          Shared root. Default: /resources/share/hpcsim
+  CHAPAR_BUILDCACHE_ROOT
+                       Shared binary cache root. Default: /resources/chapar/cache
   OS_NAME              rocky8, rocky9, or macos. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
 
@@ -27,6 +31,7 @@ Release layout:
   /resources/share/hpcsim/<os>/store
   /resources/share/hpcsim/<os>/releases/<release-id>
   /resources/share/hpcsim/<os>/current -> releases/<release-id>
+  /resources/chapar/cache/<os>
 EOF
 }
 
@@ -74,6 +79,31 @@ validate_hpcsim_root() {
     esac
 }
 
+validate_buildcache_root() {
+    local home_root="${HOME}/resources/chapar/cache"
+
+    case "${CHAPAR_BUILDCACHE_ROOT}" in
+        /*) ;;
+        *) die "CHAPAR_BUILDCACHE_ROOT must be an absolute path: ${CHAPAR_BUILDCACHE_ROOT}" ;;
+    esac
+
+    case "${CHAPAR_BUILDCACHE_ROOT}" in
+        /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
+            die "CHAPAR_BUILDCACHE_ROOT is not an approved simple shared cache path: ${CHAPAR_BUILDCACHE_ROOT}"
+            ;;
+    esac
+
+    case "${CHAPAR_BUILDCACHE_ROOT}" in
+        /resources/chapar/cache|/resources/chapar/cache/*|"${home_root}"|"${home_root}"/*)
+            ;;
+        *)
+            if [ "${CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT:-false}" != "true" ]; then
+                die "CHAPAR_BUILDCACHE_ROOT must be under /resources/chapar/cache or ${home_root}; set CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT=true for local testing"
+            fi
+            ;;
+    esac
+}
+
 detect_os() {
     local detected="${OS_NAME:-}"
 
@@ -105,11 +135,12 @@ detect_os() {
 set_paths() {
     OS_NAME="$(detect_os)"
     validate_hpcsim_root
+    validate_buildcache_root
     OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
     STORE_ROOT="${OS_ROOT}/store"
     RELEASES_ROOT="${OS_ROOT}/releases"
     CURRENT_LINK="${OS_ROOT}/current"
-    BUILDCACHE_ROOT="${OS_ROOT}/buildcache"
+    BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
 }
 
 make_scope() {
@@ -138,7 +169,7 @@ EOF
 
     cat > "${scope_dir}/mirrors.yaml" <<EOF
 mirrors:
-  hpcsim-${OS_NAME}:
+  chapar-buildcache:
     url: file://${BUILDCACHE_ROOT}
     source: false
     binary: true
@@ -159,16 +190,108 @@ EOF
     printf '%s\n' "${scope_dir}"
 }
 
-refresh_buildcache_index() {
-    [ "${PUBLISH_BUILDCACHE}" = "true" ] || return 0
+release_buildcache_migration_lock() {
+    if [ -n "${BUILDCACHE_MIGRATION_LOCK_DIR}" ] && [ -d "${BUILDCACHE_MIGRATION_LOCK_DIR}" ]; then
+        rmdir "${BUILDCACHE_MIGRATION_LOCK_DIR}" 2>/dev/null || true
+    fi
+    BUILDCACHE_MIGRATION_LOCK_DIR=""
+}
+
+acquire_buildcache_migration_lock() {
+    local lock_dir="${BUILDCACHE_ROOT}.migration.lock"
+    local waited=0
+
+    while ! mkdir "${lock_dir}" 2>/dev/null; do
+        if [ "${waited}" -ge 600 ]; then
+            echo "WARNING: timed out waiting for buildcache migration lock: ${lock_dir}" >&2
+            return 1
+        fi
+        echo "==> Waiting for buildcache migration lock"
+        echo "    lock: ${lock_dir}"
+        sleep 5
+        waited=$((waited + 5))
+    done
+
+    BUILDCACHE_MIGRATION_LOCK_DIR="${lock_dir}"
+}
+
+legacy_buildcache_sources() {
+    local candidate
+    local seen=""
+    local candidates=(
+        "${OS_ROOT}/buildcache"
+        "/resources/share/hpcsim/${OS_NAME}/buildcache"
+        "/resources/chapar/hpcsim/${OS_NAME}/buildcache"
+        "${HOME}/resources/share/hpcsim/${OS_NAME}/buildcache"
+    )
+
+    for candidate in "${candidates[@]}"; do
+        [ -d "${candidate}" ] || continue
+        [ "${candidate}" != "${BUILDCACHE_ROOT}" ] || continue
+        case "${seen}" in
+            *"|${candidate}|"*) continue ;;
+        esac
+        seen="${seen}|${candidate}|"
+        printf '%s\n' "${candidate}"
+    done
+}
+
+copy_buildcache_contents() {
+    local source_dir="$1"
+
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --ignore-existing "${source_dir}/" "${BUILDCACHE_ROOT}/"
+    else
+        cp -Rp -n "${source_dir}/." "${BUILDCACHE_ROOT}/"
+    fi
+}
+
+update_buildcache_index() {
     [ -n "${BUILD_SCOPE_DIR}" ] || return 0
     [ -d "${BUILD_SCOPE_DIR}" ] || return 0
 
-    echo "==> Updating hpcsim buildcache index"
+    echo "==> Updating Chapar buildcache index"
     echo "    buildcache: ${BUILDCACHE_ROOT}"
     if ! spack -C "${BUILD_SCOPE_DIR}" buildcache update-index "file://${BUILDCACHE_ROOT}"; then
-        echo "WARNING: failed to update hpcsim buildcache index: ${BUILDCACHE_ROOT}" >&2
+        echo "WARNING: failed to update Chapar buildcache index: ${BUILDCACHE_ROOT}" >&2
     fi
+}
+
+migrate_legacy_buildcaches() {
+    local source_dir
+    local sources=()
+    local migrated="false"
+
+    while IFS= read -r source_dir; do
+        sources+=("${source_dir}")
+    done < <(legacy_buildcache_sources)
+
+    [ "${#sources[@]}" -gt 0 ] || return 0
+
+    echo "==> Migrating legacy buildcache contents"
+    echo "    destination: ${BUILDCACHE_ROOT}"
+    echo "    policy: copy only, do not delete sources, do not overwrite destination files"
+
+    acquire_buildcache_migration_lock || return 0
+    for source_dir in "${sources[@]}"; do
+        [ -d "${source_dir}" ] || continue
+        echo "    source: ${source_dir}"
+        if copy_buildcache_contents "${source_dir}"; then
+            migrated="true"
+        else
+            echo "WARNING: failed to copy legacy buildcache source: ${source_dir}" >&2
+        fi
+    done
+    release_buildcache_migration_lock
+
+    if [ "${migrated}" = "true" ]; then
+        update_buildcache_index
+    fi
+}
+
+refresh_buildcache_index() {
+    [ "${PUBLISH_BUILDCACHE}" = "true" ] || return 0
+    update_buildcache_index
 }
 
 trust_buildcache_keys() {
@@ -264,6 +387,8 @@ cleanup_build() {
         refresh_buildcache_index || true
     fi
 
+    release_buildcache_migration_lock
+
     if [ -n "${BUILD_SCOPE_DIR}" ] && [ -d "${BUILD_SCOPE_DIR}" ]; then
         rm -rf "${BUILD_SCOPE_DIR}"
     fi
@@ -285,6 +410,7 @@ copy_manifest() {
         printf 'built_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         printf 'env_path: %s\n' "${ENV_PATH}"
         printf 'store: %s\n' "${STORE_ROOT}"
+        printf 'buildcache: %s\n' "${BUILDCACHE_ROOT}"
     } > "${release_dir}/metadata.txt"
 }
 
@@ -402,6 +528,7 @@ cmd_build() {
     echo "    staging:  ${staging_dir}"
 
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
+    migrate_legacy_buildcaches
     trust_buildcache_keys
     case "${OS_NAME}" in
         rocky8)
@@ -485,9 +612,11 @@ EOF
 cmd_status() {
     set_paths
     echo "hpcsim root: ${HPCSIM_ROOT}"
+    echo "buildcache root: ${CHAPAR_BUILDCACHE_ROOT}"
     echo "os root:     ${OS_ROOT}"
     echo "store:       ${STORE_ROOT}"
     echo "releases:    ${RELEASES_ROOT}"
+    echo "buildcache:  ${BUILDCACHE_ROOT}"
     if [ -L "${CURRENT_LINK}" ]; then
         echo "current:     ${CURRENT_LINK} -> $(readlink "${CURRENT_LINK}")"
     elif [ -e "${CURRENT_LINK}" ]; then

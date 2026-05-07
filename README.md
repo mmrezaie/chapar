@@ -16,6 +16,8 @@ module layout, and environment definitions outside the Spack repository.
   platform runtime pieces.
 - Publish shared releases under `/resources/share/hpcsim/<os>` without
   disturbing jobs that already loaded older modules.
+- Share one NAS-backed binary buildcache under `/resources/chapar/cache/<os>`
+  across hpcsim releases and ad-hoc user installs.
 
 ## Layout
 
@@ -98,7 +100,7 @@ Default release layout:
 /resources/share/hpcsim/<os>/store
 /resources/share/hpcsim/<os>/releases/<release-id>
 /resources/share/hpcsim/<os>/current -> releases/<release-id>
-/resources/share/hpcsim/<os>/buildcache
+/resources/chapar/cache/<os>
 ```
 
 Supported OS names are `rocky8`, `rocky9`, and `macos`. The helper auto-detects
@@ -146,20 +148,33 @@ bash envs/hpcsim/release.sh promote <previous-release-id>
 
 ## Buildcache
 
-Buildcache output is per OS:
+Buildcache output is per OS and intentionally lives outside the hpcsim release
+root:
 
 ```text
-/resources/share/hpcsim/rocky8/buildcache
-/resources/share/hpcsim/rocky9/buildcache
-/resources/share/hpcsim/macos/buildcache
+/resources/chapar/cache/rocky8
+/resources/chapar/cache/rocky9
 ```
 
-Release builds add the matching per-OS buildcache as an unsigned binary mirror
-before concretization and install. Existing binaries are reused when their
-concrete hashes match; missing binaries are built from source. When
-`PUBLISH_BUILDCACHE=true`, source-built packages are pushed as they complete and
-the buildcache index is refreshed on exit so a later rebuild can reuse partial
+The `chapar-buildcache` mirror is configured in Chapar's Rocky system and user
+scopes, not in `envs/hpcsim/spack.yaml`, so hpcsim releases and ordinary user
+installs reuse the same NAS-backed cache. Rocky user scopes use
+`autopush: true`, so successful user builds can populate the shared cache when
+NFS permissions allow it.
+
+Release builds add a temporary higher-precedence scope with the same mirror name
+and cache location. That scope honors `PUBLISH_BUILDCACHE`, allowing CI to turn
+publishing off without changing global read access. Existing binaries are reused
+when their concrete hashes match; missing binaries are built from source. When
+publishing is enabled, source-built packages are pushed as they complete and the
+buildcache index is refreshed on exit so a later rebuild can reuse partial
 progress.
+
+The release helper safely copies legacy cache contents from older hpcsim cache
+paths into `/resources/chapar/cache/<os>` before installing. It uses a lock,
+does not overwrite destination files, does not delete old caches, and refreshes
+the new index after migration. See `docs/buildcache.md` before changing this
+policy.
 
 Push explicitly only when repairing or backfilling a buildcache outside the CI
 release path:
@@ -173,10 +188,11 @@ ci/push-buildcache.sh --env-path envs/hpcsim --os rocky9
 Chapar uses normal Spack configuration scopes:
 
 - `etc/system`: shared policy for a machine or site.
-- `etc/system/base`: common providers, mirrors, concretizer policy, repos, and
+- `etc/system/base`: common providers, source mirrors, concretizer policy, repos, and
   other shared settings.
 - `etc/system/rocky8`, `etc/system/rocky9`, `etc/system/macos`: OS-specific
-  bootstrap compiler, libc, and ccache externals.
+  bootstrap compiler, libc, and ccache externals. Rocky overlays also attach the
+  shared NAS buildcache mirror.
 - `etc/user`: per-user paths and optional user-local settings.
 - `envs/hpcsim/spack.yaml`: the shared hpcsim package list and module policy.
 

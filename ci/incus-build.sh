@@ -13,6 +13,7 @@ Options:
   --incus-remote REMOTE           Incus remote name; empty means default local remote
   --resources-source PATH         Incus host path for resources export (default: /resources)
   --hpcsim-root PATH              Path inside container for hpcsim output (default: /resources/share/hpcsim)
+  --buildcache-root PATH          Path inside container for shared binary cache (default: /resources/chapar/cache)
   --repo-dir PATH                 Repo clone path inside container (default: /root/workspace/chapar)
   --run-id ID                     Output run identifier (default: GitHub run ID or timestamp)
   --publish-current true|false    Update current symlink after build (default: false)
@@ -29,6 +30,7 @@ REPO_URL="${REPO_URL:-https://github.com/mmrezaie/chapar.git}"
 INCUS_REMOTE="${INCUS_REMOTE:-}"
 RESOURCES_SOURCE="${RESOURCES_SOURCE:-/resources}"
 HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
 REPO_DIR="${REPO_DIR:-/root/workspace/chapar}"
 PUBLISH_CURRENT="${PUBLISH_CURRENT:-false}"
 PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-true}"
@@ -50,6 +52,7 @@ while [ "$#" -gt 0 ]; do
         --incus-remote) INCUS_REMOTE="$2"; shift 2 ;;
         --resources-source) RESOURCES_SOURCE="$2"; shift 2 ;;
         --hpcsim-root) HPCSIM_ROOT="$2"; shift 2 ;;
+        --buildcache-root) CHAPAR_BUILDCACHE_ROOT="$2"; shift 2 ;;
         --repo-dir) REPO_DIR="$2"; shift 2 ;;
         --run-id) RUN_ID="$2"; shift 2 ;;
         --publish-current) PUBLISH_CURRENT="$2"; shift 2 ;;
@@ -76,6 +79,7 @@ if [ "${OS_NAME}" = "all" ]; then
             --incus-remote "${INCUS_REMOTE}" \
             --resources-source "${RESOURCES_SOURCE}" \
             --hpcsim-root "${HPCSIM_ROOT}" \
+            --buildcache-root "${CHAPAR_BUILDCACHE_ROOT}" \
             --repo-dir "${REPO_DIR}" \
             --run-id "${RUN_ID}" \
             --publish-current "${PUBLISH_CURRENT}" \
@@ -147,6 +151,7 @@ incus exec "${INSTANCE}" \
     --env "REPO_DIR=${REPO_DIR}" \
     --env "OS_NAME=${OS_NAME}" \
     --env "HPCSIM_ROOT=${HPCSIM_ROOT}" \
+    --env "CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}" \
     --env "RUN_ID=${RUN_ID}" \
     --env "RELEASE_ID=${RELEASE_ID}" \
     --env "PUBLISH_CURRENT=${PUBLISH_CURRENT}" \

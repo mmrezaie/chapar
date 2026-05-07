@@ -6,6 +6,7 @@ set -euo pipefail
 : "${REPO_DIR:=/root/workspace/chapar}"
 : "${OS_NAME:=rocky9}"
 : "${HPCSIM_ROOT:=/resources/share/hpcsim}"
+: "${CHAPAR_BUILDCACHE_ROOT:=/resources/chapar/cache}"
 : "${RUN_ID:=manual}"
 : "${RELEASE_ID:=${RUN_ID}}"
 : "${PUBLISH_CURRENT:=false}"
@@ -46,6 +47,7 @@ echo "    publish buildcache: ${PUBLISH_BUILDCACHE}"
 echo "    ref:               ${GIT_REF}"
 echo "    repo dir:          ${REPO_DIR}"
 echo "    hpcsim root:       ${HPCSIM_ROOT}"
+echo "    buildcache root:   ${CHAPAR_BUILDCACHE_ROOT}"
 echo "    spack user cache:  ${SPACK_USER_CACHE_PATH:-}"
 echo "    output:            ${RUN_ROOT}"
 
@@ -84,7 +86,7 @@ source ./etc/init.sh
 spack --version | tee "${RUN_ROOT}/spack-version.txt"
 git -C "${SPACK_ROOT}" rev-parse HEAD | tee "${RUN_ROOT}/spack-commit.txt"
 
-export HPCSIM_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
+export HPCSIM_ROOT CHAPAR_BUILDCACHE_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
 bash ./envs/hpcsim/release.sh build "${RELEASE_ID}"
 
 if [ "${PUBLISH_CURRENT}" = "true" ]; then

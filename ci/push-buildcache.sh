@@ -7,6 +7,7 @@ Usage: ci/push-buildcache.sh --env-path PATH --os rocky8|rocky9|macos [options]
 
 Options:
   --hpcsim-root PATH          Shared hpcsim root (default: /resources/share/hpcsim)
+  --buildcache-root PATH      Shared buildcache root (default: /resources/chapar/cache)
   --buildcache-dir PATH      Override destination buildcache directory
   -h, --help                 Show this help
 USAGE
@@ -15,6 +16,7 @@ USAGE
 ENV_PATH=""
 OS_NAME=""
 HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
 BUILDCACHE_DIR=""
 SCOPE_DIR=""
 
@@ -23,6 +25,7 @@ while [ "$#" -gt 0 ]; do
         --env-path) ENV_PATH="$2"; shift 2 ;;
         --os) OS_NAME="$2"; shift 2 ;;
         --hpcsim-root) HPCSIM_ROOT="$2"; shift 2 ;;
+        --buildcache-root) CHAPAR_BUILDCACHE_ROOT="$2"; shift 2 ;;
         --buildcache-dir) BUILDCACHE_DIR="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "ERROR: unknown option $1" >&2; usage >&2; exit 1 ;;
@@ -40,7 +43,7 @@ case "${OS_NAME}" in
 esac
 
 if [ -z "${BUILDCACHE_DIR}" ]; then
-    BUILDCACHE_DIR="${HPCSIM_ROOT}/${OS_NAME}/buildcache"
+    BUILDCACHE_DIR="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
 fi
 
 OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
@@ -58,8 +61,9 @@ EOF
 
 mkdir -p "${BUILDCACHE_DIR}"
 
-echo "==> Pushing hpcsim buildcache"
+echo "==> Pushing Chapar buildcache"
 echo "    env:        ${ENV_PATH}"
+echo "    cache root: ${CHAPAR_BUILDCACHE_ROOT}"
 echo "    buildcache: ${BUILDCACHE_DIR}"
 
 spack -e "${ENV_PATH}" -C "${SCOPE_DIR}" buildcache push \

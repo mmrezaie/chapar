@@ -14,6 +14,7 @@ ci/incus-build.sh \
   --repo-url file:///resources/chapar/ci-test/chapar.git \
   --resources-source /resources \
   --hpcsim-root /resources/share/hpcsim \
+  --buildcache-root /resources/chapar/cache \
   --run-id smoke-local-rocky9 \
   --publish-buildcache false \
   --keep-running
@@ -34,6 +35,7 @@ Artifacts were written under:
 
 ```text
 /resources/share/hpcsim/rocky9/runs/smoke-local-rocky9
+/resources/chapar/cache/rocky9
 ```
 
 ## Enabled Repositories
@@ -134,6 +136,7 @@ dnf -y install gh
 - Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
 - `gh` is not required by the build itself, but is useful for manual debugging and GitHub operations inside persistent builder containers.
 - `nfs-utils` supports resource/NAS access and diagnostics.
+- `/resources/chapar/cache/<os>` must be writable by trusted Chapar builders and users because Rocky scopes use `autopush: true` for the shared binary buildcache.
 
 ## XPMEM Policy
 

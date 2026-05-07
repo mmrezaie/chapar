@@ -1,8 +1,8 @@
 # Chapar Spack Configuration
 
-Spack configuration is split into **system** and **user** scopes, with OS
-user's `~/.local/opt/spack`; Chapar keeps policy and environments outside that
-checkout.
+Spack configuration is split into **system** and **user** scopes, while each
+user keeps upstream Spack in `~/.local/opt/spack`. Chapar keeps policy and
+environments outside that checkout.
 
 ## Directory Layout
 
@@ -16,8 +16,8 @@ etc/
 |   |   |-- mirrors.yaml
 |   |   |-- packages.yaml   # Virtual providers and shared package policy
 |   |   `-- repos.yaml
-|   |-- rocky8/             # Rocky 8 compiler, ccache, libc externals
-|   |-- rocky9/             # Rocky 9 compiler, ccache, libc externals
+|   |-- rocky8/             # Rocky 8 compiler, ccache, libc externals, buildcache mirror
+|   |-- rocky9/             # Rocky 9 compiler, ccache, libc externals, buildcache mirror
 |   |-- macos/              # macOS compiler and ccache externals
 |   `-- linux/              # Generic Linux fallback
 `-- user/                   # User scope for per-user paths and overrides
@@ -46,7 +46,8 @@ Spack applies scopes in this order, from low to high precedence:
 
 This repository provides scopes 2 and 4. `envs/hpcsim/release.sh` uses a
 temporary command-line scope to direct installs and modules into
-`/resources/share/hpcsim/<os>`.
+`/resources/share/hpcsim/<os>` and to control buildcache autopush while still
+using `/resources/chapar/cache/<os>`.
 
 The tracked scopes do not reference legacy sectioned environments. The current
 workflow uses only `envs/hpcsim` plus OS-specific scope overlays.
@@ -66,9 +67,11 @@ source /path/to/chapar/etc/init.sh
 ```
 
 The initializer sets `SPACK_USER_CONFIG_PATH`, `SPACK_SYSTEM_CONFIG_PATH`, and a
-fast local `SPACK_USER_CACHE_PATH`. If environment modules are available and a
-current hpcsim release exists for the detected OS, it adds the resolved release
-module path to `MODULEPATH`.
+fast local `SPACK_USER_CACHE_PATH`. The active Rocky scopes attach the shared
+`chapar-buildcache` mirror under `/resources/chapar/cache/<os>` so hpcsim and
+user installs share one NAS-backed binary cache. If environment modules are
+available and a current hpcsim release exists for the detected OS, it adds the
+resolved release module path to `MODULEPATH`.
 
 ## Platform Routing
 
@@ -134,7 +137,7 @@ Release layout:
 - Install store: `/resources/share/hpcsim/<os>/store`
 - Modules: `/resources/share/hpcsim/<os>/releases/<release-id>/modulefiles`
 - Active release symlink: `/resources/share/hpcsim/<os>/current`
-- Buildcache: `/resources/share/hpcsim/<os>/buildcache`
+- Buildcache: `/resources/chapar/cache/<os>`
 
 The store is shared per OS and package prefixes include hashes. Module trees are
 release-specific. This allows new modules and packages to be added without
@@ -148,7 +151,10 @@ publishing the release.
 
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are
-preferred before falling back to source builds.
+preferred before falling back to source builds. The generated scope uses the same
+`chapar-buildcache` mirror name as the system/user scopes so it can override
+`autopush` for CI without moving the cache. See `docs/buildcache.md` for the
+reasoning, unsigned-cache policy, and legacy-cache migration rules.
 
 ## Validation Commands
 
@@ -180,6 +186,8 @@ spack arch --platform
 | `SPACK_USER_CACHE_PATH` | `/tmp/$USER/spack-cache` | Fast local cache root from `etc/init.sh` |
 | `HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim release root |
 | `CHAPAR_HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim root used when adding promoted modules |
+| `CHAPAR_BUILDCACHE_ROOT` | `/resources/chapar/cache` | Shared NAS binary buildcache root |
 | `OS_NAME` | auto-detected | `rocky8`, `rocky9`, or `macos` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |
 | `CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT` | `false` | Allow non-standard absolute `HPCSIM_ROOT` values for local tests |
+| `CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT` | `false` | Allow non-standard absolute `CHAPAR_BUILDCACHE_ROOT` values for local tests |

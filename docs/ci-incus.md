@@ -81,15 +81,22 @@ Inputs:
 - `release_id`: optional release ID. Empty means the workflow run ID.
 - `git_ref`: optional branch, tag, or SHA. Empty means the workflow ref.
 - `publish_current`: update `/resources/share/hpcsim/<os>/current` after build.
-- `publish_buildcache`: push to `/resources/share/hpcsim/<os>/buildcache`.
+- `publish_buildcache`: push to `/resources/chapar/cache/<os>`.
 - `spack_ref`: Spack branch, tag, or SHA. The default is pinned for cache stability.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
 - `runner_label`: common custom runner label, default `chapar`.
 - `hpcsim_root`: shared output root, default `/resources/chapar/hpcsim`.
+- `buildcache_root`: shared binary cache root, default `/resources/chapar/cache`.
 
 `hpcsim_root` must stay under `/resources/chapar/hpcsim` or
 `/resources/share/hpcsim` unless `CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true` is set
 for a controlled local test.
+
+`buildcache_root` should stay at `/resources/chapar/cache` on the NAS export.
+It is intentionally outside `hpcsim_root` so all hpcsim releases and ad-hoc user
+builds share the same binary artifact pool.
+Use `CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT=true` only for controlled local tests
+that need a nonstandard absolute cache path.
 
 When `os=all`, GitHub schedules independent Rocky8 and Rocky9 matrix jobs. The
 job-level concurrency group includes `matrix.os_name`, so Rocky8 and Rocky9 can
@@ -119,11 +126,11 @@ Default CI output:
 - `/resources/chapar/hpcsim/rocky8/store`
 - `/resources/chapar/hpcsim/rocky8/releases/<release-id>`
 - `/resources/chapar/hpcsim/rocky8/current`
-- `/resources/chapar/hpcsim/rocky8/buildcache`
 - `/resources/chapar/hpcsim/rocky9/store`
 - `/resources/chapar/hpcsim/rocky9/releases/<release-id>`
 - `/resources/chapar/hpcsim/rocky9/current`
-- `/resources/chapar/hpcsim/rocky9/buildcache`
+- `/resources/chapar/cache/rocky8`
+- `/resources/chapar/cache/rocky9`
 
 Per-run logs and concrete environment files:
 
@@ -144,11 +151,16 @@ repository to the requested ref, sources `./etc/init.sh`, and runs:
 bash envs/hpcsim/release.sh build <release-id>
 ```
 
-The release helper adds `/resources/chapar/hpcsim/<os>/buildcache` as an
-unsigned binary mirror before concretization and install. Matching cached
-binaries are reused; only missing concrete hashes build from source. When
+The release helper adds `/resources/chapar/cache/<os>` as the unsigned
+`chapar-buildcache` binary mirror before concretization and install. Matching
+cached binaries are reused; only missing concrete hashes build from source. When
 `publish_buildcache` is true, newly source-built packages are pushed during the
 install and the buildcache index is refreshed on exit.
+
+Before installing, the release helper copies legacy cache contents from older
+`<hpcsim_root>/<os>/buildcache` paths into `/resources/chapar/cache/<os>` using a
+lock and without deleting or overwriting anything. Keep this behavior aligned
+with `docs/buildcache.md`.
 
 Release modules are generated only for explicit hpcsim root specs and are named
 `{name}/{version}`. hpcsim module names must not include Spack hashes; if two

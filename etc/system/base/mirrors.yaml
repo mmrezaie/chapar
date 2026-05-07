@@ -1,4 +1,6 @@
 mirrors:
+  # Source mirror only. OS overlays attach the shared chapar-buildcache binary
+  # mirror so binaries go to /resources/chapar/cache/<os>, not environment files.
   hpcsim-source:
     binary: false
     url: https://mirror.spack.io
