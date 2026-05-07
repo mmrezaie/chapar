@@ -76,6 +76,12 @@ esac
 as_root dnf -y install epel-release
 as_root dnf -y install ccache
 
+as_root dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
+as_root rpm --import https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+as_root dnf -y install \
+    intel-oneapi-compiler-dpcpp-cpp-2026.0 \
+    intel-oneapi-compiler-fortran-2026.0
+
 as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh /etc/profile.d/zz-chapar-hpcsim.sh
 
 if ! command -v gh >/dev/null 2>&1; then

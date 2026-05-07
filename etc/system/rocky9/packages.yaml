@@ -5,13 +5,13 @@
 packages:
   c:
     require:
-    - one_of: [gcc@11.5.0, gcc@15.2.0]
+    - one_of: [gcc@11.5.0, gcc@15]
   cxx:
     require:
-    - one_of: [gcc@11.5.0, gcc@15.2.0]
+    - one_of: [gcc@11.5.0, gcc@15]
   fortran:
     require:
-    - gcc@11.5.0
+    - one_of: [gcc@11.5.0, gcc@15]
   gcc:
     externals:
     - spec: gcc@11.5.0 languages:='c,c++,fortran'
@@ -21,6 +21,15 @@ packages:
           c: /usr/bin/gcc
           cxx: /usr/bin/g++
           fortran: /usr/bin/gfortran
+  intel-oneapi-compilers:
+    externals:
+    - spec: intel-oneapi-compilers@2026.0.0 languages:='c,c++,fortran'
+      prefix: /opt/intel/oneapi
+      extra_attributes:
+        compilers:
+          c: /opt/intel/oneapi/compiler/2026.0/bin/icx
+          cxx: /opt/intel/oneapi/compiler/2026.0/bin/icpx
+          fortran: /opt/intel/oneapi/compiler/2026.0/bin/ifx
   ccache:
     externals:
     - spec: ccache@3.7.7

@@ -61,19 +61,53 @@ spack:
     - darshan-runtime+mpi+hdf5+parallel-netcdf
     - darshan-util
     when: platform == "linux"
+  - linux_visualization_core_specs:
+    - llvm~clang~lld~lldb~flang~polly %gcc
+    - mesa+osmesa~glx %gcc
+    - qt-base+gui+opengl %gcc
+    - gtkplus %gcc
+    - ffmpeg %gcc
+    when: platform == "linux"
+  - linux_visualization_specs:
+    - paraview@5.13.3+mpi+python+fortran+hdf5+adios2+fides+catalyst+libcatalyst~qt use_vtkm=on %gcc ^openmpi@5 ^[virtuals=gl] osmesa ^python@3.13:3.13
+    - visit~gui+mpi+python+adios2+hdf5+netcdf+silo+conduit+vtkm %gcc ^openmpi@5 ^[virtuals=gl] osmesa ^python@3.11:3.11
+    - vtk+mpi io=adios2,cgns,exodusii,ffmpeg,fides,ioss,netcdf,xdmf %gcc ^openmpi@5 ^[virtuals=gl] osmesa
+    - vtk-m+mpi+openmp+shared %gcc ^openmpi@5
+    when: platform == "linux"
+  - linux_postprocessing_io_specs:
+    - adios2+mpi+fortran+hdf5+libcatalyst~python %gcc ^openmpi@5
+    - cgns+mpi+hdf5+fortran %gcc ^openmpi@5
+    - silo+mpi+hdf5+fortran~python %gcc ^openmpi@5
+    - exodusii+mpi+fortran %gcc ^openmpi@5
+    - seacas@2024-06-27+mpi+adios2+libcatalyst+cgns+applications~legacy~x11 %gcc ^openmpi@5
+    when: platform == "linux"
+  - linux_postprocessing_cli_specs:
+    - nco+openmp %gcc
+    - cdo+netcdf+hdf5+openmp grib2=eccodes %gcc
+    - eccodes+tools+netcdf+png %gcc
+    - nccmp %gcc
+    - ncview %gcc
+    when: platform == "linux"
+  - linux_insitu_specs:
+    - libcatalyst+mpi+conduit+fortran~python %gcc ^openmpi@5
+    - ascent+mpi~python+fortran+vtkh+adios2+fides %gcc ^openmpi@5
+    - conduit+mpi+hdf5+fortran~python %gcc ^openmpi@5
+    - fides+mpi %gcc ^openmpi@5
+    - hdf5-vol-async %gcc ^openmpi@5
+    - sz+openmp+hdf5+netcdf+fortran %gcc
+    - zfp+openmp+fortran %gcc
+    - libpressio+mpi+openmp+hdf5+sz+zfp+netcdf~python %gcc ^openmpi@5
+    when: platform == "linux"
   - rocky8_toolchain_specs:
     - gcc@13.4.0+profiled %gcc
     - gcc@14.3.0+profiled %gcc
-    - gcc@15.2.0+profiled %gcc
-    - intel-oneapi-compilers@2025.3.1
-    - intel-oneapi-compilers@2024.1.0
-    - intel-oneapi-compilers@2023.1.0
+    - gcc@15+profiled %gcc
     when: os == "rocky8"
   - rocky8_mpi_specs:
     - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
     - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - openmpi@4.1.8+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
+    - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
     - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
@@ -92,18 +126,14 @@ spack:
   - rocky9_toolchain_specs:
     - gcc@13.4.0+profiled
     - gcc@14.3.0+profiled
-    - gcc@15.2.0+profiled
-    - intel-oneapi-compilers@2025.3.1
-    - intel-oneapi-compilers@2024.1.0
-    - intel-oneapi-compilers@2023.1.0
+    - gcc@15+profiled
     - cuda@13.0.2
     when: os == "rocky9"
   - rocky9_mpi_specs:
     - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - openmpi@4.1.8+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - openmpi@5.0.8+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
     - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
@@ -130,7 +160,7 @@ spack:
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     when: os == "rocky9"
   - macos_toolchain_specs:
-    - gcc@15.2.0
+    - gcc@15
     when: platform == "darwin"
   - macos_devtools_specs:
     - npm@11.2.0 ^node-js@24.2.0
@@ -138,15 +168,14 @@ spack:
   - macos_mpi_specs:
     - libfabric@1.22.0 fabrics=tcp,sockets,udp
     - libfabric@2.3.1 fabrics=tcp,sockets,udp
-    - openmpi@4.1.8 fabrics=ofi schedulers=none
-    - openmpi@5.0.8 fabrics=ofi schedulers=none
+    - openmpi@5 fabrics=ofi schedulers=none
     when: platform == "darwin"
   - macos_hpc_library_specs:
     - netlib-scalapack ^[virtuals=blas] veclibfort ^[virtuals=lapack] veclibfort
     when: platform == "darwin"
   - macos_benchmark_specs:
     - hpl+openmp %gcc ^[virtuals=blas] veclibfort
-    - hpcg+openmp %gcc ^openmpi@5.0.8 fabrics=ofi schedulers=none ^libfabric@2.3.1 fabrics=tcp,sockets,udp
+    - hpcg+openmp %gcc ^openmpi@5 fabrics=ofi schedulers=none ^libfabric@2.3.1 fabrics=tcp,sockets,udp
     - stream~openmp %gcc
     - intel-mpi-benchmarks %gcc
     - ior+hdf5+ncmpi
@@ -167,6 +196,11 @@ spack:
   - $linux_debug_specs
   - $linux_benchmark_specs
   - $linux_profiling_specs
+  - $linux_visualization_core_specs
+  - $linux_visualization_specs
+  - $linux_postprocessing_io_specs
+  - $linux_postprocessing_cli_specs
+  - $linux_insitu_specs
   - $rocky8_toolchain_specs
   - $rocky8_mpi_specs
   - $rocky8_benchmark_specs
@@ -186,14 +220,14 @@ spack:
   packages:
     all:
       providers:
-        mpi: [openmpi, intel-oneapi-mpi]
+        mpi: [openmpi]
         blas: [openblas]
         lapack: [openblas]
         scalapack: [netlib-scalapack]
     gcc:
       require:
       - spec: +profiled
-        when: '@15.2.0 platform=linux'
+        when: '@15 platform=linux'
     zlib-api:
       require:
       - zlib-ng+compat
@@ -203,16 +237,16 @@ spack:
     npm:
       require:
       - '@11.2.0'
-      - spec: '%gcc@15.2.0'
+      - spec: '%gcc@15'
         when: os=rocky8
-      - spec: '%gcc@15.2.0'
+      - spec: '%gcc@15'
         when: os=rocky9
     node-js:
       require:
       - '@24.2.0'
-      - spec: '%gcc@15.2.0'
+      - spec: '%gcc@15'
         when: '@24.2.0 os=rocky8'
-      - spec: '%gcc@15.2.0'
+      - spec: '%gcc@15'
         when: '@24.2.0 os=rocky9'
       - spec: ^python@:3.13
         when: '@24.2.0'
@@ -227,7 +261,7 @@ spack:
       - ~debuginfod~nls
     hdf5:
       require:
-      - +mpi+fortran+hl
+      - +mpi+fortran+hl+threadsafe
     netcdf-c:
       require:
       - +mpi+parallel-netcdf
@@ -236,26 +270,38 @@ spack:
       - threads=openmp
     openmpi:
       require:
+      - '@5:'
       - schedulers=none
       - spec: +cuda+fortran fabrics=verbs,ucx
         when: platform=linux
+      - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+        when: '+cuda platform=linux'
     ucx:
       require:
       - spec: +cuda+gdrcopy
         when: platform=linux
-      - spec: '%gcc@15.2.0'
+      - spec: +dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
+        when: platform=linux
+      - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+        when: '+cuda platform=linux'
+      - spec: '%gcc@15'
         when: '+cuda os=rocky8'
     libfabric:
       require:
       - spec: +cuda+gdrcopy
         when: platform=linux
-      - spec: '%gcc@15.2.0'
+      - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+        when: '+cuda platform=linux'
+      - spec: '%gcc@15'
         when: '+cuda os=rocky8'
+    rdma-core:
+      require:
+      - ~pyverbs
     gdrcopy:
       require:
       - +cuda
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-      - spec: '%gcc@15.2.0'
+      - spec: '%gcc@15'
         when: '+cuda os=rocky8'
     nccl:
       require:
@@ -284,7 +330,7 @@ spack:
       - ~nvml
       - spec: +cuda
         when: platform=linux
-      - spec: '%gcc@15.2.0'
+      - spec: '%gcc@15'
         when: '+cuda os=rocky8'
 
   modules:

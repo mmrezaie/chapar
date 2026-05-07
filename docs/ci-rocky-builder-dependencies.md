@@ -24,10 +24,9 @@ The old sectioned smoke test completed successfully on Rocky Linux 9.7 and insta
 - `cuda@13.0.2`
 - `gcc@13.4.0`
 - `gcc@14.3.0`
-- `gcc@15.2.0`
-- `intel-oneapi-compilers@2023.1.0`
-- `intel-oneapi-compilers@2024.1.0`
-- `intel-oneapi-compilers@2025.3.1`
+- `gcc@15`
+
+The latest Intel oneAPI compiler is installed from Intel's RPM repository and modeled as an external compiler, but the current hpcsim compiler policy only selects GCC.
 
 CUDA is now expected to be installed by Spack for hpcsim GPU builds rather than provided by the host/container. The builders do not need a local CUDA toolkit or a GPU to build CUDA-dependent packages, though runtime GPU Direct behavior still depends on NVIDIA drivers, GPUs, and fabric hardware on the target nodes.
 
@@ -44,6 +43,7 @@ The base Rocky images provide `BaseOS`, `AppStream`, and `Extras`. Additional re
 - Rocky8: enable `powertools`.
 - Rocky9: enable `crb`.
 - EPEL: required for `ccache`.
+- Intel oneAPI RPM repo: required for the external Intel compiler.
 - GitHub CLI RPM repo: required for `gh`.
 
 The bootstrap commands are:
@@ -58,6 +58,8 @@ dnf config-manager --set-enabled powertools
 dnf config-manager --set-enabled crb
 
 dnf -y install epel-release
+dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
+rpm --import https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
 ```
 
@@ -116,6 +118,9 @@ dnf -y install \
 
 dnf -y install epel-release
 dnf -y install ccache
+dnf -y install \
+  intel-oneapi-compiler-dpcpp-cpp-2026.0 \
+  intel-oneapi-compiler-fortran-2026.0
 dnf -y install gh
 ```
 
@@ -123,6 +128,7 @@ dnf -y install gh
 
 - `ccache` is required because `etc/system/base/config.yaml` enables Spack ccache support.
 - System GCC and `glibc` are modeled as Rocky externals; ordinary build tools and link-time libraries are intentionally not modeled as externals.
+- The Intel oneAPI compiler RPMs are modeled as externals so sites can opt into `%oneapi`, but hpcsim currently constrains compiler virtuals to GCC.
 - `libtool` is built by Spack because packages such as PulseAudio link against `libltdl`; modeling the OS command-line tool as a generic external can miss the development library metadata.
 - `zlib-api` is constrained to Spack `zlib-ng+compat` on Rocky so libpng and other consumers see matching headers, libraries, and pkg-config metadata.
 - Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
@@ -137,7 +143,7 @@ If a production cluster needs XPMEM, install and load the kernel module on match
 
 ## CI Install Concurrency
 
-The Intel oneAPI offline installers share Intel cache state under `/var/intel/installercache`. Running multiple oneAPI compiler installs concurrently corrupted that cache during testing. The container CI driver therefore defaults to serialized package installation:
+Intel oneAPI offline installers share Intel cache state under `/var/intel/installercache`. Running multiple oneAPI installs concurrently corrupted that cache during testing. The container CI driver therefore defaults to serialized package installation:
 
 ```bash
 SPACK_INSTALL_ARGS="-p 1"

@@ -406,11 +406,11 @@ cmd_build() {
     case "${OS_NAME}" in
         rocky8)
             # Rocky 8's system GCC is too old for Node 24 and CUDA 13 host builds.
-            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15.2.0+profiled %gcc"
+            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15+profiled %gcc"
             ;;
         rocky9)
             # Node 24 needs a newer C++ toolchain than Rocky 9's system GCC 11.
-            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15.2.0+profiled %gcc"
+            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15+profiled %gcc"
             ;;
     esac
 
