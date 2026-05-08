@@ -157,10 +157,10 @@ cached binaries are reused; only missing concrete hashes build from source. When
 `publish_buildcache` is true, newly source-built packages are pushed during the
 install and the buildcache index is refreshed on exit.
 
-Before installing, the release helper copies legacy cache contents from older
-`<hpcsim_root>/<os>/buildcache` paths into `/resources/chapar/cache/<os>` using a
-lock and without deleting or overwriting anything. Keep this behavior aligned
-with `docs/buildcache.md`.
+Legacy cache migration is not part of normal builds. Run
+`envs/hpcsim/release.sh migrate-buildcache` explicitly when retiring older
+`<hpcsim_root>/<os>/buildcache` paths into `/resources/chapar/cache/<os>`. Keep
+this behavior aligned with `docs/buildcache.md`.
 
 Release modules are generated only for explicit hpcsim root specs and are named
 `{name}/{version}`. hpcsim module names must not include Spack hashes; if two

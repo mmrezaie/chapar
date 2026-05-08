@@ -170,11 +170,12 @@ publishing is enabled, source-built packages are pushed as they complete and the
 buildcache index is refreshed on exit so a later rebuild can reuse partial
 progress.
 
-The release helper safely copies legacy cache contents from older hpcsim cache
-paths into `/resources/chapar/cache/<os>` before installing. It uses a lock,
-does not overwrite destination files, does not delete old caches, and refreshes
-the new index after migration. See `docs/buildcache.md` before changing this
-policy.
+Legacy cache migration is explicit, not part of normal release builds. Run
+`envs/hpcsim/release.sh migrate-buildcache` once per OS when retiring older
+hpcsim cache paths into `/resources/chapar/cache/<os>`. It uses a lock, does not
+overwrite destination files, does not delete old caches, writes a completion
+sentinel, and refreshes the index after migration. See `docs/buildcache.md`
+before changing this policy.
 
 Push explicitly only when repairing or backfilling a buildcache outside the CI
 release path:

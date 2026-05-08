@@ -154,7 +154,8 @@ mirror in their generated Spack scope, so previously pushed binaries are
 preferred before falling back to source builds. The generated scope uses the same
 `chapar-buildcache` mirror name as the system/user scopes so it can override
 `autopush` for CI without moving the cache. See `docs/buildcache.md` for the
-reasoning, unsigned-cache policy, and legacy-cache migration rules.
+reasoning, unsigned-cache policy, and explicit one-time legacy-cache migration
+rules.
 
 ## Validation Commands
 

@@ -72,10 +72,17 @@ The security boundary is the NAS ACL/group membership for `/resources/chapar/cac
 If that trust model changes, make user scopes read-only and keep publishing
 limited to CI/release builders.
 
-## Safe Migration
+## One-Time Migration
 
-`envs/hpcsim/release.sh` migrates legacy cache contents into the canonical cache
-before installing. The migration is intentionally conservative:
+`envs/hpcsim/release.sh build` does not automatically migrate legacy cache
+contents. Run migration explicitly when retiring old cache directories:
+
+```bash
+OS_NAME=rocky8 envs/hpcsim/release.sh migrate-buildcache
+OS_NAME=rocky9 envs/hpcsim/release.sh migrate-buildcache
+```
+
+The explicit migration is intentionally conservative:
 
 - It copies from legacy cache paths into `/resources/chapar/cache/<os>`.
 - It never deletes old cache directories.
@@ -83,6 +90,8 @@ before installing. The migration is intentionally conservative:
 - It uses an atomic NFS-safe lock directory at `<cache>.migration.lock`.
 - It refreshes the buildcache index after copying so the next install can reuse
   migrated binaries.
+- It writes `.legacy-buildcache-migration-complete` in the destination so repeat
+  invocations become no-ops unless `--force` is used.
 
 Legacy source paths currently checked by the release helper are:
 
@@ -93,8 +102,8 @@ Legacy source paths currently checked by the release helper are:
 $HOME/resources/share/hpcsim/<os>/buildcache
 ```
 
-Leave old paths in place until builds have been verified against the new cache.
-After verification, an administrator can retire old cache directories manually.
+After a successful one-time migration and verification build, retire old cache
+directories manually so future runs cannot accidentally reuse stale artifacts.
 
 ## Admin Setup
 

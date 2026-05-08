@@ -55,6 +55,7 @@ cat > "${SCOPE_DIR}/config.yaml" <<EOF
 config:
   install_tree:
     root: ${STORE_ROOT}
+    padded_length: 256
     projections:
       all: "{name}-{version}-{hash}"
 EOF

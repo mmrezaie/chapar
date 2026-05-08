@@ -15,6 +15,7 @@ usage() {
     cat <<'EOF'
 Usage:
   release.sh build <release-id> [--promote]
+  release.sh migrate-buildcache [--force]
   release.sh promote <release-id>
   release.sh module-use [release-id]
   release.sh status
@@ -32,6 +33,9 @@ Release layout:
   /resources/share/hpcsim/<os>/releases/<release-id>
   /resources/share/hpcsim/<os>/current -> releases/<release-id>
   /resources/chapar/cache/<os>
+
+Legacy buildcache migration is explicit and one-shot. Run migrate-buildcache
+when intentionally retiring old per-release cache directories.
 EOF
 }
 
@@ -152,6 +156,7 @@ make_scope() {
 config:
   install_tree:
     root: ${STORE_ROOT}
+    padded_length: 256
     projections:
       all: "{name}-{version}-{hash}"
   template_dirs:
@@ -236,6 +241,25 @@ legacy_buildcache_sources() {
     done
 }
 
+legacy_buildcache_migration_sentinel() {
+    printf '%s\n' "${BUILDCACHE_ROOT}/.legacy-buildcache-migration-complete"
+}
+
+write_legacy_buildcache_migration_sentinel() {
+    local sentinel="$1"
+    shift
+    local source_dir
+
+    {
+        printf 'completed_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        printf 'destination: %s\n' "${BUILDCACHE_ROOT}"
+        printf 'sources:\n'
+        for source_dir in "$@"; do
+            printf '  - %s\n' "${source_dir}"
+        done
+    } > "${sentinel}"
+}
+
 copy_buildcache_contents() {
     local source_dir="$1"
 
@@ -260,13 +284,26 @@ update_buildcache_index() {
 migrate_legacy_buildcaches() {
     local source_dir
     local sources=()
+    local sentinel
     local migrated="false"
+    local failed="false"
+
+    sentinel="$(legacy_buildcache_migration_sentinel)"
+    if [ -e "${sentinel}" ]; then
+        echo "==> Legacy buildcache migration already completed"
+        echo "    sentinel: ${sentinel}"
+        return 0
+    fi
 
     while IFS= read -r source_dir; do
         sources+=("${source_dir}")
     done < <(legacy_buildcache_sources)
 
-    [ "${#sources[@]}" -gt 0 ] || return 0
+    if [ "${#sources[@]}" -eq 0 ]; then
+        echo "==> No legacy buildcache sources found"
+        write_legacy_buildcache_migration_sentinel "${sentinel}"
+        return 0
+    fi
 
     echo "==> Migrating legacy buildcache contents"
     echo "    destination: ${BUILDCACHE_ROOT}"
@@ -280,13 +317,20 @@ migrate_legacy_buildcaches() {
             migrated="true"
         else
             echo "WARNING: failed to copy legacy buildcache source: ${source_dir}" >&2
+            failed="true"
         fi
     done
     release_buildcache_migration_lock
 
+    if [ "${failed}" = "true" ]; then
+        die "legacy buildcache migration failed; not writing completion sentinel"
+    fi
+
     if [ "${migrated}" = "true" ]; then
         update_buildcache_index
     fi
+
+    write_legacy_buildcache_migration_sentinel "${sentinel}" "${sources[@]}"
 }
 
 refresh_buildcache_index() {
@@ -386,6 +430,18 @@ cleanup_build() {
     if [ "${REFRESH_BUILDCACHE_ON_EXIT}" = "true" ]; then
         refresh_buildcache_index || true
     fi
+
+    release_buildcache_migration_lock
+
+    if [ -n "${BUILD_SCOPE_DIR}" ] && [ -d "${BUILD_SCOPE_DIR}" ]; then
+        rm -rf "${BUILD_SCOPE_DIR}"
+    fi
+
+    exit "${status}"
+}
+
+cleanup_migration() {
+    local status="$?"
 
     release_buildcache_migration_lock
 
@@ -528,7 +584,6 @@ cmd_build() {
     echo "    staging:  ${staging_dir}"
 
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
-    migrate_legacy_buildcaches
     trust_buildcache_keys
     case "${OS_NAME}" in
         rocky8)
@@ -544,7 +599,7 @@ cmd_build() {
     case "${OS_NAME}" in
         rocky8|rocky9)
             # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
-            spack -C "${scope_dir}" install "${install_args[@]}" "llvm@21+clang+lld~lldb~flang~polly+ipo build_system=cmake targets=x86,nvptx %gcc"
+            spack -C "${scope_dir}" install "${install_args[@]}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc"
             ;;
     esac
 
@@ -564,6 +619,37 @@ cmd_build() {
     if [ "${promote}" = "--promote" ]; then
         cmd_promote "${RELEASE_ID}"
     fi
+}
+
+cmd_migrate_buildcache() {
+    local force="${1:-}"
+    local scope_dir
+    local sentinel
+
+    case "${force}" in
+        ""|--force) ;;
+        *) die "unknown migrate-buildcache option: ${force}" ;;
+    esac
+
+    ensure_cmd spack
+    set_paths
+    mkdir -p "${BUILDCACHE_ROOT}"
+    scope_dir="$(make_scope "${OS_ROOT}/migration")"
+    BUILD_SCOPE_DIR="${scope_dir}"
+    trap cleanup_migration EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    sentinel="$(legacy_buildcache_migration_sentinel)"
+    if [ "${force}" = "--force" ] && [ -e "${sentinel}" ]; then
+        rm -f "${sentinel}"
+    fi
+
+    echo "==> Running one-time legacy buildcache migration"
+    echo "    os:         ${OS_NAME}"
+    echo "    buildcache: ${BUILDCACHE_ROOT}"
+    echo "    sentinel:   ${sentinel}"
+    migrate_legacy_buildcaches
 }
 
 cmd_promote() {
@@ -639,6 +725,10 @@ main() {
         build)
             shift
             cmd_build "$@"
+            ;;
+        migrate-buildcache)
+            shift
+            cmd_migrate_buildcache "$@"
             ;;
         promote)
             shift

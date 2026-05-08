@@ -62,8 +62,8 @@ spack:
     - darshan-util
     when: platform == "linux"
   - linux_visualization_core_specs:
-    - llvm@21+clang+lld~lldb~flang~polly+ipo build_system=cmake targets=x86,nvptx %gcc
-    - mesa+llvm+osmesa~glx %gcc ^llvm@21+clang+lld~lldb~flang~polly+ipo build_system=cmake targets=x86,nvptx
+    - llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc
+    - mesa+llvm+osmesa~glx %gcc ^llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
     - qt-base+gui+opengl %gcc
     - gtkplus %gcc
     - ffmpeg %gcc
@@ -248,11 +248,11 @@ spack:
     llvm:
       require:
       - '@21'
-      - +clang+lld~lldb~flang~polly+ipo build_system=cmake targets=x86,nvptx
+      - +clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
     mesa:
       require:
       - +llvm+osmesa~glx
-      - ^llvm@21+clang+lld~lldb~flang~polly+ipo build_system=cmake targets=x86,nvptx
+      - ^llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
     npm:
       require:
       - '@11.2.0'

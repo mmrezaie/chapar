@@ -11,6 +11,8 @@
 - **MPI:** Always use the latest available version. Prefer Open MPI.
 - **LLVM:** Always use the latest available major version. For LLVM 15+, do not add `+cuda`; Spack marks that variant obsolete. Use NVPTX targets/offload variants as needed, and prefer latest LLVM over downgrading only to satisfy LLVM `+cuda`.
 - **Build cache:** Prefer binary caching (`spack mirror`) over building from source.
+- **hpcsim buildcache migration:** Do not make hpcsim release builds auto-import legacy buildcaches. Use an explicit one-time migration, then retire stale cache directories after validation.
+- **Rocky builder cleanup:** After Rocky 8/Rocky 9 container validation, leave only files and directories needed by the current Chapar codebase; remove stale staging, run, and legacy-cache artifacts that can confuse later debugging.
 - Config scope hierarchy: `defaults > system > site > user > spack > environment > command line`.
 - OS-specific overrides use `include.yaml` with `when:` conditionals.
 
