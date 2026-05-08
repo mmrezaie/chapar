@@ -3,6 +3,7 @@
 ## Rules
 
 - NEVER modify `spack/` submodule. All local policy lives in `etc/` and `envs/`.
+- Do not add or override package recipes in `spack_repo/` unless the user explicitly asks to add a package there.
 - NEVER edit generated/lock files (`.spack-env/`, lockfiles, caches).
 - DO NOT pin dependency minor/patch versions on concretization. Use major version only (`gcc@15` not `gcc@15.2.0`).
 - **GCC:** Use the system compiler for the target OS by default (e.g., Rocky 9 → GCC 11.x). For packages that cannot build with the system compiler, use a Spack-provided GCC — always the latest available version.

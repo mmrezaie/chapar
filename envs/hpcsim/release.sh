@@ -541,6 +541,13 @@ cmd_build() {
             ;;
     esac
 
+    case "${OS_NAME}" in
+        rocky8|rocky9)
+            # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
+            spack -C "${scope_dir}" install "${install_args[@]}" "llvm@21+clang+lld~lldb~flang~polly+ipo build_system=cmake targets=x86,nvptx %gcc"
+            ;;
+    esac
+
     spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
