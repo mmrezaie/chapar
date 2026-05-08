@@ -8,6 +8,7 @@
 - **GCC:** Use the system compiler for the target OS by default (e.g., Rocky 9 → GCC 11.x). For packages that cannot build with the system compiler, use a Spack-provided GCC — always the latest available version.
 - **Intel compiler:** Always use the latest available version.
 - **MPI:** Always use the latest available version. Prefer Open MPI.
+- **LLVM:** Always use the latest available major version. For LLVM 15+, do not add `+cuda`; Spack marks that variant obsolete. Use NVPTX targets/offload variants as needed, and prefer latest LLVM over downgrading only to satisfy LLVM `+cuda`.
 - **Build cache:** Prefer binary caching (`spack mirror`) over building from source.
 - Config scope hierarchy: `defaults > system > site > user > spack > environment > command line`.
 - OS-specific overrides use `include.yaml` with `when:` conditionals.
