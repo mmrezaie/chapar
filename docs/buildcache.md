@@ -86,6 +86,9 @@ OS_NAME=rocky9 envs/hpcsim/release.sh migrate-buildcache
 The explicit migration is intentionally conservative:
 
 - It copies from the selected legacy cache path into `/resources/chapar/cache/<os>`.
+- It requires the source cache to carry Chapar's current padded install-tree
+  layout marker. Unmarked pre-padding caches are not migrated by default because
+  they can fail relocation with `CannotGrowString`.
 - It never deletes old cache directories.
 - It does not overwrite destination files.
 - It uses an atomic NFS-safe lock directory at `<cache>.migration.lock`.
@@ -103,6 +106,13 @@ The legacy source path checked by the release helper is:
 Set `HPCSIM_ROOT` to the release root being retired before running migration.
 Do not copy binary caches built under a different install root into the current
 cache unless you have validated that their prefixes are relocatable.
+
+Current hpcsim release builds use `install_tree.padded_length: 256`. If the
+destination cache already contains unmarked pre-padding payloads, the release
+helper quarantines `blobs`, `v3`, and legacy index payloads under a hidden
+`.incompatible-install-tree-padded-256-*` directory before using the cache. This
+preserves old files for audit while preventing Spack from selecting binaries that
+cannot relocate into the padded store.
 
 After a successful one-time migration and verification build, retire old cache
 directories manually so future runs cannot accidentally reuse stale artifacts.

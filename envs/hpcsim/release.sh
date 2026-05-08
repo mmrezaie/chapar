@@ -10,6 +10,9 @@ PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-false}"
 BUILD_SCOPE_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
 REFRESH_BUILDCACHE_ON_EXIT="false"
+INSTALL_TREE_PADDED_LENGTH="256"
+BUILDCACHE_LAYOUT_VERSION="install-tree-padded-${INSTALL_TREE_PADDED_LENGTH}"
+BUILDCACHE_LAYOUT_MARKER=".chapar-buildcache-layout"
 
 usage() {
     cat <<'EOF'
@@ -27,6 +30,9 @@ Environment:
                        Shared binary cache root. Default: /resources/chapar/cache
   OS_NAME              rocky8, rocky9, or macos. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
+  CHAPAR_ALLOW_UNMARKED_BUILDCACHE_MIGRATION
+                       Set true only after validating a legacy cache was built
+                       with the current padded install-tree layout.
 
 Release layout:
   /resources/share/hpcsim/<os>/store
@@ -156,7 +162,7 @@ make_scope() {
 config:
   install_tree:
     root: ${STORE_ROOT}
-    padded_length: 256
+    padded_length: ${INSTALL_TREE_PADDED_LENGTH}
     projections:
       all: "{name}-{version}-{hash}"
   template_dirs:
@@ -257,6 +263,94 @@ write_legacy_buildcache_migration_sentinel() {
     } > "${sentinel}"
 }
 
+buildcache_layout_marker() {
+    printf '%s\n' "${BUILDCACHE_ROOT}/${BUILDCACHE_LAYOUT_MARKER}"
+}
+
+buildcache_layout_is_current() {
+    local marker="${1:-}"
+
+    [ -n "${marker}" ] || marker="$(buildcache_layout_marker)"
+    [ -r "${marker}" ] || return 1
+    grep -qx "layout: ${BUILDCACHE_LAYOUT_VERSION}" "${marker}" || return 1
+    grep -qx "install_tree_padded_length: ${INSTALL_TREE_PADDED_LENGTH}" "${marker}"
+}
+
+write_buildcache_layout_marker() {
+    local marker
+
+    marker="$(buildcache_layout_marker)"
+    {
+        printf 'layout: %s\n' "${BUILDCACHE_LAYOUT_VERSION}"
+        printf 'install_tree_padded_length: %s\n' "${INSTALL_TREE_PADDED_LENGTH}"
+        printf 'updated_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    } > "${marker}"
+}
+
+buildcache_has_payload() {
+    [ -d "${BUILDCACHE_ROOT}/blobs" ] || [ -d "${BUILDCACHE_ROOT}/v3" ] || [ -d "${BUILDCACHE_ROOT}/build_cache" ]
+}
+
+prepare_buildcache_root() {
+    local archive_dir
+    local entry
+    local source_path
+
+    mkdir -p "${BUILDCACHE_ROOT}"
+
+    if buildcache_layout_is_current; then
+        return 0
+    fi
+
+    if ! buildcache_has_payload; then
+        write_buildcache_layout_marker
+        return 0
+    fi
+
+    if [ "${CHAPAR_QUARANTINE_INCOMPATIBLE_BUILDCACHE:-true}" != "true" ]; then
+        die "buildcache is unmarked for ${BUILDCACHE_LAYOUT_VERSION}: ${BUILDCACHE_ROOT}"
+    fi
+
+    echo "==> Quarantining unmarked buildcache contents"
+    echo "    buildcache: ${BUILDCACHE_ROOT}"
+    echo "    reason: old cache entries may not relocate into the padded install tree"
+
+    acquire_buildcache_migration_lock || die "could not acquire buildcache quarantine lock"
+    if buildcache_layout_is_current; then
+        release_buildcache_migration_lock
+        return 0
+    fi
+
+    archive_dir="${BUILDCACHE_ROOT}/.incompatible-${BUILDCACHE_LAYOUT_VERSION}-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+    mkdir -p "${archive_dir}"
+    for entry in blobs v3 build_cache index.json .legacy-buildcache-migration-complete "${BUILDCACHE_LAYOUT_MARKER}"; do
+        source_path="${BUILDCACHE_ROOT}/${entry}"
+        [ -e "${source_path}" ] || continue
+        mv "${source_path}" "${archive_dir}/"
+    done
+
+    echo "    archive: ${archive_dir}"
+    write_buildcache_layout_marker
+    release_buildcache_migration_lock
+}
+
+validate_legacy_buildcache_sources() {
+    local source_dir
+    local marker
+
+    for source_dir in "$@"; do
+        marker="${source_dir}/${BUILDCACHE_LAYOUT_MARKER}"
+        if buildcache_layout_is_current "${marker}"; then
+            continue
+        fi
+        if [ "${CHAPAR_ALLOW_UNMARKED_BUILDCACHE_MIGRATION:-false}" = "true" ]; then
+            echo "WARNING: migrating unmarked buildcache source after explicit override: ${source_dir}" >&2
+            continue
+        fi
+        die "legacy buildcache source is unmarked for ${BUILDCACHE_LAYOUT_VERSION}: ${source_dir}; rebuild it or set CHAPAR_ALLOW_UNMARKED_BUILDCACHE_MIGRATION=true only after validating it was built with the current padded layout"
+    done
+}
+
 copy_buildcache_contents() {
     local source_dir="$1"
 
@@ -301,6 +395,8 @@ migrate_legacy_buildcaches() {
         write_legacy_buildcache_migration_sentinel "${sentinel}"
         return 0
     fi
+
+    validate_legacy_buildcache_sources "${sources[@]}"
 
     echo "==> Migrating legacy buildcache contents"
     echo "    destination: ${BUILDCACHE_ROOT}"
@@ -564,13 +660,14 @@ cmd_build() {
     [ ! -e "${final_dir}" ] || die "release already exists: ${final_dir}"
     [ ! -e "${staging_dir}" ] || die "staging path already exists: ${staging_dir}"
 
-    mkdir -p "${STORE_ROOT}" "${RELEASES_ROOT}" "${BUILDCACHE_ROOT}" "${staging_dir}/logs"
-    scope_dir="$(make_scope "${staging_dir}")"
-    BUILD_SCOPE_DIR="${scope_dir}"
-    REFRESH_BUILDCACHE_ON_EXIT="${PUBLISH_BUILDCACHE}"
+    mkdir -p "${STORE_ROOT}" "${RELEASES_ROOT}" "${staging_dir}/logs"
     trap cleanup_build EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
+    prepare_buildcache_root
+    scope_dir="$(make_scope "${staging_dir}")"
+    BUILD_SCOPE_DIR="${scope_dir}"
+    REFRESH_BUILDCACHE_ON_EXIT="${PUBLISH_BUILDCACHE}"
 
     echo "==> Building hpcsim release"
     echo "    os:       ${OS_NAME}"
@@ -630,12 +727,12 @@ cmd_migrate_buildcache() {
 
     ensure_cmd spack
     set_paths
-    mkdir -p "${BUILDCACHE_ROOT}"
-    scope_dir="$(make_scope "${OS_ROOT}/migration")"
-    BUILD_SCOPE_DIR="${scope_dir}"
     trap cleanup_migration EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
+    prepare_buildcache_root
+    scope_dir="$(make_scope "${OS_ROOT}/migration")"
+    BUILD_SCOPE_DIR="${scope_dir}"
 
     sentinel="$(legacy_buildcache_migration_sentinel)"
     if [ "${force}" = "--force" ] && [ -e "${sentinel}" ]; then

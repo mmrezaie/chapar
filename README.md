@@ -176,7 +176,10 @@ hpcsim cache paths into `/resources/chapar/cache/<os>`. The migration only reads
 the selected `HPCSIM_ROOT`'s `<os>/buildcache`; avoid cross-copying caches from
 another install root unless their prefixes are known to relocate. It uses a
 lock, does not overwrite destination files, does not delete old caches, writes a
-completion sentinel, and refreshes the index after migration. See
+completion sentinel, and refreshes the index after migration. Unmarked
+pre-padding caches are not migrated by default because they can fail relocation
+into the current padded store; unmarked destination payloads are quarantined
+before release builds use the cache. See
 `docs/buildcache.md` before changing this policy.
 
 Push explicitly only when repairing or backfilling a buildcache outside the CI

@@ -162,7 +162,9 @@ Legacy cache migration is not part of normal builds. Run
 `<hpcsim_root>/<os>/buildcache` paths into `/resources/chapar/cache/<os>`. The
 explicit migration only considers the selected `HPCSIM_ROOT`; do not cross-copy
 caches from another install root unless their prefixes are known to relocate.
-Keep this behavior aligned with `docs/buildcache.md`.
+Unmarked pre-padding caches are rejected by migration and quarantined from the
+destination before release builds use the cache. Keep this behavior aligned with
+`docs/buildcache.md`.
 
 Release modules are generated only for explicit hpcsim root specs and are named
 `{name}/{version}`. hpcsim module names must not include Spack hashes; if two
