@@ -235,6 +235,16 @@ spack:
     cmake:
       require:
       - ~qtgui
+    boost:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
+    darshan-runtime:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
+      - spec: 'cflags="-std=gnu17"'
+        when: os=rocky8
     llvm:
       require:
       - '@21'
@@ -265,15 +275,35 @@ spack:
     libffi:
       require:
       - '@3.4.7:'
+    librsvg:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
+    libstdcompat:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
+    intel-mpi-benchmarks:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
     elfutils:
       require:
       - ~debuginfod~nls
     hdf5:
       require:
       - +mpi+fortran+hl+threadsafe
+      - spec: '%gcc@15'
+        when: os=rocky8
     netcdf-c:
       require:
       - +mpi+parallel-netcdf
+      - spec: '%gcc@15'
+        when: os=rocky8
+    netcdf-fortran:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
     openblas:
       require:
       - threads=openmp
@@ -285,6 +315,12 @@ spack:
         when: platform=linux
       - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
         when: '+cuda platform=linux'
+      - spec: '~internal-hwloc %gcc@15'
+        when: os=rocky8
+    parallel-netcdf:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
     ucx:
       require:
       - spec: +cuda+gdrcopy
@@ -334,9 +370,21 @@ spack:
     scalasca:
       require:
       - ^openmpi
+    tau:
+      require:
+      - spec: '~pdt %gcc@15'
+        when: os=rocky8
+    vtk-m:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
+      - spec: 'cxxflags="-include cstdint"'
+        when: os=rocky8
     hwloc:
       require:
       - ~nvml
+      - spec: ~opencl
+        when: os=rocky8
       - spec: +cuda
         when: platform=linux
       - spec: '%gcc@15'
