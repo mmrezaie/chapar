@@ -75,7 +75,8 @@ limited to CI/release builders.
 ## One-Time Migration
 
 `envs/hpcsim/release.sh build` does not automatically migrate legacy cache
-contents. Run migration explicitly when retiring old cache directories:
+contents. Run migration explicitly when retiring an old cache directory for the
+selected `HPCSIM_ROOT`:
 
 ```bash
 OS_NAME=rocky8 envs/hpcsim/release.sh migrate-buildcache
@@ -84,7 +85,7 @@ OS_NAME=rocky9 envs/hpcsim/release.sh migrate-buildcache
 
 The explicit migration is intentionally conservative:
 
-- It copies from legacy cache paths into `/resources/chapar/cache/<os>`.
+- It copies from the selected legacy cache path into `/resources/chapar/cache/<os>`.
 - It never deletes old cache directories.
 - It does not overwrite destination files.
 - It uses an atomic NFS-safe lock directory at `<cache>.migration.lock`.
@@ -93,14 +94,15 @@ The explicit migration is intentionally conservative:
 - It writes `.legacy-buildcache-migration-complete` in the destination so repeat
   invocations become no-ops unless `--force` is used.
 
-Legacy source paths currently checked by the release helper are:
+The legacy source path checked by the release helper is:
 
 ```text
 <hpcsim_root>/<os>/buildcache
-/resources/share/hpcsim/<os>/buildcache
-/resources/chapar/hpcsim/<os>/buildcache
-$HOME/resources/share/hpcsim/<os>/buildcache
 ```
+
+Set `HPCSIM_ROOT` to the release root being retired before running migration.
+Do not copy binary caches built under a different install root into the current
+cache unless you have validated that their prefixes are relocatable.
 
 After a successful one-time migration and verification build, retire old cache
 directories manually so future runs cannot accidentally reuse stale artifacts.

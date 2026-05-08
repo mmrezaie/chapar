@@ -225,9 +225,6 @@ legacy_buildcache_sources() {
     local seen=""
     local candidates=(
         "${OS_ROOT}/buildcache"
-        "/resources/share/hpcsim/${OS_NAME}/buildcache"
-        "/resources/chapar/hpcsim/${OS_NAME}/buildcache"
-        "${HOME}/resources/share/hpcsim/${OS_NAME}/buildcache"
     )
 
     for candidate in "${candidates[@]}"; do
