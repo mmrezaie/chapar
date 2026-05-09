@@ -63,7 +63,7 @@ spack:
     when: platform == "linux"
   - linux_visualization_core_specs:
     - llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc
-    - mesa+llvm+osmesa~glx %gcc ^llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
+    - mesa+llvm+osmesa~glx %gcc
     - qt-base+gui+opengl %gcc
     - gtkplus %gcc
     - ffmpeg %gcc
@@ -249,10 +249,6 @@ spack:
       require:
       - '@21'
       - +clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
-    mesa:
-      require:
-      - +llvm+osmesa~glx
-      - ^llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
     npm:
       require:
       - '@11.2.0'
@@ -411,4 +407,4 @@ spack:
 
   view: false
   concretizer:
-    unify: when_possible
+    unify: false
