@@ -7,6 +7,7 @@ HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
 CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
 SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:-}"
 PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-false}"
+CHAPAR_CONCRETIZE_TIMEOUT="${CHAPAR_CONCRETIZE_TIMEOUT:-}"
 BUILD_SCOPE_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
 REFRESH_BUILDCACHE_ON_EXIT="false"
@@ -30,6 +31,9 @@ Environment:
                        Shared binary cache root. Default: /resources/chapar/cache
   OS_NAME              rocky8, rocky9, or macos. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
+  CHAPAR_CONCRETIZE_TIMEOUT
+                       Optional timeout in seconds for final environment
+                       concretization. Empty means no timeout.
   CHAPAR_ALLOW_UNMARKED_BUILDCACHE_MIGRATION
                        Set true only after validating a legacy cache was built
                        with the current padded install-tree layout.
@@ -291,6 +295,10 @@ buildcache_has_payload() {
     [ -d "${BUILDCACHE_ROOT}/blobs" ] || [ -d "${BUILDCACHE_ROOT}/v3" ] || [ -d "${BUILDCACHE_ROOT}/build_cache" ]
 }
 
+buildcache_index_exists() {
+    [ -r "${BUILDCACHE_ROOT}/v3/manifests/index/index.manifest.json" ]
+}
+
 prepare_buildcache_root() {
     local archive_dir
     local entry
@@ -369,7 +377,34 @@ update_buildcache_index() {
     echo "    buildcache: ${BUILDCACHE_ROOT}"
     if ! spack -C "${BUILD_SCOPE_DIR}" buildcache update-index "file://${BUILDCACHE_ROOT}"; then
         echo "WARNING: failed to update Chapar buildcache index: ${BUILDCACHE_ROOT}" >&2
+        return 1
     fi
+}
+
+ensure_buildcache_index() {
+    buildcache_has_payload || return 0
+    buildcache_index_exists && return 0
+
+    echo "==> Buildcache has payloads but no index; updating before concretization"
+    echo "    buildcache: ${BUILDCACHE_ROOT}"
+    update_buildcache_index || die "could not update buildcache index before concretization"
+}
+
+run_with_timeout() {
+    local timeout_seconds="$1"
+    shift
+
+    if [ -z "${timeout_seconds}" ] || [ "${timeout_seconds}" = "0" ]; then
+        "$@"
+        return
+    fi
+
+    case "${timeout_seconds}" in
+        *[!0-9]*) die "CHAPAR_CONCRETIZE_TIMEOUT must be an integer number of seconds: ${timeout_seconds}" ;;
+    esac
+
+    ensure_cmd timeout
+    timeout "${timeout_seconds}" "$@"
 }
 
 migrate_legacy_buildcaches() {
@@ -668,6 +703,7 @@ cmd_build() {
     scope_dir="$(make_scope "${staging_dir}")"
     BUILD_SCOPE_DIR="${scope_dir}"
     REFRESH_BUILDCACHE_ON_EXIT="${PUBLISH_BUILDCACHE}"
+    ensure_buildcache_index
 
     echo "==> Building hpcsim release"
     echo "    os:       ${OS_NAME}"
@@ -697,7 +733,7 @@ cmd_build() {
             ;;
     esac
 
-    spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
+    run_with_timeout "${CHAPAR_CONCRETIZE_TIMEOUT}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     refresh_root_modules

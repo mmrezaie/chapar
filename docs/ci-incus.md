@@ -157,6 +157,11 @@ cached binaries are reused; only missing concrete hashes build from source. When
 `publish_buildcache` is true, newly source-built packages are pushed during the
 install and the buildcache index is refreshed on exit.
 
+If a previous run populated the cache but exited before writing an index, the
+release helper refreshes the index before concretization. CI also sets
+`CHAPAR_CONCRETIZE_TIMEOUT=3600` so a solver stall fails in the build step
+instead of consuming the full 24-hour workflow timeout.
+
 Legacy cache migration is not part of normal builds. Run
 `envs/hpcsim/release.sh migrate-buildcache` explicitly when retiring older
 `<hpcsim_root>/<os>/buildcache` paths into `/resources/chapar/cache/<os>`. The
