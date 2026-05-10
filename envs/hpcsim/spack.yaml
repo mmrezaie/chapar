@@ -225,6 +225,18 @@ spack:
         lapack: [openblas]
         libllvm: [llvm]
         scalapack: [netlib-scalapack]
+    c:
+      require:
+      - spec: gcc@15
+        when: os=rocky8
+    cxx:
+      require:
+      - spec: gcc@15
+        when: os=rocky8
+    fortran:
+      require:
+      - spec: gcc@15
+        when: os=rocky8
     gcc:
       require:
       - spec: +profiled
@@ -335,6 +347,10 @@ spack:
         when: '+cuda platform=linux'
       - spec: '%gcc@15'
         when: '+cuda os=rocky8'
+    libpressio:
+      require:
+      - spec: 'cxxflags="-include algorithm"'
+        when: '%gcc@15:'
     rdma-core:
       require:
       - ~pyverbs
