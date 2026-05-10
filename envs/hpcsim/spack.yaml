@@ -390,7 +390,7 @@ spack:
       require:
       - spec: '%gcc@15'
         when: os=rocky8
-      - spec: 'cxxflags="-include cstdint"'
+      - spec: 'cxxflags="-include cstdint -Wno-template-body"'
         when: os=rocky8
     hwloc:
       require:
