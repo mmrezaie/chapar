@@ -407,4 +407,4 @@ spack:
 
   view: false
   concretizer:
-    unify: false
+    unify: when_possible
