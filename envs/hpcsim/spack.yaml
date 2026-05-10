@@ -229,14 +229,20 @@ spack:
       require:
       - spec: gcc@15
         when: os=rocky8
+      - spec: gcc@11
+        when: os=rocky9
     cxx:
       require:
       - spec: gcc@15
         when: os=rocky8
+      - spec: gcc@11
+        when: os=rocky9
     fortran:
       require:
       - spec: gcc@15
         when: os=rocky8
+      - spec: gcc@11
+        when: os=rocky9
     gcc:
       require:
       - spec: +profiled
