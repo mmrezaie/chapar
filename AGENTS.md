@@ -12,7 +12,8 @@
 - **GPUDirect:** hpcsim Linux transport layers must keep CUDA/GDR-capable builds. Keep UCX, Open MPI, and libfabric CUDA-aware with GDRCopy where supported; do not disable CUDA/GDR transport support to work around downstream build failures.
 - **LLVM:** Always use the latest available major version. For LLVM 15+, do not add `+cuda`; Spack marks that variant obsolete. Use NVPTX targets/offload variants as needed, and prefer latest LLVM over downgrading only to satisfy LLVM `+cuda`.
 - **Build cache:** Prefer binary caching (`spack mirror`) over building from source.
-- **Commits:** Before pushing commits, ensure commit messages explain why the changes were made, not only what changed. If one commit message cannot carry enough future context, split the work into meaningful commits or update `AGENTS.md`/docs with the lasting policy rationale.
+- **Commits:** Before pushing commits, split changes by purpose and future review context. Do not mix documentation/comment-only changes with behavior, config, or CI changes unless they are inseparable; if inseparable, explain why in the commit body.
+- **Commit messages:** Explain the root cause, why the approach was chosen, important constraints preserved, and validation performed. Avoid messages that only restate the diff. Use `[skip ci]` only when intentionally avoiding push-triggered workflows.
 - **hpcsim buildcache migration:** Do not make hpcsim release builds auto-import legacy buildcaches. Use an explicit one-time migration only for caches marked with the current padded install-tree layout, then retire stale cache directories after validation.
 - **Rocky builder cleanup:** After Rocky 8/Rocky 9 container validation, leave only files and directories needed by the current Chapar codebase; remove stale staging, run, and legacy-cache artifacts that can confuse later debugging.
 - Config scope hierarchy: `defaults > system > site > user > spack > environment > command line`.
@@ -27,29 +28,40 @@
 | `etc/system/{rocky8,rocky9,macos,linux,darwin}/` | OS-specific external packages |
 | `etc/user/` | Per-user configs (install_tree, build_stage, modules) |
 | `etc/user/base/` | Cross-platform user settings |
-| `envs/skipper/spack.yaml` | Canonical environment spec |
-| `envs/skipper/{rocky8,rocky9}/packages.yaml` | Per-OS target tuning |
+| `envs/hpcsim/spack.yaml` | Canonical hpcsim environment spec |
+| `envs/hpcsim/release.sh` | hpcsim release, module, and buildcache helper |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
 
 ## Workflows
 
-**Add a package:** Add spec to `envs/skipper/spack.yaml` (alphabetically). Add OS-specific tuning to `envs/skipper/{os}/packages.yaml` if needed. Run `spack concretize -f` to verify.
+**Add a package:** Add spec to `envs/hpcsim/spack.yaml` (alphabetically). Add OS-specific tuning only where required by real platform differences. Run `spack -e envs/hpcsim concretize -f` to verify.
 
-**Add an OS:** Create `etc/system/{os}/packages.yaml` (externals: compiler, glibc, system libs). Register in `etc/system/include.yaml` and `etc/user/include.yaml`. Optionally add `envs/skipper/{os}/`.
+**Add an OS:** Create `etc/system/{os}/packages.yaml` (externals: compiler, glibc, system libs). Register in `etc/system/include.yaml` and `etc/user/include.yaml`.
 
-**Release:** Run `envs/skipper/release.sh` — builds into isolated root, runs test hints, promotes via atomic symlink swap.
+**Release:** Run `envs/hpcsim/release.sh` — builds into a staging release tree, refreshes root-only modules, and promotes via atomic symlink swap.
 
 **Deploy config:** Run `etc/link-scopes.sh` or source `etc/init.sh`.
+
+## Commit Workflow
+
+When asked to commit or push:
+
+- Inspect `git status`, `git diff`, and recent `git log` before staging.
+- Identify separate change contexts before committing, such as docs-only, behavior/config, CI, release tooling, and policy.
+- Create separate commits for separate contexts even if the changes came from one user request.
+- Prefer a short subject plus a body that records why the change exists and what risk it reduces.
+- Do not amend or rewrite pushed history unless the user explicitly asks.
+- If a bad commit split is discovered after push, prefer leaving it or creating corrective commits over force-pushing `main`.
 
 ## Commands
 
 | Action | Command |
 |--------|---------|
-| Concretization check | `spack concretize -f` |
+| Concretization check | `spack -e envs/hpcsim concretize -f` |
 | Inspect package DAG | `spack spec <pkg>` |
 | Check config layering | `spack config blame <scope>` |
-| Build & promote | `envs/skipper/release.sh` |
+| Build & promote | `envs/hpcsim/release.sh` |
 
 ## Conventions
 
