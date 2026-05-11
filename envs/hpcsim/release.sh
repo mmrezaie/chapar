@@ -1,6 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# hpcsim release driver.
+#
+# This script is intentionally more than a thin `spack install` wrapper. A
+# shared hpcsim deployment has a few invariants that are easy to violate when
+# debugging CI failures or doing emergency cache repairs:
+#
+# - The Spack install tree is shared per OS, but module trees are release-local.
+#   A new build may add packages to the shared store, but it must not rewrite the
+#   module tree used by running jobs.
+# - A release is assembled in `releases/.<id>.staging.<pid>` and moved into place
+#   only after installation, module generation, and manifest writing succeed.
+#   Promotion is a separate atomic symlink swap of `<os>/current`.
+# - Release builds use a temporary command-line Spack scope. That scope points at
+#   the shared install tree, release module root, and per-OS binary buildcache
+#   without changing repository, system, or user Spack config.
+# - Linux buildcaches must match the current padded install-tree layout. Older
+#   unpadded cache entries can fail relocation with `CannotGrowString`, so this
+#   script quarantines unmarked destination payloads and only migrates legacy
+#   caches after an explicit operator action.
+# - hpcsim modules are user-facing and hashless (`{name}/{version}`). The script
+#   refreshes modules only for explicit environment roots and fails if two roots
+#   would collide on the same visible module name.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_PATH="${ENV_PATH:-${SCRIPT_DIR}}"
 HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
@@ -11,10 +34,16 @@ CHAPAR_CONCRETIZE_TIMEOUT="${CHAPAR_CONCRETIZE_TIMEOUT:-}"
 BUILD_SCOPE_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
 REFRESH_BUILDCACHE_ON_EXIT="false"
+# Keep this as a major version to follow Chapar policy: dependency constraints
+# may select the latest CUDA 13 patch release, but release helper code should not
+# bake in a minor/patch CUDA toolkit version.
+CUDA_MAJOR_VERSION="13"
 INSTALL_TREE_PADDED_LENGTH="256"
 BUILDCACHE_LAYOUT_VERSION="install-tree-padded-${INSTALL_TREE_PADDED_LENGTH}"
 BUILDCACHE_LAYOUT_MARKER=".chapar-buildcache-layout"
 
+# User-facing CLI help. Keep the usage text focused on operator commands; the
+# policy details live in the header above and docs/buildcache.md.
 usage() {
     cat <<'EOF'
 Usage:
@@ -68,6 +97,9 @@ validate_release_id() {
     esac
 }
 
+# Root validation deliberately allows only simple absolute paths under known
+# shared roots by default. The unsafe overrides exist for local testing, not for
+# production releases.
 validate_hpcsim_root() {
     local home_root="${HOME}/resources/share/hpcsim"
 
@@ -93,6 +125,9 @@ validate_hpcsim_root() {
     esac
 }
 
+# The buildcache root is separate from HPCSIM_ROOT so binary artifacts can be
+# shared across releases and ordinary user installs without living inside a
+# mutable release tree.
 validate_buildcache_root() {
     local home_root="${HOME}/resources/chapar/cache"
 
@@ -118,6 +153,8 @@ validate_buildcache_root() {
     esac
 }
 
+# OS_NAME controls all per-OS paths and conditional hpcsim specs. CI can set it
+# explicitly; interactive use usually relies on auto-detection.
 detect_os() {
     local detected="${OS_NAME:-}"
 
@@ -146,6 +183,9 @@ detect_os() {
     esac
 }
 
+# Derive all path globals from the validated roots and selected OS. Keeping the
+# path calculation in one place avoids accidentally mixing Rocky 8/Rocky 9 stores
+# or caches in migration and promotion commands.
 set_paths() {
     OS_NAME="$(detect_os)"
     validate_hpcsim_root
@@ -157,6 +197,10 @@ set_paths() {
     BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
 }
 
+# Create a temporary Spack scope for this one release command. The generated
+# scope has higher precedence than system/user scopes, which lets CI control
+# install_tree, module roots, and buildcache autopush without mutating persistent
+# Chapar config.
 make_scope() {
     local module_root="$1"
     local scope_dir
@@ -182,6 +226,8 @@ config:
   binary_index_ttl: 600
 EOF
 
+    # Use the same mirror name as the persistent Chapar scopes so this temporary
+    # scope overrides autopush while still targeting the shared per-OS cache.
     cat > "${scope_dir}/mirrors.yaml" <<EOF
 mirrors:
   chapar-buildcache:
@@ -192,6 +238,8 @@ mirrors:
     autopush: ${PUBLISH_BUILDCACHE}
 EOF
 
+    # Modules are written under the staging release until the build succeeds.
+    # That prevents failed builds from modifying the active module tree.
     cat > "${scope_dir}/modules.yaml" <<EOF
 modules:
   default:
@@ -205,6 +253,8 @@ EOF
     printf '%s\n' "${scope_dir}"
 }
 
+# Buildcache migration/quarantine helpers. The lock uses atomic directory create,
+# which is portable enough for the shared NFS resources tree used by CI.
 release_buildcache_migration_lock() {
     if [ -n "${BUILDCACHE_MIGRATION_LOCK_DIR}" ] && [ -d "${BUILDCACHE_MIGRATION_LOCK_DIR}" ]; then
         rmdir "${BUILDCACHE_MIGRATION_LOCK_DIR}" 2>/dev/null || true
@@ -248,6 +298,8 @@ legacy_buildcache_sources() {
     done
 }
 
+# The migration sentinel records that the selected legacy source set was handled.
+# It prevents normal repeat invocations from quietly re-copying retired caches.
 legacy_buildcache_migration_sentinel() {
     printf '%s\n' "${BUILDCACHE_ROOT}/.legacy-buildcache-migration-complete"
 }
@@ -271,6 +323,9 @@ buildcache_layout_marker() {
     printf '%s\n' "${BUILDCACHE_ROOT}/${BUILDCACHE_LAYOUT_MARKER}"
 }
 
+# Layout markers are the guardrail between the current padded store and older
+# unpadded caches. Do not treat an unmarked cache as safe unless an operator has
+# validated it and set the explicit migration override.
 buildcache_layout_is_current() {
     local marker="${1:-}"
 
@@ -299,6 +354,9 @@ buildcache_index_exists() {
     [ -r "${BUILDCACHE_ROOT}/v3/manifests/index/index.manifest.json" ]
 }
 
+# Prepare the destination cache before any concretization can reuse binaries.
+# If payloads exist without the current layout marker, quarantine them instead of
+# letting Spack consider binaries that may not relocate into the padded store.
 prepare_buildcache_root() {
     local archive_dir
     local entry
@@ -359,6 +417,8 @@ validate_legacy_buildcache_sources() {
     done
 }
 
+# Copy legacy payloads without overwriting destination files. The old cache is
+# left in place so operators can audit or retire it after validation.
 copy_buildcache_contents() {
     local source_dir="$1"
 
@@ -381,6 +441,9 @@ update_buildcache_index() {
     fi
 }
 
+# A cache with blobs but no index is effectively invisible to Spack reuse. Refresh
+# before concretization so release builds can reuse partial progress from an
+# interrupted previous run.
 ensure_buildcache_index() {
     buildcache_has_payload || return 0
     buildcache_index_exists && return 0
@@ -390,6 +453,8 @@ ensure_buildcache_index() {
     update_buildcache_index || die "could not update buildcache index before concretization"
 }
 
+# Wrap concretization with an optional timeout. CI uses this to fail solver stalls
+# inside the build step instead of consuming the full workflow timeout.
 run_with_timeout() {
     local timeout_seconds="$1"
     shift
@@ -431,6 +496,8 @@ migrate_legacy_buildcaches() {
         return 0
     fi
 
+    # Migration is intentionally opt-in and conservative. Normal `build` must not
+    # import legacy caches because old binaries can poison later concretizations.
     validate_legacy_buildcache_sources "${sources[@]}"
 
     echo "==> Migrating legacy buildcache contents"
@@ -466,12 +533,18 @@ refresh_buildcache_index() {
     update_buildcache_index
 }
 
+# Install unsigned/signed mirror trust keys opportunistically. The local Chapar
+# cache is unsigned today, but online upstream mirrors may still need trusted keys
+# for binary reuse.
 trust_buildcache_keys() {
     if ! spack -C "${BUILD_SCOPE_DIR}" buildcache keys --install --trust; then
         echo "WARNING: failed to install buildcache keys; signed online caches may be skipped" >&2
     fi
 }
 
+# Return the architecture-specific CUDA target directory. NVIDIA's toolkit puts
+# headers and runtime libraries below targets/<arch>-linux; CUDA-aware libfabric
+# needs both the runtime library and driver stubs during its package build.
 cuda_target_root() {
     local cuda_prefix="$1"
     local candidate
@@ -487,6 +560,20 @@ cuda_target_root() {
     return 1
 }
 
+# Work around the CUDA-aware libfabric build ordering. Spack can install
+# libfabric's dependencies first, but the libfabric package build itself needs
+# CUDA target headers/libraries and driver stubs visible in compiler search paths.
+# We therefore:
+#
+# 1. Find concrete libfabric specs that include `+cuda`.
+# 2. Install their dependencies only.
+# 3. Locate the concrete CUDA major selected by the environment.
+# 4. Build just the missing libfabric packages with CPATH/LIBRARY_PATH pointing
+#    at the CUDA runtime and stub libraries.
+#
+# Keep this workaround scoped to Rocky release builds. Do not solve downstream
+# CUDA/NVML link failures by disabling CUDA/GDR variants; those transports are a
+# required hpcsim policy.
 install_cuda_libfabric_specs() {
     local install_args_ref=("$@")
     local cuda_prefix
@@ -539,7 +626,7 @@ install_cuda_libfabric_specs() {
     for spec_hash in "${missing_hashes[@]}"; do
         spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete "${install_args_ref[@]}" --only dependencies "${spec_hash}"
     done
-    cuda_prefix="$(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "cuda@13.0.2")"
+    cuda_prefix="$(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "cuda@${CUDA_MAJOR_VERSION}")"
     cuda_root="$(cuda_target_root "${cuda_prefix}")" || die "could not locate CUDA target runtime under ${cuda_prefix}"
     [ -d "${cuda_root}/lib/stubs" ] || die "could not locate CUDA driver stubs under ${cuda_root}/lib/stubs"
 
@@ -568,6 +655,8 @@ cleanup_build() {
     exit "${status}"
 }
 
+# The migration command has a smaller cleanup surface than build, but it still
+# owns a generated Spack scope and may hold the cache lock.
 cleanup_migration() {
     local status="$?"
 
@@ -580,6 +669,8 @@ cleanup_migration() {
     exit "${status}"
 }
 
+# Copy enough metadata into the immutable release directory to answer later
+# questions about which environment file and store/cache roots produced it.
 copy_manifest() {
     local release_dir="$1"
 
@@ -598,6 +689,9 @@ copy_manifest() {
     } > "${release_dir}/metadata.txt"
 }
 
+# Spack's module refresh command wants concrete hashes, while users see
+# `{name}/{version}`. Record both so we can validate visible names before writing
+# hashless modules.
 write_root_module_specs() {
     local output_file="$1"
 
@@ -606,6 +700,9 @@ write_root_module_specs() {
         > "${output_file}"
 }
 
+# Hashless module names are a deliberate UX contract. If two explicit roots would
+# produce the same visible module, fail the release instead of adding hash suffixes
+# or refreshing dependency-only modules.
 validate_root_module_names() {
     local root_specs_file="$1"
     local names_file
@@ -652,6 +749,9 @@ refresh_root_modules() {
     spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" module tcl refresh -y "${root_hashes[@]}"
 }
 
+# Resolve either an explicit release ID or the current symlink to a physical path.
+# This keeps module-use output tied to a specific release tree even if `current`
+# changes later.
 resolve_release_dir() {
     local release_id="${1:-}"
     local release_dir
@@ -668,6 +768,8 @@ resolve_release_dir() {
     (cd -P "${release_dir}" && pwd)
 }
 
+# Build command: install into the shared per-OS store, generate release-local
+# modules in staging, then atomically publish the immutable release directory.
 cmd_build() {
     RELEASE_ID="${1:-}"
     local promote="${2:-}"
@@ -699,6 +801,8 @@ cmd_build() {
     trap cleanup_build EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
+    # Prepare the cache before creating the generated scope/index. This prevents
+    # stale unmarked payloads from participating in concretization.
     prepare_buildcache_root
     scope_dir="$(make_scope "${staging_dir}")"
     BUILD_SCOPE_DIR="${scope_dir}"
@@ -733,6 +837,8 @@ cmd_build() {
             ;;
     esac
 
+    # Concretize after all reusable toolchain pieces are present so Spack can
+    # prefer concrete providers and binary cache hits where hashes match.
     run_with_timeout "${CHAPAR_CONCRETIZE_TIMEOUT}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
@@ -741,6 +847,8 @@ cmd_build() {
     arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"
     copy_manifest "${staging_dir}"
 
+    # The final rename is the publication point. Anything before this can fail
+    # without creating a partially visible release directory.
     mv "${staging_dir}" "${final_dir}"
     echo "==> Release build complete"
     echo "    release: ${final_dir}"
@@ -751,6 +859,8 @@ cmd_build() {
     fi
 }
 
+# Explicit one-time migration command. It shares cache preparation/indexing logic
+# with builds but never runs automatically from `cmd_build`.
 cmd_migrate_buildcache() {
     local force="${1:-}"
     local scope_dir
@@ -782,6 +892,8 @@ cmd_migrate_buildcache() {
     migrate_legacy_buildcaches
 }
 
+# Promotion is intentionally only a symlink update. Stores and release module
+# directories remain immutable so running jobs keep using the files they loaded.
 cmd_promote() {
     local release_id="${1:-}"
     local release_dir
@@ -802,6 +914,8 @@ cmd_promote() {
     tmp_link="${OS_ROOT}/.current.$$"
     rm -f "${tmp_link}"
     ln -s "releases/${release_id}" "${tmp_link}"
+    # POSIX rename is atomic on the same filesystem, which avoids readers seeing
+    # a missing or half-written `current` link during promotion/rollback.
     perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${tmp_link}" "${CURRENT_LINK}"
 
     echo "==> Promoted hpcsim release"
@@ -809,6 +923,8 @@ cmd_promote() {
     echo "    current: ${CURRENT_LINK} -> releases/${release_id}"
 }
 
+# Print shell commands rather than mutating the caller's environment. Operators
+# can inspect the resolved module path before evaluating it in their shell.
 cmd_module_use() {
     local release_id="${1:-}"
     local release_dir
@@ -832,6 +948,7 @@ module avail
 EOF
 }
 
+# Lightweight diagnostics for operators and CI logs.
 cmd_status() {
     set_paths
     echo "hpcsim root: ${HPCSIM_ROOT}"
@@ -849,6 +966,8 @@ cmd_status() {
     fi
 }
 
+# Command dispatcher. Keep command implementations above this point so sourced or
+# traced debugging sessions can inspect all helpers before main executes.
 main() {
     local cmd="${1:-}"
     case "${cmd}" in
