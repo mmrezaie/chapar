@@ -63,8 +63,8 @@ spack:
     when: platform == "linux"
   - linux_visualization_core_specs:
     - llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc
-    - mesa+llvm+osmesa~glx %gcc
-    - qt-base+gui+opengl %gcc
+    - mesa+llvm+osmesa+glx %gcc
+    - qt-base+gui+opengl %gcc ^[virtuals=gl] glx
     - gtkplus %gcc
     - ffmpeg %gcc
     when: platform == "linux"
@@ -228,6 +228,12 @@ spack:
       # libfabric keeps CUDA/GDR enabled; driver libraries resolve on GPU nodes.
       - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
         when: platform=linux
+    ascent:
+      require:
+      # CUDA-aware libfabric records driver-library DT_NEEDED entries that are
+      # intentionally satisfied on GPU nodes, not inside the build container.
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: '+adios2 platform=linux'
     c:
       require:
       - spec: gcc@15
@@ -290,6 +296,10 @@ spack:
         when: '+osmesa platform=linux'
       - spec: '%gcc@11'
         when: os=rocky9
+    mfem:
+      require:
+      - spec: cxxstd=17
+        when: platform=linux
     npm:
       require:
       - '@11.2.0'
@@ -312,6 +322,10 @@ spack:
     libffi:
       require:
       - '@3.4.7:'
+    libepoxy:
+      require:
+      - spec: '+glx ^[virtuals=gl] glx'
+        when: platform=linux
     libsndfile:
       require:
       - spec: 'cflags="-std=gnu17"'
@@ -372,12 +386,20 @@ spack:
         when: '+cuda platform=linux'
       - spec: '~internal-hwloc %gcc@15'
         when: os=rocky8
+    paraview:
+      require:
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: '+adios2 platform=linux'
     parallel-netcdf:
       require:
       - spec: '%gcc@15'
         when: os=rocky8
       - spec: '%gcc@11'
         when: os=rocky9
+    fides:
+      require:
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: platform=linux
     ucx:
       require:
       - spec: +cuda+gdrcopy
@@ -433,6 +455,12 @@ spack:
     scalasca:
       require:
       - ^openmpi
+    seacas:
+      require:
+      - spec: '^libcatalyst~conduit'
+        when: '+libcatalyst platform=linux'
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: '+adios2 platform=linux'
     tau:
       require:
       - spec: '~pdt %gcc@15'
@@ -447,6 +475,14 @@ spack:
         when: os=rocky8
       - spec: 'cxxflags="-include cstdint -Wno-template-body"'
         when: os=rocky8
+    visit:
+      require:
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: '+adios2 platform=linux'
+    vtk:
+      require:
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: 'io=adios2 platform=linux'
     hwloc:
       require:
       - ~nvml
