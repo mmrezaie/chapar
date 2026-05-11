@@ -69,7 +69,7 @@ spack:
     - ffmpeg %gcc
     when: platform == "linux"
   - linux_visualization_specs:
-    - paraview@5.13.3+mpi+python+fortran+hdf5+adios2+fides+catalyst+libcatalyst~qt use_vtkm=on %gcc ^openmpi@5 ^[virtuals=gl] osmesa ^python@3.13:3.13
+    - paraview@5.13.3+mpi~python+fortran+hdf5+adios2+fides+catalyst+libcatalyst~qt use_vtkm=on %gcc ^openmpi@5 ^[virtuals=gl] osmesa
     - visit~gui+mpi+python+adios2+hdf5+netcdf+silo+conduit+vtkm %gcc ^openmpi@5 ^[virtuals=gl] osmesa ^python@3.11:3.11
     - vtk+mpi io=adios2,cgns,exodusii,ffmpeg,fides,ioss,netcdf,xdmf %gcc ^openmpi@5 ^[virtuals=gl] osmesa
     - vtk-m+mpi+openmp+shared %gcc ^openmpi@5
@@ -96,7 +96,7 @@ spack:
     - hdf5-vol-async %gcc ^openmpi@5
     - sz+openmp+hdf5+netcdf+fortran %gcc
     - zfp+openmp+fortran %gcc
-    - libpressio+mpi+openmp+hdf5+sz+zfp+netcdf~python %gcc ^openmpi@5
+    - libpressio+mpi+openmp+hdf5+zfp+netcdf~python %gcc ^openmpi@5
     when: platform == "linux"
   - rocky8_toolchain_specs:
     - gcc@13.4.0+profiled %gcc
@@ -104,13 +104,12 @@ spack:
     - gcc@15+profiled %gcc
     when: os == "rocky8"
   - rocky8_mpi_specs:
-    - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
-    - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
-    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
+    - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
+    - libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
+    - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
+    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
     when: os == "rocky8"
   - rocky8_benchmark_specs:
     - osu-micro-benchmarks
@@ -120,23 +119,22 @@ spack:
     - hpctoolkit@2025.0.1~cuda+mpi+python~auditor_default
     - papi+infiniband
     - scorep~cuda+mpi+papi
-    - caliper+cuda+mpi+papi+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13.0.2
+    - caliper+cuda+mpi+papi+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     when: os == "rocky8"
   - rocky9_toolchain_specs:
     - gcc@13.4.0+profiled
     - gcc@14.3.0+profiled
     - gcc@15+profiled
-    - cuda@13.0.2
+    - cuda@13
     when: os == "rocky9"
   - rocky9_mpi_specs:
     - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - libfabric@1.22.0+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
+    - libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
     - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
-    - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2.3.1+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13.0.2
+    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
     when: os == "rocky9"
   - rocky9_gpu_specs:
     - nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
@@ -225,6 +223,11 @@ spack:
         lapack: [openblas]
         libllvm: [llvm]
         scalapack: [netlib-scalapack]
+    adios2:
+      require:
+      # libfabric keeps CUDA/GDR enabled; driver libraries resolve on GPU nodes.
+      - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+        when: platform=linux
     c:
       require:
       - spec: gcc@15
@@ -247,6 +250,10 @@ spack:
       require:
       - spec: +profiled
         when: '@15 platform=linux'
+    glib:
+      require:
+      - spec: +introspection
+        when: platform=linux
     zlib-api:
       require:
       - zlib-ng+compat
@@ -261,12 +268,28 @@ spack:
       require:
       - spec: '%gcc@15'
         when: os=rocky8
+      - spec: '%gcc@11'
+        when: os=rocky9
       - spec: 'cflags="-std=gnu17"'
-        when: os=rocky8
+        when: 'platform=linux %gcc@15:'
+    dyninst:
+      require:
+      - spec: 'cxxflags="-include cstdint"'
+        when: 'os=rocky8 %gcc@15:'
     llvm:
       require:
       - '@21'
       - +clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
+    llvm-amdgpu:
+      require:
+      - spec: ^cmake@:3
+        when: platform=linux
+    mesa:
+      require:
+      - spec: +llvm
+        when: '+osmesa platform=linux'
+      - spec: '%gcc@11'
+        when: os=rocky9
     npm:
       require:
       - '@11.2.0'
@@ -289,6 +312,10 @@ spack:
     libffi:
       require:
       - '@3.4.7:'
+    libsndfile:
+      require:
+      - spec: 'cflags="-std=gnu17"'
+        when: 'os=rocky8 %gcc@15:'
     librsvg:
       require:
       - spec: '%gcc@15'
@@ -301,6 +328,10 @@ spack:
       require:
       - spec: '%gcc@15'
         when: os=rocky8
+    ior:
+      require:
+      - spec: 'cflags="-std=gnu17"'
+        when: 'os=rocky8 %gcc@15:'
     elfutils:
       require:
       - ~debuginfod~nls
@@ -309,15 +340,25 @@ spack:
       - +mpi+fortran+hl+threadsafe
       - spec: '%gcc@15'
         when: os=rocky8
+      - spec: '%gcc@11'
+        when: os=rocky9
     netcdf-c:
       require:
       - +mpi+parallel-netcdf
       - spec: '%gcc@15'
         when: os=rocky8
+      - spec: '%gcc@11'
+        when: os=rocky9
     netcdf-fortran:
       require:
       - spec: '%gcc@15'
         when: os=rocky8
+      - spec: '%gcc@11'
+        when: os=rocky9
+    ncview:
+      require:
+      - spec: 'cflags="-std=gnu17"'
+        when: 'os=rocky8 %gcc@15:'
     openblas:
       require:
       - threads=openmp
@@ -335,6 +376,8 @@ spack:
       require:
       - spec: '%gcc@15'
         when: os=rocky8
+      - spec: '%gcc@11'
+        when: os=rocky9
     ucx:
       require:
       - spec: +cuda+gdrcopy
@@ -347,7 +390,9 @@ spack:
         when: '+cuda os=rocky8'
     libfabric:
       require:
-      - spec: +cuda+gdrcopy
+      - spec: '@2'
+        when: platform=linux
+      - spec: +cuda+gdrcopy fabrics=mlx,verbs
         when: platform=linux
       - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
         when: '+cuda platform=linux'
@@ -392,6 +437,10 @@ spack:
       require:
       - spec: '~pdt %gcc@15'
         when: os=rocky8
+      - spec: '%gcc@11'
+        when: os=rocky9
+      - spec: 'cxxflags="-include omp.h"'
+        when: '+openmp %gcc@15:'
     vtk-m:
       require:
       - spec: '%gcc@15'
@@ -407,6 +456,10 @@ spack:
         when: platform=linux
       - spec: '%gcc@15'
         when: '+cuda os=rocky8'
+    z3:
+      require:
+      - spec: '%gcc@15'
+        when: os=rocky8
 
   modules:
     default:
