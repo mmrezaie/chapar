@@ -99,8 +99,6 @@ spack:
     - libpressio+mpi+openmp+hdf5+zfp+netcdf~python %gcc ^openmpi@5
     when: platform == "linux"
   - rocky8_toolchain_specs:
-    - gcc@13.4.0+profiled %gcc
-    - gcc@14.3.0+profiled %gcc
     - gcc@15+profiled %gcc
     when: os == "rocky8"
   - rocky8_mpi_specs:
