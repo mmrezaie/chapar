@@ -9,8 +9,10 @@
 - **GCC:** Use the system compiler for the target OS by default (e.g., Rocky 9 → GCC 11.x). For packages that cannot build with the system compiler, use a Spack-provided GCC — always the latest available version.
 - **Intel compiler:** Always use the latest available version.
 - **MPI:** Always use the latest available version. Prefer Open MPI.
+- **GPUDirect:** hpcsim Linux transport layers must keep CUDA/GDR-capable builds. Keep UCX, Open MPI, and libfabric CUDA-aware with GDRCopy where supported; do not disable CUDA/GDR transport support to work around downstream build failures.
 - **LLVM:** Always use the latest available major version. For LLVM 15+, do not add `+cuda`; Spack marks that variant obsolete. Use NVPTX targets/offload variants as needed, and prefer latest LLVM over downgrading only to satisfy LLVM `+cuda`.
 - **Build cache:** Prefer binary caching (`spack mirror`) over building from source.
+- **Commits:** Before pushing commits, ensure commit messages explain why the changes were made, not only what changed. If one commit message cannot carry enough future context, split the work into meaningful commits or update `AGENTS.md`/docs with the lasting policy rationale.
 - **hpcsim buildcache migration:** Do not make hpcsim release builds auto-import legacy buildcaches. Use an explicit one-time migration only for caches marked with the current padded install-tree layout, then retire stale cache directories after validation.
 - **Rocky builder cleanup:** After Rocky 8/Rocky 9 container validation, leave only files and directories needed by the current Chapar codebase; remove stale staging, run, and legacy-cache artifacts that can confuse later debugging.
 - Config scope hierarchy: `defaults > system > site > user > spack > environment > command line`.
