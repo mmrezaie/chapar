@@ -1,0 +1,64 @@
+packages:
+  c:
+    require:
+    - spec: gcc@11
+      when: os=rocky9
+  cxx:
+    require:
+    - spec: gcc@11
+      when: os=rocky9
+  darshan-runtime:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9
+  fortran:
+    require:
+    - spec: gcc@11
+      when: os=rocky9
+  hdf5:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9
+  mesa:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9
+  nccl:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+  nccl-tests:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+  netcdf-c:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9
+  netcdf-fortran:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9
+  node-js:
+    require:
+    - spec: '%gcc@15'
+      when: '@24.2.0 os=rocky9'
+  npm:
+    require:
+    - spec: '%gcc@15'
+      when: os=rocky9
+  nvbandwidth:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+  nvshmem:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+  nvtop:
+    require:
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+  parallel-netcdf:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9
+  tau:
+    require:
+    - spec: '%gcc@11'
+      when: os=rocky9

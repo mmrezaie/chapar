@@ -1,0 +1,48 @@
+packages:
+  all:
+    providers:
+      mpi: [openmpi]
+      blas: [openblas]
+      lapack: [openblas]
+      libllvm: [llvm]
+      scalapack: [netlib-scalapack]
+  cmake:
+    require:
+    - ~qtgui
+  hdf5:
+    require:
+    - +mpi+fortran+hl+threadsafe
+  hwloc:
+    require:
+    - ~nvml
+  libffi:
+    require:
+    - '@3.4.7:'
+  libtool:
+    require:
+    - '@2.4.7:'
+  llvm:
+    require:
+    - '@21'
+    - +clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
+  netcdf-c:
+    require:
+    - +mpi+parallel-netcdf
+  node-js:
+    require:
+    - '@24.2.0'
+    - spec: ^python@:3.13
+      when: '@24.2.0'
+  npm:
+    require:
+    - '@11.2.0'
+  openblas:
+    require:
+    - threads=openmp
+  openmpi:
+    require:
+    - '@5:'
+    - schedulers=none
+  zlib-api:
+    require:
+    - zlib-ng+compat

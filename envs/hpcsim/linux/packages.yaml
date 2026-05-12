@@ -1,0 +1,117 @@
+packages:
+  adios2:
+    require:
+    # libfabric keeps CUDA/GDR enabled; driver libraries resolve on GPU nodes.
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: platform=linux
+  ascent:
+    require:
+    # CUDA-aware libfabric records driver-library DT_NEEDED entries that are
+    # intentionally satisfied on GPU nodes, not inside the build container.
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: '+adios2 platform=linux'
+    # Ascent's test executables link through CUDA-aware libfabric during the
+    # container build; runtime driver libraries are intentionally absent there.
+    - spec: ~test
+      when: '+adios2 platform=linux'
+  elfutils:
+    require:
+    - ~debuginfod~nls
+  fides:
+    require:
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: platform=linux
+  gcc:
+    require:
+    - spec: +profiled
+      when: '@15 platform=linux'
+  gdrcopy:
+    require:
+    - +cuda
+    - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+  glib:
+    require:
+    - spec: +introspection
+      when: platform=linux
+  hwloc:
+    require:
+    - spec: +cuda
+      when: platform=linux
+  libepoxy:
+    require:
+    - spec: '+glx ^[virtuals=gl] glx'
+      when: platform=linux
+  libfabric:
+    require:
+    - spec: '@2'
+      when: platform=linux
+    - spec: +cuda+gdrcopy fabrics=mlx,verbs
+      when: platform=linux
+    - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+      when: '+cuda platform=linux'
+  libpressio:
+    require:
+    - spec: 'cxxflags="-include algorithm"'
+      when: '%gcc@15:'
+  llvm-amdgpu:
+    require:
+    - spec: ^cmake@:3
+      when: platform=linux
+  mesa:
+    require:
+    - spec: +llvm
+      when: '+osmesa platform=linux'
+  mfem:
+    require:
+    - spec: cxxstd=17
+      when: platform=linux
+  openmpi:
+    require:
+    - spec: +cuda+fortran fabrics=verbs,ucx
+      when: platform=linux
+    - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+      when: '+cuda platform=linux'
+  paraview:
+    require:
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: '+adios2 platform=linux'
+  rdma-core:
+    require:
+    - ~pyverbs
+  scalasca:
+    require:
+    - ^openmpi
+  seacas:
+    require:
+    - spec: '^libcatalyst~conduit'
+      when: '+libcatalyst platform=linux'
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: '+adios2 platform=linux'
+  scorep:
+    require:
+    - +fortran
+    - ~gcc-plugin
+  tau:
+    require:
+    - spec: 'cxxflags="-include omp.h"'
+      when: '+openmp %gcc@15:'
+  ucx:
+    require:
+    - spec: +cuda+gdrcopy
+      when: platform=linux
+    - spec: +dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
+      when: platform=linux
+    - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+      when: '+cuda platform=linux'
+  visit:
+    require:
+    # MFEM's current headers use C++17 library features, while VisIt defaults
+    # its own targets to C++14 unless the compiler wrapper injects a newer std.
+    - spec: 'cxxflags="-std=c++17"'
+      when: '+mfem platform=linux'
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: '+adios2 platform=linux'
+  vtk:
+    require:
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+      when: 'io=adios2 platform=linux'

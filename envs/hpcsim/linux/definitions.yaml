@@ -1,0 +1,58 @@
+definitions:
+- hpc_library_specs:
+  - netlib-scalapack
+  - openblas threads=openmp %gcc
+- devtools_specs:
+  - npm@11.2.0
+  - numactl
+  - pulseaudio@13.0 %gcc ^fftw~mpi
+- debug_specs:
+  - gdb+python
+  - valgrind+mpi
+- benchmark_specs:
+  - hpl+openmp
+  - hpcg+openmp
+  - stream+openmp
+  - intel-mpi-benchmarks
+  - qperf+verbs
+  - ior+hdf5+ncmpi
+  - mdtest
+  - h5bench+exerciser+metadata
+  - fio
+- profiling_specs:
+  - likwid
+  - scalasca
+  - tau+mpi+papi+openmp~cuda
+  - darshan-runtime+mpi+hdf5+parallel-netcdf
+- visualization_core_specs:
+  - llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc
+  - mesa+llvm+osmesa+glx %gcc
+  - qt-base+gui+opengl %gcc ^[virtuals=gl] glx
+  - gtkplus %gcc
+  - ffmpeg %gcc
+- visualization_specs:
+  - paraview@5.13.3+mpi~python+fortran+hdf5+adios2+fides+catalyst+libcatalyst~qt use_vtkm=on %gcc ^openmpi@5 ^[virtuals=gl] osmesa
+  - visit~gui+mpi+python+adios2+hdf5+netcdf+silo+conduit+vtkm %gcc ^openmpi@5 ^[virtuals=gl] osmesa ^python@3.11:3.11
+  - vtk+mpi io=adios2,cgns,exodusii,ffmpeg,fides,ioss,netcdf,xdmf %gcc ^openmpi@5 ^[virtuals=gl] osmesa
+  - vtk-m+mpi+openmp+shared %gcc ^openmpi@5
+- postprocessing_io_specs:
+  - adios2+mpi+fortran+hdf5+libcatalyst~python %gcc ^openmpi@5
+  - cgns+mpi+hdf5+fortran %gcc ^openmpi@5
+  - silo+mpi+hdf5+fortran~python %gcc ^openmpi@5
+  - exodusii+mpi+fortran %gcc ^openmpi@5
+  - seacas@2024-06-27+mpi+adios2+libcatalyst+cgns+applications~legacy~x11 %gcc ^openmpi@5
+- postprocessing_cli_specs:
+  - nco+openmp %gcc
+  - cdo+netcdf+hdf5+openmp grib2=eccodes %gcc
+  - eccodes+tools+netcdf+png %gcc
+  - nccmp %gcc
+  - ncview %gcc
+- insitu_specs:
+  - libcatalyst+mpi+conduit+fortran~python %gcc ^openmpi@5
+  - ascent+mpi~python+fortran+vtkh+adios2+fides %gcc ^openmpi@5
+  - conduit+mpi+hdf5+fortran~python %gcc ^openmpi@5
+  - fides+mpi %gcc ^openmpi@5
+  - hdf5-vol-async %gcc ^openmpi@5
+  - sz+openmp+hdf5+netcdf+fortran %gcc
+  - zfp+openmp+fortran %gcc
+  - libpressio+mpi+openmp+hdf5+zfp+netcdf~python %gcc ^openmpi@5
