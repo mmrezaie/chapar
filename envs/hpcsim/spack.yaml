@@ -232,6 +232,10 @@ spack:
       # intentionally satisfied on GPU nodes, not inside the build container.
       - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
         when: '+adios2 platform=linux'
+      # Ascent's test executables link through CUDA-aware libfabric during the
+      # container build; runtime driver libraries are intentionally absent there.
+      - spec: ~test
+        when: '+adios2 platform=linux'
     c:
       require:
       - spec: gcc@15
@@ -475,6 +479,10 @@ spack:
         when: os=rocky8
     visit:
       require:
+      # MFEM's current headers use C++17 library features, while VisIt defaults
+      # its own targets to C++14 unless the compiler wrapper injects a newer std.
+      - spec: 'cxxflags="-std=c++17"'
+        when: '+mfem platform=linux'
       - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
         when: '+adios2 platform=linux'
     vtk:
