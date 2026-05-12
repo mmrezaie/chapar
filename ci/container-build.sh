@@ -94,6 +94,14 @@ if [ "${PUBLISH_CURRENT}" = "true" ]; then
 fi
 
 cp envs/hpcsim/spack.yaml "${ENV_DIR}/hpcsim.spack.yaml"
+mkdir -p "${ENV_DIR}/hpcsim"
+cp envs/hpcsim/spack.yaml "${ENV_DIR}/hpcsim/spack.yaml"
+for config_scope in common linux rocky8 rocky9 macos; do
+    if [ -d "envs/hpcsim/${config_scope}" ]; then
+        mkdir -p "${ENV_DIR}/hpcsim/${config_scope}"
+        cp "envs/hpcsim/${config_scope}"/*.yaml "${ENV_DIR}/hpcsim/${config_scope}/"
+    fi
+done
 if [ -f envs/hpcsim/spack.lock ]; then
     cp envs/hpcsim/spack.lock "${ENV_DIR}/hpcsim.spack.lock"
 fi
