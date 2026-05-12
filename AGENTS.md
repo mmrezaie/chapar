@@ -28,14 +28,15 @@
 | `etc/system/{rocky8,rocky9,macos,linux,darwin}/` | OS-specific external packages |
 | `etc/user/` | Per-user configs (install_tree, build_stage, modules) |
 | `etc/user/base/` | Cross-platform user settings |
-| `envs/hpcsim/spack.yaml` | Canonical hpcsim environment spec |
+| `envs/hpcsim/spack.yaml` | Canonical hpcsim environment entry point |
+| `envs/hpcsim/{common,linux,rocky8,rocky9,macos}/` | Shared and OS-specific hpcsim specs/package policy |
 | `envs/hpcsim/release.sh` | hpcsim release, module, and buildcache helper |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
 
 ## Workflows
 
-**Add a package:** Add spec to `envs/hpcsim/spack.yaml` (alphabetically). Add OS-specific tuning only where required by real platform differences. Run `spack -e envs/hpcsim concretize -f` to verify.
+**Add a package:** Add shared specs to `envs/hpcsim/common/definitions.yaml`, Linux-only specs to `envs/hpcsim/linux/definitions.yaml`, and OS-only specs to the matching `envs/hpcsim/{rocky8,rocky9,macos}/definitions.yaml`. Put package requirements in the matching `packages.yaml`. Add OS-specific tuning only where required by real platform differences. Run `spack -e envs/hpcsim concretize -f` to verify.
 
 **Add an OS:** Create `etc/system/{os}/packages.yaml` (externals: compiler, glibc, system libs). Register in `etc/system/include.yaml` and `etc/user/include.yaml`.
 

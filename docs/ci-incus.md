@@ -140,6 +140,7 @@ Per-run logs and concrete environment files:
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/spack-commit.txt`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/release-id.txt`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.yaml`
+- `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim/`
 - `/resources/chapar/hpcsim/<os>/runs/<run-id>/concrete-envs/hpcsim.spack.lock`
 
 ## Build Behavior

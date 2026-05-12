@@ -9,7 +9,7 @@ module layout, and environment definitions outside the Spack repository.
 
 ## Goals
 
-- Keep one package list in `envs/hpcsim/spack.yaml`.
+- Keep one hpcsim environment entry point with shared and OS-specific include scopes.
 - Avoid release-tier and package-section environment splits.
 - Prefer Spack-built dependencies over OS-provided libraries and tools.
 - Keep only necessary externals for compilers, libc, ccache, and unavoidable
@@ -30,7 +30,7 @@ module layout, and environment definitions outside the Spack repository.
 |   |-- user/           # User Spack scope and OS overlays
 |   `-- README.md       # Detailed config-scope documentation
 |-- envs/
-|   `-- hpcsim/         # Single shared Spack environment and release helper
+|   `-- hpcsim/         # Shared Spack environment, include scopes, release helper
 `-- docs/               # CI and runner documentation
 ```
 
@@ -73,6 +73,8 @@ spack config blame packages
 `envs/hpcsim` is the only supported Chapar environment. Stale local
 `envs/skipper*` directories from older workflows are ignored and can be removed;
 they are not referenced by the current CI, release helper, or Spack scopes.
+The top-level `envs/hpcsim/spack.yaml` routes to shared `common/` and `linux/`
+config plus the active OS scope (`rocky8/`, `rocky9/`, or `macos/`).
 
 For local validation with the active Spack scopes:
 
@@ -200,7 +202,9 @@ Chapar uses normal Spack configuration scopes:
   bootstrap compiler, libc, and ccache externals. Rocky overlays also attach the
   shared NAS buildcache mirror.
 - `etc/user`: per-user paths and optional user-local settings.
-- `envs/hpcsim/spack.yaml`: the shared hpcsim package list and module policy.
+- `envs/hpcsim/spack.yaml`: the shared hpcsim entry point and module policy.
+- `envs/hpcsim/{common,linux,rocky8,rocky9,macos}`: shared and OS-specific
+  root specs and package requirements.
 
 Both `etc/system/include.yaml` and `etc/user/include.yaml` route to the matching
 OS overlay first and then to shared `base` config.
