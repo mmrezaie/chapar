@@ -44,6 +44,29 @@
 
 **Deploy config:** Run `etc/link-scopes.sh` or source `etc/init.sh`.
 
+## Project Skills
+
+Chapar keeps project-local skill playbooks under `.pi/skills/`. When a task
+matches one of these areas, load the matching skill if the runtime exposes it;
+otherwise read the skill's `SKILL.md` before changing files.
+
+| Task | Skill |
+|------|-------|
+| Spack environment package/root spec or package policy changes under `envs/<name>` | `.pi/skills/chapar-spack-env-change/SKILL.md` |
+| Spack concretization failures, solver timeouts, provider conflicts, or config layering debug | `.pi/skills/chapar-spack-solve-debug/SKILL.md` |
+| Persistent Spack scope changes under `etc/system` or `etc/user` | `.pi/skills/chapar-config-scope-change/SKILL.md` |
+| Commits, pushes, branch prep, or PR prep | `.pi/skills/chapar-commit/SKILL.md` |
+| hpcsim release helper changes in `envs/hpcsim/release.sh` | `.pi/skills/chapar-release-helper/SKILL.md` |
+| Buildcache layout, migration, quarantine, index refresh, or publication | `.pi/skills/chapar-buildcache/SKILL.md` |
+| CUDA/GDR transport work involving UCX, Open MPI, libfabric, GDRCopy, NCCL, or NVSHMEM | `.pi/skills/chapar-cuda-gdr-transport/SKILL.md` |
+| Incus-backed GitHub Actions or Rocky runner CI triage | `.pi/skills/chapar-incus-ci-triage/SKILL.md` |
+| Creating or improving `.pi/skills` | `.pi/skills/skill-creator/SKILL.md` |
+| Visual diff help when VS Code CLI is available | `.pi/skills/vscode/SKILL.md` |
+| External web search when Brave Search credentials are configured | `.pi/skills/brave-search/SKILL.md` |
+
+`AGENTS.md` is baseline repository guidance, not a skill. Use it together with
+the matching skill playbook when both apply.
+
 ## Commit Workflow
 
 When asked to commit or push:
