@@ -49,7 +49,6 @@ definitions:
   - ncview %gcc
 - insitu_specs:
   - libcatalyst+mpi+conduit+fortran~python %gcc ^openmpi@5
-  - ascent+mpi~python+fortran+vtkh+adios2+fides %gcc ^openmpi@5
   - conduit+mpi+hdf5+fortran~python %gcc ^openmpi@5
   - fides+mpi %gcc ^openmpi@5
   - hdf5-vol-async %gcc ^openmpi@5

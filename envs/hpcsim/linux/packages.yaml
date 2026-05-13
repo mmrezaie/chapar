@@ -4,16 +4,6 @@ packages:
     # libfabric keeps CUDA/GDR enabled; driver libraries resolve on GPU nodes.
     - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
       when: platform=linux
-  ascent:
-    require:
-    # CUDA-aware libfabric records driver-library DT_NEEDED entries that are
-    # intentionally satisfied on GPU nodes, not inside the build container.
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
-      when: '+adios2 platform=linux'
-    # Ascent's test executables link through CUDA-aware libfabric during the
-    # container build; runtime driver libraries are intentionally absent there.
-    - spec: ~test
-      when: '+adios2 platform=linux'
   elfutils:
     require:
     - ~debuginfod~nls
