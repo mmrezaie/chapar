@@ -63,7 +63,7 @@ otherwise read the skill's `SKILL.md` before changing files.
 | Incus-backed GitHub Actions or Rocky runner CI triage | `agents/skills/chapar-incus-ci-triage/SKILL.md` |
 | macOS self-hosted hpcsim CI triage or runner/bootstrap changes | `agents/skills/chapar-macos-ci-triage/SKILL.md` |
 | CVE checker agent, security scan config, Nemotron summaries, or issue workflow changes | `agents/skills/chapar-cve-checker/SKILL.md` |
-| Local Spack package overlay recipe or patch changes under `spack_repo/chapar` | `agents/skills/chapar-spack-repo-overlay/SKILL.md` |
+| Local Spack package overlay recipe or patch changes under `spack_repo/chapar_plus` | `agents/skills/chapar-spack-repo-overlay/SKILL.md` |
 | OpenCode config, agent skill layout, skill migration, or project skill policy changes | `agents/skills/chapar-opencode-skills/SKILL.md` |
 | Creating or improving `agents/skills` | `agents/skills/skill-creator/SKILL.md` |
 | Visual diff help when VS Code CLI is available | `agents/skills/vscode/SKILL.md` |

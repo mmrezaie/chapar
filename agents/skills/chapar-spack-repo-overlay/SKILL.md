@@ -1,11 +1,11 @@
 ---
 name: chapar-spack-repo-overlay
-description: Modify or review Chapar local Spack package overlay recipes and patches under spack_repo/chapar. Use only when the user explicitly asks for local package recipe or patch work or package overlay debugging.
+description: Modify or review Chapar local Spack package overlay recipes and patches under spack_repo/chapar_plus. Use only when the user explicitly asks for local package recipe work, binary-only package examples, source package examples, or package overlay debugging.
 ---
 
 # Chapar Spack Repo Overlay
 
-Use this playbook for local Spack package overlay work under `spack_repo/chapar`.
+Use this playbook for local Spack package overlay work under `spack_repo/chapar_plus`.
 Most environment/package policy changes belong under `envs/` or `etc/`; use this
 skill only when a local recipe or patch is actually required.
 
@@ -23,9 +23,14 @@ skill only when a local recipe or patch is actually required.
 
 ## Existing Overlay Packages
 
-No Chapar-specific overlay package recipes are currently registered. Prefer
-builtin Spack recipes unless a concrete build or source behavior failure requires
-a narrow local override.
+```text
+spack_repo/chapar_plus/packages/chapar_source_example/
+spack_repo/chapar_plus/packages/chapar_binary_only_example/
+```
+
+These are teaching examples for industrial simulation packaging. Keep them small
+and easy to read; they should demonstrate source-available and binary-only
+packaging patterns without vendoring real proprietary payloads.
 
 ## Recipe Change Guidance
 
@@ -43,10 +48,10 @@ a narrow local override.
 ## Validation
 
 ```bash
-python3 -m py_compile spack_repo/chapar/packages/<package>/package.py
+python3 -m py_compile spack_repo/chapar_plus/packages/<package>/package.py
 source ./etc/init.sh
-spack -e envs/hpcsim spec <package>
-git diff --check -- spack_repo/chapar
+spack spec <package>
+git diff --check -- spack_repo/chapar_plus
 ```
 
 If the overlay change is platform-specific and local validation is on a different

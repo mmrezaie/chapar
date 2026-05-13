@@ -17,7 +17,7 @@ with Chapar. OpenCode loads project skills from `agents/skills`.
 - `skills/chapar-cve-checker` covers the security scanner workflow and its
   restricted trust boundary.
 - `skills/chapar-spack-repo-overlay` covers local Spack package recipes and
-  patches under `spack_repo/chapar`.
+  patches under `spack_repo/chapar_plus`.
 - `skills/chapar-opencode-skills` covers OpenCode config, skill path migration,
   and agent playbook maintenance.
 - `skills/brave-search`, `skills/vscode`: Generic skills copied from
