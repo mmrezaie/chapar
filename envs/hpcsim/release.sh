@@ -537,9 +537,25 @@ refresh_buildcache_index() {
 # cache is unsigned today, but online upstream mirrors may still need trusted keys
 # for binary reuse.
 trust_buildcache_keys() {
-    if ! spack -C "${BUILD_SCOPE_DIR}" buildcache keys --install --trust; then
+    echo "==> Installing buildcache trust keys"
+    if ! run_with_timeout 300 spack -C "${BUILD_SCOPE_DIR}" buildcache keys --install --trust; then
         echo "WARNING: failed to install buildcache keys; signed online caches may be skipped" >&2
     fi
+}
+
+install_if_missing() {
+    local scope_dir="$1"
+    local spec="$2"
+    shift 2
+
+    echo "==> Ensuring release prerequisite"
+    echo "    spec: ${spec}"
+    if spack -C "${scope_dir}" find "${spec}" >/dev/null 2>&1; then
+        echo "    status: already installed"
+        return 0
+    fi
+
+    spack -C "${scope_dir}" install "$@" "${spec}"
 }
 
 # Return the architecture-specific CUDA target directory. NVIDIA's toolkit puts
@@ -855,26 +871,29 @@ cmd_build() {
     case "${OS_NAME}" in
         rocky8)
             # Rocky 8's system GCC is too old for Node 24 and CUDA 13 host builds.
-            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15+profiled %gcc"
+            install_if_missing "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
         rocky9)
             # Node 24 needs a newer C++ toolchain than Rocky 9's system GCC 11.
-            spack -C "${scope_dir}" install "${install_args[@]}" "gcc@15+profiled %gcc"
+            install_if_missing "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
     esac
 
     case "${OS_NAME}" in
         rocky8|rocky9)
             # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
-            spack -C "${scope_dir}" install "${install_args[@]}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc"
+            install_if_missing "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
             ;;
     esac
 
     # Concretize after all reusable toolchain pieces are present so Spack can
     # prefer concrete providers and binary cache hits where hashes match.
+    echo "==> Concretizing hpcsim environment"
     run_with_timeout "${concretize_timeout}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
+    echo "==> Installing hpcsim environment"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
+    echo "==> Refreshing hpcsim root modules"
     refresh_root_modules
 
     arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"
