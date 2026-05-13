@@ -35,6 +35,10 @@ packages:
     require:
     - spec: '%gcc@15'
       when: os=rocky8
+  hpctoolkit:
+    require:
+    - spec: '%gcc@15'
+      when: os=rocky8
   hwloc:
     require:
     - spec: ~opencl
