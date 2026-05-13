@@ -58,6 +58,7 @@ otherwise read the skill's `SKILL.md` before changing files.
 | Commits, pushes, branch prep, or PR prep | `.pi/skills/chapar-commit/SKILL.md` |
 | hpcsim release helper changes in `envs/hpcsim/release.sh` | `.pi/skills/chapar-release-helper/SKILL.md` |
 | Buildcache layout, migration, quarantine, index refresh, or publication | `.pi/skills/chapar-buildcache/SKILL.md` |
+| Live CI/CD progress inspection via mounted artifact roots, logs, stores, releases, modulefiles, or caches | `.pi/skills/chapar-ci-artifact-watch/SKILL.md` |
 | CUDA/GDR transport work involving UCX, Open MPI, libfabric, GDRCopy, NCCL, or NVSHMEM | `.pi/skills/chapar-cuda-gdr-transport/SKILL.md` |
 | Incus-backed GitHub Actions or Rocky runner CI triage | `.pi/skills/chapar-incus-ci-triage/SKILL.md` |
 | Creating or improving `.pi/skills` | `.pi/skills/skill-creator/SKILL.md` |
