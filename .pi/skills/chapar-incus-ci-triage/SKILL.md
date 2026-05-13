@@ -14,6 +14,9 @@ environments. Identify the environment before changing config.
 
 - Do not guess from the red/green summary alone. Identify the failed workflow,
   job, step, commit, inputs, OS, and target environment.
+- If the user asks about a currently running or stuck build and artifact roots
+  are locally mounted, use `chapar-ci-artifact-watch` first to inspect durable
+  logs and output files directly instead of waiting for GitHub web logs.
 - Compare Rocky 8 and Rocky 9 when one succeeds and the other fails.
 - Prefer durable CI artifacts/logs under the configured run root over GitHub web
   log summaries when available.
