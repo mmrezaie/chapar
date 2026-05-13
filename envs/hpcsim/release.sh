@@ -795,12 +795,28 @@ cmd_build() {
 
     concretize_timeout="${CHAPAR_CONCRETIZE_TIMEOUT}"
     case "${OS_NAME}" in
-        rocky8|rocky9)
+        rocky8)
+            # Rocky 8 has the largest constrained solve today because it uses a
+            # GCC 15 provider stack on an older base OS while preserving the
+            # CUDA/GDR-capable MPI transport policy. Keep CI's guardrail, but
+            # give the solver more than the three hours that recent runs hit.
+            case "${concretize_timeout}" in
+                ""|0|*[!0-9]*) ;;
+                *)
+                    if [ "${concretize_timeout}" -lt 21600 ]; then
+                        echo "==> Raising Rocky 8 concretization timeout to 21600 seconds"
+                        echo "    requested: ${concretize_timeout}"
+                        concretize_timeout="21600"
+                    fi
+                    ;;
+            esac
+            ;;
+        rocky9)
             case "${concretize_timeout}" in
                 ""|0|*[!0-9]*) ;;
                 *)
                     if [ "${concretize_timeout}" -lt 10800 ]; then
-                        echo "==> Raising Rocky concretization timeout to 10800 seconds"
+                        echo "==> Raising Rocky 9 concretization timeout to 10800 seconds"
                         echo "    requested: ${concretize_timeout}"
                         concretize_timeout="10800"
                     fi

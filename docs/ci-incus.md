@@ -161,7 +161,9 @@ install and the buildcache index is refreshed on exit.
 If a previous run populated the cache but exited before writing an index, the
 release helper refreshes the index before concretization. CI also sets
 `CHAPAR_CONCRETIZE_TIMEOUT=3600` so a solver stall fails in the build step
-instead of consuming the full 24-hour workflow timeout.
+instead of consuming the full 24-hour workflow timeout. The release helper raises
+that guardrail to at least 3 hours on Rocky 9 and 6 hours on Rocky 8 because the
+Rocky solves are larger than the generic CI default.
 
 Legacy cache migration is not part of normal builds. Run
 `envs/hpcsim/release.sh migrate-buildcache` explicitly when retiring older
