@@ -777,6 +777,7 @@ cmd_build() {
     local final_dir
     local scope_dir
     local arch_triplet
+    local concretize_timeout
 
     [ -n "${RELEASE_ID}" ] || die "release-id is required for build"
     validate_release_id "${RELEASE_ID}"
@@ -791,6 +792,22 @@ cmd_build() {
 
     ensure_cmd spack
     set_paths
+
+    concretize_timeout="${CHAPAR_CONCRETIZE_TIMEOUT}"
+    case "${OS_NAME}" in
+        rocky8|rocky9)
+            case "${concretize_timeout}" in
+                ""|0|*[!0-9]*) ;;
+                *)
+                    if [ "${concretize_timeout}" -lt 10800 ]; then
+                        echo "==> Raising Rocky concretization timeout to 10800 seconds"
+                        echo "    requested: ${concretize_timeout}"
+                        concretize_timeout="10800"
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
 
     final_dir="${RELEASES_ROOT}/${RELEASE_ID}"
     staging_dir="${RELEASES_ROOT}/.${RELEASE_ID}.staging.$$"
@@ -839,7 +856,7 @@ cmd_build() {
 
     # Concretize after all reusable toolchain pieces are present so Spack can
     # prefer concrete providers and binary cache hits where hashes match.
-    run_with_timeout "${CHAPAR_CONCRETIZE_TIMEOUT}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
+    run_with_timeout "${concretize_timeout}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     refresh_root_modules
