@@ -19,6 +19,8 @@ packages:
       when: 'platform=linux %gcc@15:'
   dyninst:
     require:
+    - spec: '%gcc@15'
+      when: os=rocky8
     - spec: 'cxxflags="-include cstdint"'
       when: 'os=rocky8 %gcc@15:'
   fortran:
@@ -60,6 +62,10 @@ packages:
     - spec: 'cflags="-std=gnu17"'
       when: 'os=rocky8 %gcc@15:'
   libstdcompat:
+    require:
+    - spec: '%gcc@15'
+      when: os=rocky8
+  nco:
     require:
     - spec: '%gcc@15'
       when: os=rocky8
