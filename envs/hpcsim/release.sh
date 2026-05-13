@@ -791,6 +791,7 @@ cmd_build() {
     local scope_dir
     local arch_triplet
     local concretize_timeout
+    local -a concretize_args
 
     [ -n "${RELEASE_ID}" ] || die "release-id is required for build"
     validate_release_id "${RELEASE_ID}"
@@ -807,6 +808,7 @@ cmd_build() {
     set_paths
 
     concretize_timeout="${CHAPAR_CONCRETIZE_TIMEOUT}"
+    concretize_args=(-f)
     case "${OS_NAME}" in
         rocky8)
             # Rocky 8 has the largest constrained solve today because it uses a
@@ -823,6 +825,7 @@ cmd_build() {
                     fi
                     ;;
             esac
+            concretize_args+=(-U)
             ;;
         rocky9)
             case "${concretize_timeout}" in
@@ -886,7 +889,8 @@ cmd_build() {
     # Concretize after all reusable toolchain pieces are present so Spack can
     # prefer concrete providers and binary cache hits where hashes match.
     echo "==> Concretizing hpcsim environment"
-    run_with_timeout "${concretize_timeout}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
+    echo "    args: ${concretize_args[*]}"
+    run_with_timeout "${concretize_timeout}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize "${concretize_args[@]}"
     install_cuda_libfabric_specs "${install_args[@]}"
     echo "==> Installing hpcsim environment"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
