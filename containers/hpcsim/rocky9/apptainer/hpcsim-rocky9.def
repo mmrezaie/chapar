@@ -1,0 +1,41 @@
+Bootstrap: docker-archive
+From: {{ base_archive }}
+
+%arguments
+    base_archive=containers/out/hpcsim-rocky9-base.tar
+
+%labels
+    org.opencontainers.image.title Chapar hpcsim Rocky 9
+    org.opencontainers.image.description Rocky 9 runtime for Chapar hpcsim releases bound from /resources
+    org.opencontainers.image.source https://github.com/mmrezaie/chapar
+
+%help
+    Chapar hpcsim Rocky 9 runtime image.
+
+    Bind the resources tree at runtime so the image can see the promoted hpcsim
+    release:
+
+      apptainer exec --bind /resources:/resources hpcsim-rocky9.sif bash --login
+
+    The image expects modules under:
+
+      /resources/share/hpcsim/rocky9/current/modulefiles
+
+%environment
+    export CHAPAR_HPCSIM_ROOT="${CHAPAR_HPCSIM_ROOT:-/resources/share/hpcsim}"
+    export CHAPAR_HPCSIM_OS="${CHAPAR_HPCSIM_OS:-rocky9}"
+
+%post
+    set -e
+    mkdir -p /resources/share/hpcsim /resources/chapar/cache
+    chmod 0755 /usr/local/bin/chapar-hpcsim-entrypoint
+
+%runscript
+    exec /usr/local/bin/chapar-hpcsim-entrypoint "$@"
+
+%test
+    test -r /etc/os-release
+    grep -q '^ID="\?rocky' /etc/os-release
+    command -v gcc >/dev/null
+    command -v gfortran >/dev/null
+    command -v modulecmd >/dev/null
