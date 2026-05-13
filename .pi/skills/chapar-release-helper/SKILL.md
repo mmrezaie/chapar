@@ -1,16 +1,20 @@
 ---
 name: chapar-release-helper
-description: Modify or debug Chapar's hpcsim release helper envs/hpcsim/release.sh. Use for release builds, staging/promote logic, module refresh, generated Spack scopes, and release metadata.
+description: Modify or debug Chapar's current hpcsim release helper envs/hpcsim/release.sh. Use for hpcsim release builds, staging/promote logic, module refresh, generated Spack scopes, and release metadata. For generic package/env edits, use chapar-spack-env-change.
 ---
 
-# Chapar Release Helper
+# Chapar hpcsim Release Helper
 
-Use this playbook before editing `envs/hpcsim/release.sh`.
+Use this playbook before editing `envs/hpcsim/release.sh`. This skill is
+intentionally hpcsim-specific because that is the release helper that exists
+today. If a future environment gets its own release helper, copy the invariants
+that apply but inspect that helper's own paths and variables first.
 
 ## Invariants
 
 - Build into a staging directory: `releases/.<release-id>.staging.<pid>`.
-- Publish a release only by atomically moving staging to `releases/<release-id>` after install, module generation, and manifest writing succeed.
+- Publish a release only by atomically moving staging to `releases/<release-id>`
+  after install, module generation, and manifest writing succeed.
 - Promotion only updates the per-OS `current` symlink atomically.
 - Never rewrite active module trees used by running jobs.
 - The shared Spack store is per OS; module trees are release-local.
@@ -28,7 +32,8 @@ Use this playbook before editing `envs/hpcsim/release.sh`.
 - buildcache mirror and autopush
 - cache/stage directories
 
-Do not move release-only policy into persistent system/user scopes unless the user explicitly requests a persistent behavior change.
+Do not move release-only policy into persistent system/user scopes unless the
+user explicitly requests a persistent behavior change.
 
 ## Safe Validation
 
@@ -51,8 +56,10 @@ Do not run build/promote commands unless explicitly asked.
 
 ## Buildcache Interactions
 
-If changing cache layout, migration, index refresh, autopush, or quarantine behavior, use `chapar-buildcache` too.
+If changing cache layout, migration, index refresh, autopush, or quarantine
+behavior, use `chapar-buildcache` too.
 
 ## CUDA/MPI Interactions
 
-If changing `install_cuda_libfabric_specs`, CUDA target/stub handling, UCX, Open MPI, or libfabric behavior, use `chapar-cuda-gdr-transport` too.
+If changing `install_cuda_libfabric_specs`, CUDA target/stub handling, UCX, Open
+MPI, or libfabric behavior, use `chapar-cuda-gdr-transport` too.
