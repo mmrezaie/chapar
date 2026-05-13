@@ -4,10 +4,14 @@ packages:
     - spec: '%gcc@15'
       when: os=rocky8
   c:
+    prefer:
+    - gcc@15
     require:
     - spec: gcc@15
       when: os=rocky8
   cxx:
+    prefer:
+    - gcc@15
     require:
     - spec: gcc@15
       when: os=rocky8
@@ -24,6 +28,8 @@ packages:
     - spec: 'cxxflags="-include cstdint"'
       when: 'os=rocky8 %gcc@15:'
   fortran:
+    prefer:
+    - gcc@15
     require:
     - spec: gcc@15
       when: os=rocky8
