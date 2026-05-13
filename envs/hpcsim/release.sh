@@ -543,18 +543,15 @@ trust_buildcache_keys() {
     fi
 }
 
-install_if_missing() {
+install_release_prerequisite() {
     local scope_dir="$1"
     local spec="$2"
     shift 2
 
     echo "==> Ensuring release prerequisite"
     echo "    spec: ${spec}"
-    if spack -C "${scope_dir}" find "${spec}" >/dev/null 2>&1; then
-        echo "    status: already installed"
-        return 0
-    fi
-
+    # Keep the install command even when the spec is already present; the
+    # resulting concrete provider state affects the final environment solve.
     spack -C "${scope_dir}" install "$@" "${spec}"
 }
 
@@ -871,18 +868,18 @@ cmd_build() {
     case "${OS_NAME}" in
         rocky8)
             # Rocky 8's system GCC is too old for Node 24 and CUDA 13 host builds.
-            install_if_missing "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
+            install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
         rocky9)
             # Node 24 needs a newer C++ toolchain than Rocky 9's system GCC 11.
-            install_if_missing "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
+            install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
     esac
 
     case "${OS_NAME}" in
         rocky8|rocky9)
             # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
-            install_if_missing "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
+            install_release_prerequisite "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
             ;;
     esac
 
