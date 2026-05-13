@@ -1,6 +1,6 @@
 ---
 name: chapar-spack-env-change
-description: Add, remove, or reorganize packages/root specs in any Chapar Spack environment under envs/<name>. Use when changing definitions.yaml, packages.yaml, providers, variants, or OS-specific package policy for hpcsim or future environments.
+description: Add, remove, or reorganize packages/root specs in any Chapar Spack environment under envs. Use when changing definitions.yaml, packages.yaml, providers, variants, or OS-specific package policy for hpcsim or future environments.
 ---
 
 # Chapar Spack Environment Change

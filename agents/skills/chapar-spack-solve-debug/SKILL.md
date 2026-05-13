@@ -1,6 +1,6 @@
 ---
 name: chapar-spack-solve-debug
-description: Debug Chapar Spack concretization problems, solver timeouts, provider conflicts, and config layering for any envs/<name> environment. Use for `spack -e envs/<env> concretize`, solver errors, or package constraint changes.
+description: Debug Chapar Spack concretization problems, solver timeouts, provider conflicts, and config layering for any environment under envs. Use for spack environment concretize commands, solver errors, or package constraint changes.
 ---
 
 # Chapar Spack Solve Debug
