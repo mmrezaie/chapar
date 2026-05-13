@@ -1,14 +1,10 @@
 # spack_repo/chapar
 
-`spack_repo/chapar` is Chapar's local Spack package overlay. It keeps local package recipes in addition to those provided by Spack.
+`spack_repo/chapar` is reserved for Chapar's local Spack package overlay. Prefer builtin Spack recipes and add local package recipes only when Chapar needs a targeted source-level override.
 
-## Example Packages
+## Package Overrides
 
-| Package | What it does |
-| --- | --- |
-| `intel-mpi-benchmarks` | Builds Intel MPI Benchmarks, a suite of MPI communication benchmarks for measuring latency, bandwidth, collectives, I/O, RMA, and threading behavior. |
-| `ior` | Builds IOR, a parallel file-system benchmark that measures I/O performance through POSIX, MPI-IO, HDF5, and related interfaces. |
-| `osu-micro-benchmarks` | Builds the OSU Micro-Benchmarks suite for measuring MPI message-passing performance, including latency, bandwidth, collectives, one-sided operations, and GPU-aware communication. |
+No Chapar-specific package overrides are currently registered. The hpcsim environment uses builtin Spack recipes for benchmark packages unless a future build failure requires a narrow local patch.
 
 ## Binary Packages
 

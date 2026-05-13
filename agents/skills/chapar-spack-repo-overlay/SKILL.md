@@ -1,6 +1,6 @@
 ---
 name: chapar-spack-repo-overlay
-description: Modify or review Chapar local Spack package overlay recipes and patches under spack_repo/chapar. Use only when the user explicitly asks for local package recipe or patch work, package overlay debugging, or changes to existing overlay packages such as ior, osu-micro-benchmarks, or intel-mpi-benchmarks.
+description: Modify or review Chapar local Spack package overlay recipes and patches under spack_repo/chapar. Use only when the user explicitly asks for local package recipe or patch work or package overlay debugging.
 ---
 
 # Chapar Spack Repo Overlay
@@ -23,15 +23,9 @@ skill only when a local recipe or patch is actually required.
 
 ## Existing Overlay Packages
 
-```text
-spack_repo/chapar/packages/intel_mpi_benchmarks/
-spack_repo/chapar/packages/ior/
-spack_repo/chapar/packages/osu_micro_benchmarks/
-```
-
-Current overlay patches mainly cover Darwin/macOS portability and package build
-race fixes. Preserve platform guards such as `platform=darwin` unless a failure
-is proven cross-platform.
+No Chapar-specific overlay package recipes are currently registered. Prefer
+builtin Spack recipes unless a concrete build or source behavior failure requires
+a narrow local override.
 
 ## Recipe Change Guidance
 
