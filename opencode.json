@@ -58,6 +58,7 @@
       "git switch -c*": "allow",
       "git checkout -b*": "allow",
       "gh auth status*": "allow",
+      "gh auth token*": "allow",
       "gh repo view*": "allow",
       "gh run list*": "allow",
       "gh run view*": "allow",
