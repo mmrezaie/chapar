@@ -13,10 +13,11 @@ definitions:
   - hpl+openmp
   - hpcg+openmp
   - stream+openmp
-  - intel-mpi-benchmarks
+  - intel-mpi-benchmarks@2021.7
   - qperf+verbs
-  - ior+hdf5+ncmpi
+  - ior@4.0.0+hdf5+ncmpi
   - mdtest
+  - osu-micro-benchmarks@7.5.1
   - h5bench+exerciser+metadata
   - fio
 - profiling_specs:
