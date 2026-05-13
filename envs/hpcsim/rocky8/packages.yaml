@@ -1,6 +1,7 @@
 packages:
   all:
-    compiler: [gcc@15]
+    prefer:
+    - '%gcc@15'
   boost:
     require:
     - spec: '%gcc@15'
