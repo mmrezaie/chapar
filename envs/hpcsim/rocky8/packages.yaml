@@ -1,6 +1,4 @@
 packages:
-  all:
-    compiler: [gcc@15]
   boost:
     require:
     - spec: '%gcc@15'
@@ -36,6 +34,10 @@ packages:
   hdf5:
     require:
     - spec: '%gcc@15'
+      when: os=rocky8
+  hpctoolkit:
+    require:
+    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
       when: os=rocky8
   hwloc:
     require:
