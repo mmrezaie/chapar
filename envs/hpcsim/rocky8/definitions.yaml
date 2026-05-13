@@ -12,7 +12,7 @@ definitions:
   - osu-micro-benchmarks
 - profiling_specs:
   - hpctoolkit@2024.01.stable~cuda+mpi+python
-  - hpctoolkit@2025.0.1~cuda+mpi+python~auditor_default
+  - hpctoolkit@2025.0.1~cuda+mpi+python~auditor_default ldflags="-Wl,--allow-shlib-undefined"
   - papi+infiniband
   - scorep~cuda+mpi+papi
   - caliper+cuda+mpi+papi+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
