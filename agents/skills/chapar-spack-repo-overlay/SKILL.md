@@ -1,11 +1,11 @@
 ---
 name: chapar-spack-repo-overlay
-description: Modify or review Chapar local Spack package overlay recipes and patches under spack_repo/chapar. Use only when the user explicitly asks for local package recipe or patch work, package overlay debugging, or changes to existing overlay packages such as ior, osu-micro-benchmarks, or intel-mpi-benchmarks.
+description: Modify or review Chapar local Spack package overlay recipes and patches under spack_repo/chapar_plus. Use only when the user explicitly asks for local package recipe work, binary-only package examples, source package examples, or package overlay debugging.
 ---
 
 # Chapar Spack Repo Overlay
 
-Use this playbook for local Spack package overlay work under `spack_repo/chapar`.
+Use this playbook for local Spack package overlay work under `spack_repo/chapar_plus`.
 Most environment/package policy changes belong under `envs/` or `etc/`; use this
 skill only when a local recipe or patch is actually required.
 
@@ -24,14 +24,13 @@ skill only when a local recipe or patch is actually required.
 ## Existing Overlay Packages
 
 ```text
-spack_repo/chapar/packages/intel_mpi_benchmarks/
-spack_repo/chapar/packages/ior/
-spack_repo/chapar/packages/osu_micro_benchmarks/
+spack_repo/chapar_plus/packages/chapar_source_example/
+spack_repo/chapar_plus/packages/chapar_binary_only_example/
 ```
 
-Current overlay patches mainly cover Darwin/macOS portability and package build
-race fixes. Preserve platform guards such as `platform=darwin` unless a failure
-is proven cross-platform.
+These are teaching examples for industrial simulation packaging. Keep them small
+and easy to read; they should demonstrate source-available and binary-only
+packaging patterns without vendoring real proprietary payloads.
 
 ## Recipe Change Guidance
 
@@ -49,10 +48,10 @@ is proven cross-platform.
 ## Validation
 
 ```bash
-python3 -m py_compile spack_repo/chapar/packages/<package>/package.py
+python3 -m py_compile spack_repo/chapar_plus/packages/<package>/package.py
 source ./etc/init.sh
-spack -e envs/hpcsim spec <package>
-git diff --check -- spack_repo/chapar
+spack spec <package>
+git diff --check -- spack_repo/chapar_plus
 ```
 
 If the overlay change is platform-specific and local validation is on a different
