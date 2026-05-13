@@ -1,7 +1,7 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "skills": {
-    "paths": [".pi/skills"]
+    "paths": ["agents/skills"]
   },
   "permission": {
     "*": "deny",
@@ -25,10 +25,6 @@
       "spack/**": "deny",
       ".spack-env/**": "deny",
       "**/.spack-env/**": "deny",
-      ".pi/settings.json": "deny",
-      ".pi/sandbox.json": "deny",
-      ".pi/git/**": "deny",
-      ".pi/npm/**": "deny",
       ".git/**": "deny",
       "*.lock": "deny"
     },
@@ -65,16 +61,20 @@
       "envs/hpcsim/release.sh*": "allow",
       "etc/link-scopes.sh*": "allow",
       "kill *": "allow",
-      "node .pi/skills/brave-search/content.js*": "allow",
-      "node .pi/skills/brave-search/search.js*": "allow",
+      "node agents/skills/brave-search/content.js*": "allow",
+      "node agents/skills/brave-search/search.js*": "allow",
       "npm install*": "allow",
-      "nohup python .pi/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
-      "nohup python3 .pi/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
+      "nohup python agents/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
+      "nohup python3 agents/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
       "open /tmp/eval_review_*": "allow",
       "python -m scripts.*": "allow",
-      "python .pi/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
+      "python agents/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
+      "python agents/skills/skill-creator/scripts/quick_validate.py*": "allow",
       "python3 -m scripts.*": "allow",
-      "python3 .pi/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
+      "python3 -m json.tool ci/cve-checker-config.json*": "allow",
+      "python3 -m py_compile ci/cve-checker.py*": "allow",
+      "python3 agents/skills/skill-creator/eval-viewer/generate_review.py*": "allow",
+      "python3 agents/skills/skill-creator/scripts/quick_validate.py*": "allow",
       "source ./etc/init.sh*": "allow",
       "spack --version*": "allow",
       "spack arch*": "allow",
@@ -89,8 +89,8 @@
       "spack -e envs/* install*": "allow",
       "spack -e envs/* module *": "allow",
       "spack -e envs/* spec *": "allow",
-      "*/.pi/skills/brave-search/content.js*": "allow",
-      "*/.pi/skills/brave-search/search.js*": "allow",
+      "*/agents/skills/brave-search/content.js*": "allow",
+      "*/agents/skills/brave-search/search.js*": "allow",
       "*bash envs/hpcsim/release.sh*": "allow",
       "*envs/hpcsim/release.sh*": "allow"
     },

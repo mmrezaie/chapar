@@ -128,9 +128,9 @@ log progress.
 Use the bundled helper when a quick read-only summary is useful:
 
 ```bash
-python .pi/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id>
-python .pi/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --os rocky8 --local-root /share/base
-python .pi/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --ci-root /resources/chapar/hpcsim --local-root /Volumes/resources
+python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id>
+python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --os rocky8 --local-root /share/base
+python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --ci-root /resources/chapar/hpcsim --local-root /Volumes/resources
 ```
 
 The helper is intentionally read-only. It prints summaries to stdout and refuses

@@ -1,6 +1,6 @@
 ---
 name: chapar-incus-ci-triage
-description: Triage Chapar GitHub Actions Incus Spack-environment CI failures, including hpcsim Rocky 8/Rocky 9 builds and future envs/<name> workflows. Use when an Incus Spack build fails, succeeds on one Rocky version but not the other, or when inspecting self-hosted runner/build logs.
+description: Triage Chapar GitHub Actions Incus Spack-environment CI failures, including hpcsim Rocky 8/Rocky 9 builds and future environment workflows. Use when an Incus Spack build fails, succeeds on one Rocky version but not the other, or when inspecting self-hosted runner/build logs.
 ---
 
 # Chapar Incus CI Triage

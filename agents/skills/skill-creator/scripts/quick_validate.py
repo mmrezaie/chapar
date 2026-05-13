@@ -4,10 +4,46 @@ Quick validation script for skills - minimal version
 """
 
 import sys
-import os
 import re
-import yaml
 from pathlib import Path
+
+# Prefer a real YAML parser when it is installed. The fallback below keeps this
+# lightweight validator usable in a stock Python environment, but only for the
+# simple frontmatter shape used by Chapar skills.
+try:
+    import yaml
+except ModuleNotFoundError:
+    yaml = None
+
+
+def parse_simple_frontmatter(frontmatter_text):
+    """Parse a minimal YAML mapping of single-line scalar values.
+
+    This is not a general YAML parser. It intentionally supports only entries
+    like `name: value` and `description: value`, which lets validation run even
+    when PyYAML is unavailable. Nested metadata, lists, multiline strings, or
+    other advanced YAML syntax should use PyYAML instead.
+    """
+    frontmatter = {}
+    for raw_line in frontmatter_text.splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith('#'):
+            continue
+
+        if raw_line[0].isspace():
+            raise ValueError("fallback parser does not support nested frontmatter")
+        if ':' not in raw_line:
+            raise ValueError(f"unsupported frontmatter line: {raw_line}")
+
+        key, value = raw_line.split(':', 1)
+        key = key.strip()
+        value = value.strip()
+
+        # Strip matching single or double quotes around simple scalar values.
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+
+        frontmatter[key] = value
+    return frontmatter
 
 def validate_skill(skill_path):
     """Basic validation of a skill"""
@@ -32,10 +68,13 @@ def validate_skill(skill_path):
 
     # Parse YAML frontmatter
     try:
-        frontmatter = yaml.safe_load(frontmatter_text)
+        if yaml is not None:
+            frontmatter = yaml.safe_load(frontmatter_text)
+        else:
+            frontmatter = parse_simple_frontmatter(frontmatter_text)
         if not isinstance(frontmatter, dict):
             return False, "Frontmatter must be a YAML dictionary"
-    except yaml.YAMLError as e:
+    except Exception as e:
         return False, f"Invalid YAML in frontmatter: {e}"
 
     # Define allowed properties
