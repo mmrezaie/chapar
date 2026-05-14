@@ -2,8 +2,10 @@ SPACK_INIT := ./etc/init.sh
 ENV := hpcsim
 RELEASE_ID ?=
 SPACK_INSTALL_ARGS ?=
+WORKTREE_ROOT ?= foobar
+WORKTREE_START ?= HEAD
 
-.PHONY: help build release promote module-use check clean-locks
+.PHONY: help build release promote module-use check clean-locks FORCE
 
 help:
 	@printf '%s\n' \
@@ -14,10 +16,13 @@ help:
 	  '  make module-use         Print module use command for RELEASE_ID or current' \
 	  '  make check              Validate the hpcsim environment config' \
 	  '  make clean-locks        Remove generated hpcsim lockfile' \
+	  '  make worktree-<name>    Create $(WORKTREE_ROOT)/<name> on branch <name>' \
 	  '' \
 	  'Variables:' \
 	  '  RELEASE_ID=$(RELEASE_ID) (blank means generated for release/current for module-use)' \
-	  '  SPACK_INSTALL_ARGS=$(SPACK_INSTALL_ARGS)'
+	  '  SPACK_INSTALL_ARGS=$(SPACK_INSTALL_ARGS)' \
+	  '  WORKTREE_ROOT=$(WORKTREE_ROOT)' \
+	  '  WORKTREE_START=$(WORKTREE_START) (used when creating a new branch)'
 
 build:
 	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(ENV) concretize -f && spack -e ./envs/$(ENV) install $(SPACK_INSTALL_ARGS) && spack -e ./envs/$(ENV) module tcl refresh -y'
@@ -36,3 +41,15 @@ check:
 
 clean-locks:
 	rm -f envs/$(ENV)/spack.lock
+
+worktree-%: FORCE
+	@name="$*"; \
+	path="$(WORKTREE_ROOT)/$$name"; \
+	mkdir -p "$$(dirname "$$path")"; \
+	if git show-ref --verify --quiet "refs/heads/$$name"; then \
+		git worktree add "$$path" "$$name"; \
+	else \
+		git worktree add -b "$$name" "$$path" "$(WORKTREE_START)"; \
+	fi
+
+FORCE:
