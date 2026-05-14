@@ -5,7 +5,7 @@ SPACK_INSTALL_ARGS ?=
 WORKTREE_ROOT ?= foobar
 WORKTREE_START ?= HEAD
 
-.PHONY: help build release promote module-use check clean-locks FORCE
+.PHONY: help build release promote module-use check clean-locks git-ssh-setup FORCE
 
 help:
 	@printf '%s\n' \
@@ -16,6 +16,7 @@ help:
 	  '  make module-use         Print module use command for RELEASE_ID or current' \
 	  '  make check              Validate the hpcsim environment config' \
 	  '  make clean-locks        Remove generated hpcsim lockfile' \
+	  '  make git-ssh-setup      Configure repo-local SSH for GitHub pushes' \
 	  '  make worktree-<name>    Create $(WORKTREE_ROOT)/<name> on branch <name>' \
 	  '' \
 	  'Variables:' \
@@ -41,6 +42,9 @@ check:
 
 clean-locks:
 	rm -f envs/$(ENV)/spack.lock
+
+git-ssh-setup:
+	bash ./etc/setup-git-ssh.sh
 
 worktree-%: FORCE
 	@name="$*"; \
