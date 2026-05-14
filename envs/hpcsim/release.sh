@@ -668,7 +668,7 @@ install_rocky8_hpctoolkit_specs() {
 
     while IFS= read -r spec_line; do
         case "${spec_line}" in
-            hpctoolkit*HASH=/*) ;;
+            *hpctoolkit*HASH=/*) ;;
             *) continue ;;
         esac
         spec_hash="${spec_line##*HASH=}"
