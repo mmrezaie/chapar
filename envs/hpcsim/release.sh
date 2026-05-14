@@ -550,8 +550,11 @@ install_release_prerequisite() {
 
     echo "==> Ensuring release prerequisite"
     echo "    spec: ${spec}"
-    # Keep the install command even when the spec is already present; the
-    # resulting concrete provider state affects the final environment solve.
+    if spack -C "${scope_dir}" find "${spec}" >/dev/null 2>&1; then
+        echo "    status: already installed"
+        return 0
+    fi
+
     spack -C "${scope_dir}" install "$@" "${spec}"
 }
 
