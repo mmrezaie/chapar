@@ -543,7 +543,7 @@ trust_buildcache_keys() {
     fi
 }
 
-install_if_missing() {
+install_release_prerequisite() {
     local scope_dir="$1"
     local spec="$2"
     shift 2
@@ -653,6 +653,60 @@ install_cuda_libfabric_specs() {
     done
     export CPATH="${saved_cpath}"
     export LIBRARY_PATH="${saved_library_path}"
+}
+
+install_rocky8_hpctoolkit_specs() {
+    local install_args_ref=("$@")
+    local spec_line
+    local spec_hash
+    local spec_hashes=()
+    local missing_hashes=()
+    local seen_hashes=()
+    local saved_ldflags="${LDFLAGS:-}"
+
+    [ "${OS_NAME}" = "rocky8" ] || return 0
+
+    while IFS= read -r spec_line; do
+        case "${spec_line}" in
+            *hpctoolkit*HASH=/*) ;;
+            *) continue ;;
+        esac
+        spec_hash="${spec_line##*HASH=}"
+        [ -n "${spec_hash}" ] || continue
+        case " ${seen_hashes[*]} " in
+            *" ${spec_hash} "*) continue ;;
+        esac
+        seen_hashes+=("${spec_hash}")
+        spec_hashes+=("${spec_hash}")
+    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups --format "{name} HASH={/hash}")
+
+    [ "${#spec_hashes[@]}" -gt 0 ] || return 0
+
+    for spec_hash in "${spec_hashes[@]}"; do
+        if spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "${spec_hash}" >/dev/null 2>&1; then
+            continue
+        fi
+        missing_hashes+=("${spec_hash}")
+    done
+
+    if [ "${#missing_hashes[@]}" -eq 0 ]; then
+        echo "==> Rocky 8 hpctoolkit specs already installed"
+        echo "    count: ${#spec_hashes[@]}"
+        return 0
+    fi
+
+    echo "==> Preinstalling Rocky 8 hpctoolkit specs"
+    echo "    missing: ${#missing_hashes[@]} of ${#spec_hashes[@]}"
+
+    for spec_hash in "${missing_hashes[@]}"; do
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete "${install_args_ref[@]}" --only dependencies "${spec_hash}"
+    done
+
+    export LDFLAGS="-Wl,--allow-shlib-undefined${saved_ldflags:+ ${saved_ldflags}}"
+    for spec_hash in "${missing_hashes[@]}"; do
+        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete --dirty "${install_args_ref[@]}" --only package "${spec_hash}"
+    done
+    export LDFLAGS="${saved_ldflags}"
 }
 
 cleanup_build() {
@@ -846,6 +900,12 @@ cmd_build() {
     [ ! -e "${final_dir}" ] || die "release already exists: ${final_dir}"
     [ ! -e "${staging_dir}" ] || die "staging path already exists: ${staging_dir}"
 
+    if [ "${OS_NAME}" = "rocky8" ] && [ "${PUBLISH_BUILDCACHE}" = "true" ]; then
+        echo "==> Disabling Rocky 8 buildcache publication"
+        echo "    reason: hpctoolkit link workaround uses dirty LDFLAGS"
+        PUBLISH_BUILDCACHE="false"
+    fi
+
     mkdir -p "${STORE_ROOT}" "${RELEASES_ROOT}" "${staging_dir}/logs"
     trap cleanup_build EXIT
     trap 'exit 130' INT
@@ -871,18 +931,18 @@ cmd_build() {
     case "${OS_NAME}" in
         rocky8)
             # Rocky 8's system GCC is too old for Node 24 and CUDA 13 host builds.
-            install_if_missing "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
+            install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
         rocky9)
             # Node 24 needs a newer C++ toolchain than Rocky 9's system GCC 11.
-            install_if_missing "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
+            install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
     esac
 
     case "${OS_NAME}" in
         rocky8|rocky9)
             # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
-            install_if_missing "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
+            install_release_prerequisite "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
             ;;
     esac
 
@@ -891,6 +951,7 @@ cmd_build() {
     echo "==> Concretizing hpcsim environment"
     run_with_timeout "${concretize_timeout}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
+    install_rocky8_hpctoolkit_specs "${install_args[@]}"
     echo "==> Installing hpcsim environment"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     echo "==> Refreshing hpcsim root modules"
