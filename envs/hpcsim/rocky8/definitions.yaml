@@ -9,8 +9,6 @@ definitions:
   - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
   - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
 - profiling_specs:
-  - hpctoolkit@2024.01.stable~cuda+mpi+python
-  - hpctoolkit@2025.0.1~cuda+mpi+python~auditor_default
   - papi+infiniband
   - scorep~cuda+mpi+papi
   - caliper+cuda+mpi+papi+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
