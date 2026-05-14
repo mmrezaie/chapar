@@ -27,6 +27,10 @@ packages:
     require:
     - spec: +cuda
       when: platform=linux
+  hpctoolkit:
+    require:
+    - spec: ~opencl~level_zero
+      when: platform=linux
   libepoxy:
     require:
     - spec: '+glx ^[virtuals=gl] glx'
