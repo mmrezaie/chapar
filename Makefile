@@ -4,8 +4,24 @@ RELEASE_ID ?=
 SPACK_INSTALL_ARGS ?=
 WORKTREE_ROOT ?= foobar
 WORKTREE_START ?= HEAD
+MAKE_TARGETS := help build release promote module-use check clean-locks git-ssh-setup worktree
+WORKTREE_BRANCH_GOALS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+WORKTREE_BRANCH ?= $(or $(BRANCH),$(firstword $(WORKTREE_BRANCH_GOALS)))
 
-.PHONY: help build release promote module-use check clean-locks git-ssh-setup FORCE
+.PHONY: help build release promote module-use check clean-locks git-ssh-setup worktree FORCE
+
+ifeq ($(firstword $(MAKECMDGOALS)),worktree)
+ifeq ($(BRANCH),)
+ifneq ($(WORKTREE_BRANCH),)
+ifneq ($(filter $(WORKTREE_BRANCH),$(MAKE_TARGETS)),)
+$(error branch name "$(WORKTREE_BRANCH)" conflicts with a Make target; use make worktree BRANCH=$(WORKTREE_BRANCH))
+endif
+.PHONY: $(WORKTREE_BRANCH)
+$(WORKTREE_BRANCH):
+	@:
+endif
+endif
+endif
 
 help:
 	@printf '%s\n' \
@@ -17,11 +33,12 @@ help:
 	  '  make check              Validate the hpcsim environment config' \
 	  '  make clean-locks        Remove generated hpcsim lockfile' \
 	  '  make git-ssh-setup      Configure repo-local SSH for GitHub pushes' \
-	  '  make worktree-<name>    Create $(WORKTREE_ROOT)/<name> on branch <name>' \
+	  '  make worktree <name>    Create $(WORKTREE_ROOT)/<name> on branch <name>' \
 	  '' \
 	  'Variables:' \
 	  '  RELEASE_ID=$(RELEASE_ID) (blank means generated for release/current for module-use)' \
 	  '  SPACK_INSTALL_ARGS=$(SPACK_INSTALL_ARGS)' \
+	  '  BRANCH=                 Optional branch name for make worktree BRANCH=<name>' \
 	  '  WORKTREE_ROOT=$(WORKTREE_ROOT)' \
 	  '  WORKTREE_START=$(WORKTREE_START) (used when creating a new branch)'
 
@@ -46,8 +63,16 @@ clean-locks:
 git-ssh-setup:
 	bash ./etc/setup-git-ssh.sh
 
-worktree-%: FORCE
-	@name="$*"; \
+worktree:
+	@if [ -z "$(WORKTREE_BRANCH)" ]; then \
+		printf 'error: usage: make worktree <branch-name>\n' >&2; \
+		exit 2; \
+	fi; \
+	if [ "$(words $(WORKTREE_BRANCH_GOALS))" -gt 1 ] && [ -z "$(BRANCH)" ]; then \
+		printf 'error: provide exactly one branch name\n' >&2; \
+		exit 2; \
+	fi; \
+	name="$(WORKTREE_BRANCH)"; \
 	path="$(WORKTREE_ROOT)/$$name"; \
 	mkdir -p "$$(dirname "$$path")"; \
 	if git show-ref --verify --quiet "refs/heads/$$name"; then \
