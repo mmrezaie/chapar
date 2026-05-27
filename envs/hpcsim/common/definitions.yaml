@@ -5,18 +5,19 @@ definitions:
   - ninja
   - meson
   - pkgconf
-  - libffi
+  - 'libffi@3.4.7:'
   - neovim
   - tmux
   - tcl
   - tk
-  - imagemagick@7.1.1-39
+  - imagemagick@7.1.1-39 ^python@3.12:3.12+optimizations+tkinter
 - python_specs:
-  - python@3.10:3.10+optimizations+tkinter
-  - python@3.11:3.11+optimizations+tkinter
+  # Disabled for the current cluster build; keep them visible for future rebuilds.
+  # - python@3.10:3.10+optimizations+tkinter
+  # - python@3.11:3.11+optimizations+tkinter
   - python@3.12:3.12+optimizations+tkinter
-  - python@3.13:3.13+optimizations+tkinter
-  - python@3.14.0+optimizations+tkinter
+  # - python@3.13:3.13+optimizations+tkinter
+  # - python@3.14.0+optimizations+tkinter
 - hpc_library_specs:
   - fftw+mpi+openmp precision=double,float %gcc
   - hdf5+mpi+fortran+hl

@@ -1,20 +1,25 @@
 packages:
   adios2:
     require:
+    - ~mgard
     # libfabric keeps CUDA/GDR enabled; driver libraries resolve on GPU nodes.
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+    - spec: ldflags="-Wl,--allow-shlib-undefined"
       when: platform=linux
   elfutils:
     require:
     - ~debuginfod~nls
-  fides:
+  # fides policy disabled with the fides root for the current cluster build.
+  # fides:
+  #   require:
+  #   - spec: ldflags=-Wl,--allow-shlib-undefined
+  fontconfig:
     require:
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
+    - spec: '@2.15:'
       when: platform=linux
   gcc:
     require:
     - spec: +profiled
-      when: '@15 platform=linux'
+      when: "@15 platform=linux"
   gdrcopy:
     require:
     - +cuda
@@ -31,64 +36,67 @@ packages:
     require:
     - spec: ~opencl~level_zero
       when: platform=linux
-  libepoxy:
-    require:
-    - spec: '+glx ^[virtuals=gl] glx'
-      when: platform=linux
+  # Visualization package policies disabled with visualization roots.
+  # libepoxy:
+  #   require:
+  #   - spec: '+glx ^[virtuals=gl] glx'
+  # llvm-amdgpu:
+  #   require:
+  #   - spec: ^cmake@:3
+  #     when: platform=linux
   libfabric:
     require:
-    - spec: '@2'
+    - spec: "@2"
       when: platform=linux
     - spec: +cuda+gdrcopy fabrics=mlx,verbs
       when: platform=linux
     - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-      when: '+cuda platform=linux'
+      when: "+cuda platform=linux"
   libpressio:
     require:
-    - spec: 'cxxflags="-include algorithm"'
-      when: '%gcc@15:'
-  llvm-amdgpu:
-    require:
-    - spec: ^cmake@:3
-      when: platform=linux
-  mesa:
-    require:
-    - spec: +llvm
-      when: '+osmesa platform=linux'
-  mfem:
-    require:
-    - spec: cxxstd=17
-      when: platform=linux
+    - spec: cxxflags="-include algorithm"
+      when: "%gcc@15:"
+  # mesa:
+  #   require:
+  #   - spec: +llvm
+  #     when: +osmesa platform=linux
+  # mfem:
+  #   require:
+  #   - spec: cxxstd=17
+  #     when: platform=linux
   openmpi:
     require:
-    - spec: +cuda+fortran fabrics=verbs,ucx
+    - spec: +cuda+fortran~internal-pmix fabrics=verbs,ucx schedulers=slurm ^pmix@6
       when: platform=linux
     - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-      when: '+cuda platform=linux'
-  paraview:
-    require:
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
-      when: '+adios2 platform=linux'
+      when: "+cuda platform=linux"
   rdma-core:
     require:
     - ~pyverbs
+  # paraview:
+  #   require:
+  #   - spec: ldflags="-Wl,--allow-shlib-undefined"
+  #     when: +adios2 platform=linux
   scalasca:
     require:
     - ^openmpi
   seacas:
     require:
-    - spec: '^libcatalyst~conduit'
-      when: '+libcatalyst platform=linux'
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
-      when: '+adios2 platform=linux'
+    - spec: "^libcatalyst~conduit"
+      when: "+libcatalyst platform=linux"
+    - spec: ldflags="-Wl,--allow-shlib-undefined"
+      when: +adios2 platform=linux
   scorep:
     require:
     - +fortran
     - ~gcc-plugin
+  sz:
+    require:
+    - +fortran+hdf5+netcdf+openmp
   tau:
     require:
-    - spec: 'cxxflags="-include omp.h"'
-      when: '+openmp %gcc@15:'
+    - spec: cxxflags="-include omp.h"
+      when: "+openmp %gcc@15:"
   ucx:
     require:
     - spec: +cuda+gdrcopy
@@ -96,16 +104,14 @@ packages:
     - spec: +dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
       when: platform=linux
     - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-      when: '+cuda platform=linux'
-  visit:
-    require:
-    # MFEM's current headers use C++17 library features, while VisIt defaults
-    # its own targets to C++14 unless the compiler wrapper injects a newer std.
-    - spec: 'cxxflags="-std=c++17"'
-      when: '+mfem platform=linux'
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
-      when: '+adios2 platform=linux'
-  vtk:
-    require:
-    - spec: 'ldflags="-Wl,--allow-shlib-undefined"'
-      when: 'io=adios2 platform=linux'
+      when: "+cuda platform=linux"
+  # visit:
+  #   require:
+  #   - spec: cxxflags="-std=c++17"
+  #     when: +mfem platform=linux
+  #   - spec: ldflags="-Wl,--allow-shlib-undefined"
+  #     when: +adios2 platform=linux
+  # vtk:
+  #   require:
+  #   - spec: ldflags="-Wl,--allow-shlib-undefined"
+  #     when: io=adios2 platform=linux

@@ -37,14 +37,15 @@ packages:
     require:
     - spec: '%gcc@11'
       when: os=rocky9
-  node-js:
-    require:
-    - spec: '%gcc@15'
-      when: '@24.2.0 os=rocky9'
-  npm:
-    require:
-    - spec: '%gcc@15'
-      when: os=rocky9
+  # Rocky 9 gcc@15 npm/node overrides are disabled for the current cluster build.
+  # node-js:
+  #   require:
+  #   - spec: %gcc@15
+  #     when: @24.2.0 os=rocky9
+  # npm:
+  #   require:
+  #   - spec: %gcc@15
+  #     when: os=rocky9
   nvbandwidth:
     require:
     - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121

@@ -1,12 +1,14 @@
 config:
-  environments_root: ~/.spack/environments
+  build_jobs: 16
+  concurrent_packages: 16
+  environments_root: ~/chapar/envs
   install_tree:
-    root: ~/privatemodules/bin
+    root: /share/base/bin/
     projections:
       all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}"
   template_dirs:
-    - ~/privatemodules/templates
-  license_dir: ~/privatemodules/licenses
+    - /share/base/templates
+  license_dir: /share/base/licenses
   build_stage:
     - $tempdir/$user/spack-stage
     - $user_cache_path/stage

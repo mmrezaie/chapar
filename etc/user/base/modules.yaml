@@ -11,8 +11,8 @@ modules:
 
   default:
     roots:
-      tcl: ~/privatemodules
-      lmod: ~/privatemodules/lmod
+      tcl: /share/base/modulefiles/
+      lmod: /share/base/modulefiles/lmod
 
     enable: [tcl]
 
