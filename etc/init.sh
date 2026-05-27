@@ -40,7 +40,7 @@ export PIP_CONFIG_FILE=/dev/null
 # If environment modules is available, add Chapar-managed module roots.
 # This keeps `module avail` aligned with `spack module tcl refresh` output.
 if type module >/dev/null 2>&1; then
-    _chapar_module_root="${HOME}/privatemodules"
+    _chapar_module_root="/share/base/modulefiles"
     if [ -d "${_chapar_module_root}" ]; then
         for _chapar_module_archdir in "${_chapar_module_root}"/*; do
             [ -d "${_chapar_module_archdir}" ] || continue

@@ -9,6 +9,10 @@ packages:
   cmake:
     require:
     - ~qtgui
+  fftw:
+    require:
+    - "@3"
+    - +mpi+openmp precision=double,float
   hdf5:
     require:
     - +mpi+fortran+hl+threadsafe
@@ -17,7 +21,7 @@ packages:
     - ~nvml
   libffi:
     require:
-    - '@3.4.7:'
+    - one_of: ['@3.2.1', '@3.4.7:']
   libtool:
     require:
     - '@2.4.7:'
@@ -30,9 +34,8 @@ packages:
     - +mpi+parallel-netcdf
   node-js:
     require:
-    - '@24.2.0'
-    - spec: ^python@:3.13
-      when: '@24.2.0'
+    - "@24.2.0"
+    - "~debug~doc~icu4c+openssl+zlib"
   npm:
     require:
     - '@11.2.0'
@@ -42,7 +45,14 @@ packages:
   openmpi:
     require:
     - '@5:'
-    - schedulers=none
+    - ~internal-pmix
+  pmix:
+    require:
+    - '@6'
+  python:
+    require:
+    - '@3.12:3.12'
+    - +tkinter
   zlib-api:
     require:
     - zlib-ng+compat

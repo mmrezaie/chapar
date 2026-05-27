@@ -55,3 +55,6 @@ spack:
   view: false
   concretizer:
     unify: when_possible
+    duplicates:
+      max_dupes:
+        libffi: 2
