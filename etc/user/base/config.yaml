@@ -3,12 +3,12 @@ config:
   concurrent_packages: 16
   environments_root: ~/chapar/envs
   install_tree:
-    root: /share/base/bin/
+    root: $HPCSIM_HOME_ROOT/user-store
     projections:
       all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}"
   template_dirs:
-    - /share/base/templates
-  license_dir: /share/base/licenses
+    - $HPCSIM_HOME_ROOT/templates
+  license_dir: $HPCSIM_HOME_ROOT/licenses
   build_stage:
     - $tempdir/$user/spack-stage
     - $user_cache_path/stage

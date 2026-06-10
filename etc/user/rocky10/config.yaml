@@ -1,4 +1,4 @@
-# Rocky Linux 8 user-scope overrides
+# Rocky Linux 10 user-scope overrides
 config:
   build_stage:
     - /scratch/spack

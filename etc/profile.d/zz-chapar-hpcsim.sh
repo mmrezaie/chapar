@@ -10,12 +10,12 @@ if type module >/dev/null 2>&1; then
         # shellcheck disable=SC1091
         . /etc/os-release
         case "${ID:-}:${VERSION_ID%%.*}" in
-            rocky:8|rhel:8|almalinux:8|centos:8) _chapar_hpcsim_os="rocky8" ;;
-            rocky:9|rhel:9|almalinux:9|centos:9|fedora:*) _chapar_hpcsim_os="rocky9" ;;
+            rocky:9|rhel:9|almalinux:9|centos:9) _chapar_hpcsim_os="rocky9" ;;
+            rocky:10|rhel:10|almalinux:10|centos:10) _chapar_hpcsim_os="rocky10" ;;
         esac
     fi
 
-    _chapar_hpcsim_root="${CHAPAR_HPCSIM_ROOT:-/resources/share/hpcsim}"
+    _chapar_hpcsim_root="${CHAPAR_HPCSIM_ROOT:-${HPCSIM_ROOT:-${HOME}/resources/share/hpcsim}}"
     _chapar_hpcsim_current="${_chapar_hpcsim_root}/${_chapar_hpcsim_os}/current"
     if [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
         _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
