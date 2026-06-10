@@ -1,7 +1,7 @@
 # Chapar
 
-Chapar is a reproducible Spack setup for building one shared HPC simulation
-software environment, `hpcsim`, on macOS, Rocky Linux 8, and Rocky Linux 9.
+Chapar is a reproducible Spack setup for building one HPC simulation software
+environment, `hpcsim`, on Rocky Linux 9 and Rocky Linux 10.
 
 Each user keeps upstream Spack in `~/.local/opt/spack`, following Spack's
 standard source-checkout workflow. Chapar keeps site policy, package choices,
@@ -9,15 +9,15 @@ module layout, and environment definitions outside the Spack repository.
 
 ## Goals
 
-- Keep one hpcsim environment entry point with shared and OS-specific include scopes.
-- Avoid release-tier and package-section environment splits.
+- Keep one hpcsim environment policy file that humans can review without jumping
+  across package-section directories.
 - Prefer Spack-built dependencies over OS-provided libraries and tools.
 - Keep only necessary externals for compilers, libc, ccache, and unavoidable
   platform runtime pieces.
-- Publish shared releases under `/resources/share/hpcsim/<os>` without
-  disturbing jobs that already loaded older modules.
-- Share one NAS-backed binary buildcache under `/resources/chapar/cache/<os>`
-  across hpcsim releases and ad-hoc user installs.
+- Default release installs to a user's home directory, and require explicit site
+  configuration for public roots.
+- Share one configured Spack buildcache and one compiler ccache across home test
+  builds and public release builds.
 
 ## Layout
 
@@ -30,7 +30,7 @@ module layout, and environment definitions outside the Spack repository.
 |   |-- user/           # User Spack scope and OS overlays
 |   `-- README.md       # Detailed config-scope documentation
 |-- envs/
-|   `-- hpcsim/         # Shared Spack environment, include scopes, release helper
+|   `-- hpcsim/         # hpcsim spack.yaml, release helper, and site template
 `-- docs/               # CI and runner documentation
 ```
 
@@ -59,6 +59,12 @@ source ./etc/init.sh
 user configuration scopes to this Chapar checkout, and adds the current hpcsim
 module tree for the detected OS when it exists.
 
+For a shared cluster, copy `envs/hpcsim/hpcsim-site.env.example` to
+`envs/hpcsim/hpcsim-site.env` and fill in that local file before building. The
+real `hpcsim-site.env` is ignored by Git so datacenter paths, group names, and
+security-policy details do not leak between clusters or into development
+machines.
+
 Verify the active configuration:
 
 ```bash
@@ -73,8 +79,8 @@ spack config blame packages
 `envs/hpcsim` is the only supported Chapar environment. Stale local
 `envs/skipper*` directories from older workflows are ignored and can be removed;
 they are not referenced by the current CI, release helper, or Spack scopes.
-The top-level `envs/hpcsim/spack.yaml` routes to shared `common/` and `linux/`
-config plus the active OS scope (`rocky8/`, `rocky9/`, or `macos/`).
+The top-level `envs/hpcsim/spack.yaml` contains the hpcsim root specs, package
+requirements, and module policy for Rocky 9 and Rocky 10.
 
 For local validation with the active Spack scopes:
 
@@ -87,8 +93,9 @@ The release helper performs root-only module refreshes. Do not refresh modules
 from every `spack find -c -H` result; that includes dependency-only specs and
 can collide with hpcsim's hashless `{name}/{version}` module names.
 
-For shared deployment, use the release helper. It builds packages into a
-per-OS shared store and writes modules into a release-specific staging tree:
+For home testing or public deployment, use the release helper or sbatch wrappers.
+They build packages into a per-OS store and write modules into a release-specific
+staging tree:
 
 ```bash
 bash envs/hpcsim/release.sh build 2026-05-02
@@ -96,17 +103,18 @@ bash envs/hpcsim/release.sh module-use 2026-05-02
 bash envs/hpcsim/release.sh promote 2026-05-02
 ```
 
-Default release layout:
+Default home release layout:
 
 ```text
-/resources/share/hpcsim/<os>/store
-/resources/share/hpcsim/<os>/releases/<release-id>
-/resources/share/hpcsim/<os>/current -> releases/<release-id>
-/resources/chapar/cache/<os>
+$HPCSIM_HOME_ROOT/<os>/store
+$HPCSIM_HOME_ROOT/<os>/releases/<release-id>
+$HPCSIM_HOME_ROOT/<os>/current -> releases/<release-id>
+$CHAPAR_BUILDCACHE_ROOT/<os>
+$CHAPAR_CCACHE_ROOT/<os>
 ```
 
-Supported OS names are `rocky8`, `rocky9`, and `macos`. The helper auto-detects
-the OS, or you can set `OS_NAME` explicitly:
+Supported OS names are `rocky9` and `rocky10`. The helper auto-detects the OS,
+or you can set `OS_NAME` explicitly:
 
 ```bash
 OS_NAME=rocky9 bash envs/hpcsim/release.sh build 2026-05-02
@@ -115,8 +123,8 @@ OS_NAME=rocky9 bash envs/hpcsim/release.sh build 2026-05-02
 ## Loading Modules
 
 After `etc/init.sh`, the current hpcsim module tree is added automatically when
-`/resources/share/hpcsim/<os>/current` exists. To print the exact command for a
-specific release:
+`${HPCSIM_ROOT}/<os>/current` exists. To print the exact command for a specific
+release:
 
 ```bash
 bash envs/hpcsim/release.sh module-use 2026-05-02
@@ -139,7 +147,7 @@ New builds must not overwrite active module trees. The release helper builds in
 `releases/<release-id>` only after install and module generation succeed.
 
 Promotion only updates the per-OS `current` symlink. Do not run `spack uninstall`,
-`spack gc`, or manual cleanup against `/resources/share/hpcsim/<os>/store` while
+`spack gc`, or manual cleanup against `${HPCSIM_ROOT}/<os>/store` while
 users may still have jobs running from older releases.
 
 Rollback is switching `current` back to an older release:
@@ -150,19 +158,21 @@ bash envs/hpcsim/release.sh promote <previous-release-id>
 
 ## Buildcache
 
-Buildcache output is per OS and intentionally lives outside the hpcsim release
-root:
+Buildcache and ccache output are per OS and intentionally live outside the
+hpcsim release root:
 
 ```text
-/resources/chapar/cache/rocky8
-/resources/chapar/cache/rocky9
+$CHAPAR_BUILDCACHE_ROOT/rocky9
+$CHAPAR_BUILDCACHE_ROOT/rocky10
+$CHAPAR_CCACHE_ROOT/rocky9
+$CHAPAR_CCACHE_ROOT/rocky10
 ```
 
-The `chapar-buildcache` mirror is configured in Chapar's Rocky system and user
-scopes, not in `envs/hpcsim/spack.yaml`, so hpcsim releases and ordinary user
-installs reuse the same NAS-backed cache. Rocky user scopes use
-`autopush: true`, so successful user builds can populate the shared cache when
-NFS permissions allow it.
+The `chapar-buildcache` mirror is configured in Chapar's Rocky system scopes
+with `CHAPAR_BUILDCACHE_ROOT`, not in `envs/hpcsim/spack.yaml`, so hpcsim
+releases and ordinary user installs can reuse the same configured cache. The
+release helper also exports `CCACHE_DIR=${CHAPAR_CCACHE_ROOT}/<os>` and keeps
+`CCACHE_TEMPDIR` job-local.
 
 Release builds add a temporary higher-precedence scope with the same mirror name
 and cache location. That scope honors `PUBLISH_BUILDCACHE`, allowing CI to turn
@@ -174,7 +184,7 @@ progress.
 
 Legacy cache migration is explicit, not part of normal release builds. Run
 `envs/hpcsim/release.sh migrate-buildcache` once per OS when retiring older
-hpcsim cache paths into `/resources/chapar/cache/<os>`. The migration only reads
+hpcsim cache paths into `${CHAPAR_BUILDCACHE_ROOT}/<os>`. The migration only reads
 the selected `HPCSIM_ROOT`'s `<os>/buildcache`; avoid cross-copying caches from
 another install root unless their prefixes are known to relocate. It uses a
 lock, does not overwrite destination files, does not delete old caches, writes a
@@ -184,7 +194,7 @@ into the current padded store; unmarked destination payloads are quarantined
 before release builds use the cache. See
 `docs/buildcache.md` before changing this policy.
 
-Push explicitly only when repairing or backfilling a buildcache outside the CI
+Push explicitly only when repairing or backfilling a buildcache outside the
 release path:
 
 ```bash
@@ -198,43 +208,39 @@ Chapar uses normal Spack configuration scopes:
 - `etc/system`: shared policy for a machine or site.
 - `etc/system/base`: common providers, source mirrors, concretizer policy, repos, and
   other shared settings.
-- `etc/system/rocky8`, `etc/system/rocky9`, `etc/system/macos`: OS-specific
-  bootstrap compiler, libc, and ccache externals. Rocky overlays also attach the
-  shared NAS buildcache mirror.
+- `etc/system/rocky9`, `etc/system/rocky10`: OS-specific bootstrap compiler,
+  libc, ccache externals, and the shared buildcache mirror rooted at
+  `CHAPAR_BUILDCACHE_ROOT`.
 - `etc/user`: per-user paths and optional user-local settings.
-- `envs/hpcsim/spack.yaml`: the shared hpcsim entry point and module policy.
-- `envs/hpcsim/{common,linux,rocky8,rocky9,macos}`: shared and OS-specific
-  root specs and package requirements.
+- `envs/hpcsim/spack.yaml`: hpcsim root specs, package requirements, and module
+  policy.
 
 Both `etc/system/include.yaml` and `etc/user/include.yaml` route to the matching
 OS overlay first and then to shared `base` config.
 
 ## External Package Policy
 
-Rocky and macOS overlays intentionally avoid modeling ordinary link-time
-libraries such as OpenSSL, zlib, libpng, curl, OpenBLAS, HDF5, or NetCDF as OS
-externals. Spack should build those unless a site-specific external is explicitly
-modeled with matching development metadata.
+Rocky overlays intentionally avoid modeling ordinary link-time libraries such as
+OpenSSL, zlib, libpng, curl, OpenBLAS, HDF5, or NetCDF as OS externals. Spack
+should build those unless a site-specific external is explicitly modeled with
+matching development metadata.
 
 Expected externals are:
 
 - OS/bootstrap compilers.
 - `glibc` on Rocky.
 - CUDA should be built by Spack for hpcsim GPU packages, not modeled as a host external.
-- Apple Clang and Homebrew GCC/GFortran on macOS.
 - `ccache` where the platform enables Spack ccache support.
 
 ## CI
 
-Rocky builds use existing self-hosted Incus runners with labels `chapar,rocky8`
-and `chapar,rocky9`. The workflow matrix can build Rocky8 and Rocky9 in parallel
+Rocky builds use existing self-hosted Incus runners with labels `chapar,rocky9`
+and `chapar,rocky10`. The workflow matrix can build Rocky 9 and Rocky 10 in parallel
 because concurrency is scoped per OS.
 
-macOS builds use the existing native macOS self-hosted runner. Docker is not used
-for macOS artifacts because it would build Linux binaries.
-
 Manual workflow inputs include `release_id`, `publish_current`,
-`publish_buildcache`, `spack_ref`, `spack_install_args`, and `hpcsim_root`.
+`publish_buildcache`, `spack_ref`, `spack_install_args`, `hpcsim_root`,
+`buildcache_root`, and `ccache_root`.
 The default `spack_ref` is pinned to keep concretization and buildcache hashes
 stable across rebuilds; override it only when intentionally testing a Spack
 update.

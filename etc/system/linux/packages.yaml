@@ -3,7 +3,7 @@
 # Do not hard-code compiler or core OS externals here. This scope is loaded for
 # every non-Rocky Linux distribution, including Fedora, Ubuntu, Debian, and
 # others. Distro-specific compiler versions belong in an OS overlay such as
-# etc/system/rocky8 or etc/system/rocky9, or in a user-local packages.yaml
+# etc/system/rocky9 or etc/system/rocky10, or in a user-local packages.yaml
 # generated with `spack compiler find --scope user` and
 # `spack external find --scope user`.
 packages: {}

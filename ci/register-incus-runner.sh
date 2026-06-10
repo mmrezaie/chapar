@@ -8,7 +8,7 @@ Usage: ci/register-incus-runner.sh --container NAME --token TOKEN [options]
 Options:
   --repo-url URL           GitHub repository URL (default: https://github.com/mmrezaie/chapar)
   --runner-name NAME       GitHub runner name (default: container name)
-  --labels LABELS          Comma-separated custom labels, for example chapar,rocky9
+  --labels LABELS          Comma-separated custom labels, for example chapar,rocky10
   --runner-dir PATH        Runner install directory inside the container (default: /opt/actions-runner)
   --runner-version VER     Actions runner version; defaults to GitHub's latest release
   -h, --help               Show this help
@@ -47,9 +47,9 @@ RUNNER_NAME="${RUNNER_NAME:-${CONTAINER}}"
 
 if [ -z "${LABELS}" ]; then
     case "${CONTAINER}" in
-        *rocky8*) LABELS="chapar,rocky8" ;;
         *rocky9*) LABELS="chapar,rocky9" ;;
-        *) echo "ERROR: --labels is required when the container name does not include rocky8 or rocky9" >&2; exit 1 ;;
+        *rocky10*) LABELS="chapar,rocky10" ;;
+        *) echo "ERROR: --labels is required when the container name does not include rocky9 or rocky10" >&2; exit 1 ;;
     esac
 fi
 

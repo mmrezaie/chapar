@@ -1,72 +1,84 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${HPCSIM_ROOT:=/resources/share/hpcsim}"
-: "${CHAPAR_BUILDCACHE_ROOT:=/resources/chapar/cache}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHAPAR_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+site_config="${CHAPAR_SITE_CONFIG:-${CHAPAR_ROOT}/envs/hpcsim/hpcsim-site.env}"
+site_config_loaded="false"
+if [ -r "${site_config}" ]; then
+    # shellcheck disable=SC1090
+    . "${site_config}"
+    site_config_loaded="true"
+fi
+
 : "${OS_NAME:?OS_NAME is required}"
+: "${CHAPAR_INSTALL_MODE:=home}"
+: "${HPCSIM_HOME_ROOT:=${HOME}/resources/share/hpcsim}"
+: "${HPCSIM_PUBLIC_ROOT:=}"
+: "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
+: "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
+: "${CHAPAR_CCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/ccache}"
+: "${CHAPAR_SHARED_GROUP:=}"
+: "${CHAPAR_SHARED_DIR_MODE:=2775}"
 
 die() {
     echo "ERROR: $*" >&2
     exit 1
 }
 
-validate_hpcsim_root() {
-    local home_root="${HOME}/resources/share/hpcsim"
+validate_simple_absolute_path() {
+    local name="$1"
+    local value="$2"
 
-    case "${HPCSIM_ROOT}" in
+    [ -n "${value}" ] || die "${name} is required"
+    case "${value}" in
         /*) ;;
-        *) die "HPCSIM_ROOT must be an absolute path: ${HPCSIM_ROOT}" ;;
+        *) die "${name} must be an absolute path: ${value}" ;;
     esac
 
-    case "${HPCSIM_ROOT}" in
+    case "${value}" in
         /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
-            die "HPCSIM_ROOT is not an approved simple shared hpcsim path: ${HPCSIM_ROOT}"
-            ;;
-    esac
-
-    case "${HPCSIM_ROOT}" in
-        /resources/share/hpcsim|/resources/share/hpcsim/*|/resources/chapar/hpcsim|/resources/chapar/hpcsim/*|"${home_root}"|"${home_root}"/*)
-            ;;
-        *)
-            if [ "${CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT:-false}" != "true" ]; then
-                die "HPCSIM_ROOT must be under /resources/share/hpcsim, /resources/chapar/hpcsim, or ${home_root}; set CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true for local testing"
-            fi
+            die "${name} is not an approved simple path: ${value}"
             ;;
     esac
 }
 
-validate_buildcache_root() {
-    local home_root="${HOME}/resources/chapar/cache"
+validate_site_backed_path() {
+    local name="$1"
+    local value="$2"
+    local home_prefix="${HOME}/"
 
-    case "${CHAPAR_BUILDCACHE_ROOT}" in
-        /*) ;;
-        *) die "CHAPAR_BUILDCACHE_ROOT must be an absolute path: ${CHAPAR_BUILDCACHE_ROOT}" ;;
-    esac
-
-    case "${CHAPAR_BUILDCACHE_ROOT}" in
-        /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
-            die "CHAPAR_BUILDCACHE_ROOT is not an approved simple shared cache path: ${CHAPAR_BUILDCACHE_ROOT}"
-            ;;
-    esac
-
-    case "${CHAPAR_BUILDCACHE_ROOT}" in
-        /resources/chapar/cache|/resources/chapar/cache/*|"${home_root}"|"${home_root}"/*)
-            ;;
+    validate_simple_absolute_path "${name}" "${value}"
+    case "${value}" in
+        "${home_prefix}"*) ;;
         *)
-            if [ "${CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT:-false}" != "true" ]; then
-                die "CHAPAR_BUILDCACHE_ROOT must be under /resources/chapar/cache or ${home_root}; set CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT=true for local testing"
+            if [ "${site_config_loaded}" != "true" ]; then
+                die "${name} points outside HOME but no envs/hpcsim/hpcsim-site.env was loaded: ${value}"
             fi
             ;;
     esac
 }
 
 case "${OS_NAME}" in
-    rocky8|rocky9|macos) ;;
-    *) die "OS_NAME must be rocky8, rocky9, or macos, got ${OS_NAME}" ;;
+    rocky9|rocky10) ;;
+    *) die "OS_NAME must be rocky9 or rocky10, got ${OS_NAME}" ;;
 esac
 
-validate_hpcsim_root
-validate_buildcache_root
+if [ -z "${HPCSIM_ROOT:-}" ]; then
+    case "${CHAPAR_INSTALL_MODE}" in
+        home) HPCSIM_ROOT="${HPCSIM_HOME_ROOT}" ;;
+        public)
+            [ -n "${HPCSIM_PUBLIC_ROOT}" ] || die "HPCSIM_PUBLIC_ROOT is required when CHAPAR_INSTALL_MODE=public"
+            HPCSIM_ROOT="${HPCSIM_PUBLIC_ROOT}"
+            ;;
+        *) die "CHAPAR_INSTALL_MODE must be home or public, got ${CHAPAR_INSTALL_MODE}" ;;
+    esac
+fi
+
+validate_site_backed_path HPCSIM_ROOT "${HPCSIM_ROOT}"
+validate_site_backed_path CHAPAR_BUILDCACHE_ROOT "${CHAPAR_BUILDCACHE_ROOT}"
+validate_site_backed_path CHAPAR_CCACHE_ROOT "${CHAPAR_CCACHE_ROOT}"
 
 run_as_root() {
     if [ "$(id -u)" -eq 0 ]; then
@@ -74,52 +86,48 @@ run_as_root() {
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
     else
-        echo "ERROR: cannot create ${HPCSIM_ROOT} or ${CHAPAR_BUILDCACHE_ROOT}; root privileges or passwordless sudo are required" >&2
-        exit 1
+        die "cannot create shared directories; root privileges or passwordless sudo are required for $*"
     fi
 }
 
-owner_uid="$(id -u)"
-owner_gid="$(id -g)"
+ensure_dir() {
+    local path="$1"
+    local label="$2"
+
+    if ! mkdir -p "${path}" 2>/dev/null; then
+        run_as_root mkdir -p "${path}"
+    fi
+
+    if [ -n "${CHAPAR_SHARED_GROUP}" ]; then
+        if ! chgrp "${CHAPAR_SHARED_GROUP}" "${path}" 2>/dev/null; then
+            run_as_root chgrp "${CHAPAR_SHARED_GROUP}" "${path}"
+        fi
+    fi
+
+    if ! chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" 2>/dev/null; then
+        run_as_root chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}"
+    fi
+
+    [ -w "${path}" ] || die "${label} is not writable by $(id -un): ${path}"
+}
+
 os_root="${HPCSIM_ROOT}/${OS_NAME}"
 buildcache_dir="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
+ccache_dir="${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
 
-if ! mkdir -p \
-    "${buildcache_dir}" \
-    "${os_root}/releases" \
-    "${os_root}/runs" \
-    "${os_root}/store" 2>/dev/null; then
-    run_as_root mkdir -p \
-        "${buildcache_dir}" \
-        "${os_root}/releases" \
-        "${os_root}/runs" \
-        "${os_root}/store"
+umask 0002
+ensure_dir "${HPCSIM_ROOT}" "hpcsim root"
+ensure_dir "${os_root}" "${OS_NAME} hpcsim root"
+ensure_dir "${os_root}/releases" "${OS_NAME} releases root"
+ensure_dir "${os_root}/runs" "${OS_NAME} runs root"
+ensure_dir "${os_root}/store" "${OS_NAME} Spack store"
+ensure_dir "${CHAPAR_BUILDCACHE_ROOT}" "shared buildcache root"
+ensure_dir "${buildcache_dir}" "${OS_NAME} buildcache root"
+ensure_dir "${CHAPAR_CCACHE_ROOT}" "shared ccache root"
+ensure_dir "${ccache_dir}" "${OS_NAME} ccache root"
 
-    run_as_root chown "${owner_uid}:${owner_gid}" \
-        "${HPCSIM_ROOT}" \
-        "${CHAPAR_BUILDCACHE_ROOT}" \
-        "${buildcache_dir}" \
-        "${os_root}" \
-        "${os_root}/releases" \
-        "${os_root}/runs" \
-        "${os_root}/store" || true
-
-    run_as_root chmod 2775 \
-        "${HPCSIM_ROOT}" \
-        "${CHAPAR_BUILDCACHE_ROOT}" \
-        "${buildcache_dir}" \
-        "${os_root}" \
-        "${os_root}/releases" \
-        "${os_root}/runs" \
-        "${os_root}/store" || true
-fi
-
-if [ ! -w "${os_root}" ]; then
-    echo "ERROR: ${os_root} is not writable by $(id -un) after preparation" >&2
-    exit 1
-fi
-
-if [ ! -w "${buildcache_dir}" ]; then
-    echo "ERROR: ${buildcache_dir} is not writable by $(id -un) after preparation" >&2
-    exit 1
-fi
+echo "Prepared hpcsim roots"
+echo "  install mode: ${CHAPAR_INSTALL_MODE}"
+echo "  hpcsim root: ${HPCSIM_ROOT}"
+echo "  buildcache:  ${buildcache_dir}"
+echo "  ccache:      ${ccache_dir}"

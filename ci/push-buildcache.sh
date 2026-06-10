@@ -3,11 +3,11 @@ set -euo pipefail
 
 usage() {
     cat <<'USAGE'
-Usage: ci/push-buildcache.sh --env-path PATH --os rocky8|rocky9|macos [options]
+Usage: ci/push-buildcache.sh --env-path PATH --os rocky9|rocky10 [options]
 
 Options:
-  --hpcsim-root PATH          Shared hpcsim root (default: /resources/share/hpcsim)
-  --buildcache-root PATH      Shared buildcache root (default: /resources/chapar/cache)
+  --hpcsim-root PATH          hpcsim release root; defaults from envs/hpcsim/hpcsim-site.env
+  --buildcache-root PATH      Shared buildcache root; defaults from envs/hpcsim/hpcsim-site.env
   --buildcache-dir PATH      Override destination buildcache directory
   -h, --help                 Show this help
 USAGE
@@ -15,10 +15,24 @@ USAGE
 
 ENV_PATH=""
 OS_NAME=""
-HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
-CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
+HPCSIM_ROOT="${HPCSIM_ROOT:-}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
 BUILDCACHE_DIR=""
 SCOPE_DIR=""
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHAPAR_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+site_config="${CHAPAR_SITE_CONFIG:-${CHAPAR_ROOT}/envs/hpcsim/hpcsim-site.env}"
+if [ -r "${site_config}" ]; then
+    # shellcheck disable=SC1090
+    . "${site_config}"
+fi
+
+: "${CHAPAR_INSTALL_MODE:=home}"
+: "${HPCSIM_HOME_ROOT:=${HOME}/resources/share/hpcsim}"
+: "${HPCSIM_PUBLIC_ROOT:=}"
+: "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
+: "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -38,9 +52,20 @@ if [ -z "${ENV_PATH}" ] || [ -z "${OS_NAME}" ]; then
 fi
 
 case "${OS_NAME}" in
-    rocky8|rocky9|macos) ;;
-    *) echo "ERROR: --os must be rocky8, rocky9, or macos" >&2; exit 1 ;;
+    rocky9|rocky10) ;;
+    *) echo "ERROR: --os must be rocky9 or rocky10" >&2; exit 1 ;;
 esac
+
+if [ -z "${HPCSIM_ROOT}" ]; then
+    case "${CHAPAR_INSTALL_MODE}" in
+        home) HPCSIM_ROOT="${HPCSIM_HOME_ROOT}" ;;
+        public)
+            [ -n "${HPCSIM_PUBLIC_ROOT}" ] || { echo "ERROR: HPCSIM_PUBLIC_ROOT is required when CHAPAR_INSTALL_MODE=public" >&2; exit 1; }
+            HPCSIM_ROOT="${HPCSIM_PUBLIC_ROOT}"
+            ;;
+        *) echo "ERROR: CHAPAR_INSTALL_MODE must be home or public, got ${CHAPAR_INSTALL_MODE}" >&2; exit 1 ;;
+    esac
+fi
 
 if [ -z "${BUILDCACHE_DIR}" ]; then
     BUILDCACHE_DIR="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"

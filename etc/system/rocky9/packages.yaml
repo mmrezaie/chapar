@@ -1,17 +1,17 @@
 # Rocky Linux 9 external packages.
 # Keep this scope limited to bootstrap compilers, ccache, and libc. Link-time
 # libraries, CUDA, and normal build dependencies should be built by Spack so
-# Rocky 8, Rocky 9, and macOS stay as similar as practical.
+# Rocky 9 and Rocky 10 stay as similar as practical.
 packages:
   c:
     require:
-    - one_of: [gcc@11.5.0, gcc@15]
+    - one_of: [gcc@15, gcc@11.5.0]
   cxx:
     require:
-    - one_of: [gcc@11.5.0, gcc@15]
+    - one_of: [gcc@15, gcc@11.5.0]
   fortran:
     require:
-    - one_of: [gcc@11.5.0, gcc@15]
+    - one_of: [gcc@15, gcc@11.5.0]
   gcc:
     externals:
     - spec: gcc@11.5.0 languages:='c,c++,fortran'

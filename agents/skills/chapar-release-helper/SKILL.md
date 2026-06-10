@@ -47,9 +47,7 @@ git diff --check -- envs/hpcsim/release.sh
 For non-destructive path/status checks:
 
 ```bash
-OS_NAME=rocky9 HPCSIM_ROOT=/resources/chapar/hpcsim \
-  CHAPAR_BUILDCACHE_ROOT=/resources/chapar/cache \
-  bash envs/hpcsim/release.sh status
+OS_NAME=rocky9 bash envs/hpcsim/release.sh status
 ```
 
 Do not run build/promote commands unless explicitly asked.

@@ -2,7 +2,7 @@
 # hpcsim and ad-hoc user installs reuse and publish to the same NAS cache.
 mirrors:
   chapar-buildcache:
-    url: file:///share/base/cache/rocky9
+    url: file://${CHAPAR_BUILDCACHE_ROOT}/rocky9
     source: false
     binary: true
     signed: false

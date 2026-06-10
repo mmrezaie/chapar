@@ -1,49 +1,44 @@
-# Chapar Buildcache Policy
+# Chapar Buildcache And ccache Policy
 
-Chapar uses one shared binary buildcache root for Linux VM/NAS builds:
-
-```text
-/resources/chapar/cache/<os>
-```
-
-Current Rocky targets use:
+Chapar uses one configured Spack binary buildcache root and one compiler ccache
+root for hpcsim. Configure both in the ignored local
+`envs/hpcsim/hpcsim-site.env` file copied from
+`envs/hpcsim/hpcsim-site.env.example`.
 
 ```text
-/resources/chapar/cache/rocky8
-/resources/chapar/cache/rocky9
+${CHAPAR_BUILDCACHE_ROOT}/rocky9
+${CHAPAR_BUILDCACHE_ROOT}/rocky10
+${CHAPAR_CCACHE_ROOT}/rocky9
+${CHAPAR_CCACHE_ROOT}/rocky10
 ```
 
-macOS CI can use the same root when the NAS is mounted. Its workflow keeps a
-user-local default at `~/resources/chapar/cache/macos` so native macOS runners
-without the VM/NAS mount do not fail only because the Linux cache path is absent.
-
-The cache is intentionally separate from hpcsim release roots such as
-`/resources/share/hpcsim` and `/resources/chapar/hpcsim`. Release trees contain
-stores, module trees, run logs, and promotion symlinks. The buildcache is a
-cross-release binary artifact pool that should survive release layout changes and
-be shared by both hpcsim builds and ad-hoc user installs.
+By default, `CHAPAR_SHARED_CACHE_ROOT` is `~/resources/chapar/cache`, with
+buildcache and ccache roots below it as `buildcache` and `ccache`. Use different
+cache roots for clusters or datacenters that should not share artifacts. Sharing
+cache roots across incompatible security boundaries can leak paths, compiler
+metadata, and binary artifacts.
 
 ## Scope Placement
 
 Keep the buildcache mirror in Chapar Spack scopes, not in `envs/hpcsim/spack.yaml`.
 
-The Rocky system and user scopes both define the same mirror name,
-`chapar-buildcache`, with OS-specific URLs. This makes the cache visible to:
+The Rocky system scopes define the same mirror name, `chapar-buildcache`, with
+URLs rooted at `${CHAPAR_BUILDCACHE_ROOT}/<os>`. This makes the cache visible to:
 
-- `spack -e envs/hpcsim install`
+- `spack -e envs/hpcsim install` after `source etc/init.sh`
 - release builds driven by `envs/hpcsim/release.sh`
-- ordinary user installs that use Chapar's system/user scopes
+- sbatch builds driven by `ci/sbatch-hpcsim-release-rocky9.sh` or `ci/sbatch-hpcsim-release-rocky10.sh`
 - future Chapar environments that inherit the same scopes
 
 Release builds generate a temporary command-line scope with the same mirror name.
 That scope points to the same cache location but controls `autopush` through
-`PUBLISH_BUILDCACHE`. This prevents higher-precedence user scope settings from
-forcing CI/release jobs to publish when the workflow explicitly disables cache
+`PUBLISH_BUILDCACHE`. This prevents lower-precedence persistent scope settings
+from forcing release jobs to publish when the operator explicitly disables cache
 publishing.
 
 Do not move this mirror into an environment file unless the desired behavior is
 for only that one environment to see the cache. The intended behavior is broader:
-all Chapar installs on the VM/NFS builders should share the cache.
+all trusted Chapar installs at the same site should share the cache.
 
 ## Mirror Semantics
 
@@ -56,9 +51,9 @@ signed: false
 autopush: true
 ```
 
-`source: false` keeps `/resources/chapar/cache/<os>` dedicated to Spack binary
+`source: false` keeps `${CHAPAR_BUILDCACHE_ROOT}/<os>` dedicated to Spack binary
 cache metadata and binary tarballs. Source mirrors and downloaded source archives
-should not be mixed into this NAS binary cache.
+should not be mixed into this binary cache.
 
 `signed: false` matches the current Chapar publishing model, which uses unsigned
 buildcache pushes. Do not flip this to `true` without a key rollout plan that
@@ -67,10 +62,29 @@ all builders/users, and defines whether ordinary users are allowed to sign share
 cache entries.
 
 `autopush: true` means ordinary user installs using these scopes can publish
-successful builds into the shared cache. This requires trusted NFS permissions.
-The security boundary is the NAS ACL/group membership for `/resources/chapar/cache`.
-If that trust model changes, make user scopes read-only and keep publishing
-limited to CI/release builders.
+successful builds into the shared cache. This requires trusted filesystem
+permissions. The security boundary is the site cache directory ACL/group
+membership. If that trust model changes, make user paths read-only and keep
+publishing limited to release builders.
+
+## Shared ccache
+
+`etc/init.sh`, `envs/hpcsim/release.sh`, and the sbatch helpers export:
+
+```text
+CCACHE_DIR=${CHAPAR_CCACHE_ROOT}/<os>
+CCACHE_TEMPDIR=<job-local temp directory>
+CCACHE_UMASK=002
+CCACHE_COMPILERCHECK=${CHAPAR_CCACHE_COMPILERCHECK:-content}
+```
+
+Keep `CCACHE_TEMPDIR` job-local. Do not put ccache temporary files on the shared
+ccache root; concurrent compilers on network filesystems should only share the
+finished cache entries.
+
+Set `CHAPAR_CCACHE_MAXSIZE` in `envs/hpcsim/hpcsim-site.env` to cap each
+OS-specific ccache directory. The release helper applies it with
+`ccache --max-size` when `ccache` is available.
 
 ## One-Time Migration
 
@@ -79,13 +93,13 @@ contents. Run migration explicitly when retiring an old cache directory for the
 selected `HPCSIM_ROOT`:
 
 ```bash
-OS_NAME=rocky8 envs/hpcsim/release.sh migrate-buildcache
 OS_NAME=rocky9 envs/hpcsim/release.sh migrate-buildcache
+OS_NAME=rocky10 envs/hpcsim/release.sh migrate-buildcache
 ```
 
 The explicit migration is intentionally conservative:
 
-- It copies from the selected legacy cache path into `/resources/chapar/cache/<os>`.
+- It copies from the selected legacy cache path into `${CHAPAR_BUILDCACHE_ROOT}/<os>`.
 - It requires the source cache to carry Chapar's current padded install-tree
   layout marker. Unmarked pre-padding caches are not migrated by default because
   they can fail relocation with `CannotGrowString`.
@@ -103,9 +117,9 @@ The legacy source path checked by the release helper is:
 <hpcsim_root>/<os>/buildcache
 ```
 
-Set `HPCSIM_ROOT` to the release root being retired before running migration.
-Do not copy binary caches built under a different install root into the current
-cache unless you have validated that their prefixes are relocatable.
+Set `HPCSIM_ROOT` to the release root being retired before running migration. Do
+not copy binary caches built under a different install root into the current cache
+unless you have validated that their prefixes are relocatable.
 
 Current hpcsim release builds use `install_tree.padded_length: 256`. If the
 destination cache already contains unmarked pre-padding payloads, the release
@@ -119,15 +133,19 @@ directories manually so future runs cannot accidentally reuse stale artifacts.
 
 ## Admin Setup
 
-Prepare the NAS cache with trusted group ownership and setgid permissions before
-enabling broad user autopush:
+Prepare the shared cache roots with trusted group ownership and setgid
+permissions before enabling broad user autopush:
 
 ```bash
-mkdir -p /resources/chapar/cache/rocky8 /resources/chapar/cache/rocky9
-chgrp -R <trusted-chapar-group> /resources/chapar/cache
-chmod -R g+rwX /resources/chapar/cache
-find /resources/chapar/cache -type d -exec chmod 2775 {} +
+mkdir -p "${CHAPAR_BUILDCACHE_ROOT}/rocky9" "${CHAPAR_BUILDCACHE_ROOT}/rocky10"
+mkdir -p "${CHAPAR_CCACHE_ROOT}/rocky9" "${CHAPAR_CCACHE_ROOT}/rocky10"
+chgrp -R <trusted-chapar-group> "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}"
+chmod -R g+rwX "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}"
+find "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}" -type d -exec chmod 2775 {} +
 ```
 
-Use the group that represents users and CI builders allowed to publish shared
-binary artifacts.
+Use the group that represents users and builders allowed to publish shared binary
+artifacts and shared ccache entries. The release helper and preparation script
+can also create these directories when `CHAPAR_SHARED_GROUP` and
+`CHAPAR_SHARED_DIR_MODE` are set in `envs/hpcsim/hpcsim-site.env` and the
+current user has permission.

@@ -21,6 +21,9 @@ envs/*/.spack-env/
 /etc/user/compilers.yaml
 /etc/user/packages.yaml
 
+# Site/datacenter-local hpcsim roots, cache roots, groups, and policy.
+/envs/hpcsim/hpcsim-site.env
+
 # Legacy local environment directories; Chapar only tracks envs/hpcsim.
 /envs/skipper*/
 etc/user/cache/

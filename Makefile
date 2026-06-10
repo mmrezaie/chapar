@@ -27,7 +27,7 @@ help:
 	@printf '%s\n' \
 	  'Chapar hpcsim targets:' \
 	  '  make build              Concretize and install envs/hpcsim with active scopes' \
-	  '  make release            Build a staged hpcsim release under /resources/share/hpcsim/<os>' \
+	  '  make release            Build a staged hpcsim release under the site-configured root' \
 	  '  make promote            Promote RELEASE_ID for the current OS' \
 	  '  make module-use         Print module use command for RELEASE_ID or current' \
 	  '  make check              Validate the hpcsim environment config' \

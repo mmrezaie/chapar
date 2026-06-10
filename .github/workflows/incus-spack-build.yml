@@ -21,8 +21,8 @@ on:
         default: all
         options:
           - all
-          - rocky8
           - rocky9
+          - rocky10
       release_id:
         description: Optional hpcsim release ID; defaults to the workflow run ID
         required: false
@@ -67,7 +67,12 @@ on:
         description: Shared Chapar binary cache root inside containers
         required: true
         type: string
-        default: /resources/chapar/cache
+        default: /resources/chapar/cache/buildcache
+      ccache_root:
+        description: Shared compiler ccache root inside containers
+        required: true
+        type: string
+        default: /resources/chapar/cache/ccache
 
 permissions:
   contents: read
@@ -78,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os_name: ${{ fromJSON((inputs.os || 'all') == 'all' && '["rocky8","rocky9"]' || format('["{0}"]', inputs.os || 'rocky9')) }}
+        os_name: ${{ fromJSON((inputs.os || 'all') == 'all' && '["rocky9","rocky10"]' || format('["{0}"]', inputs.os || 'rocky9')) }}
     runs-on: ${{ fromJSON(format('["self-hosted","{0}","{1}"]', inputs.runner_label || 'chapar', matrix.os_name)) }}
     timeout-minutes: 1440
     concurrency:
@@ -95,23 +100,38 @@ jobs:
       - name: Verify hpcsim resources mount
         env:
           HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
-          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache' }}
+          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
+          CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           OS_NAME: ${{ matrix.os_name }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
+
+          cat > envs/hpcsim/hpcsim-site.env <<EOF
+          CHAPAR_INSTALL_MODE=public
+          HPCSIM_PUBLIC_ROOT=${HPCSIM_ROOT}
+          CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
+          CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
+          PUBLISH_BUILDCACHE=${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
+          PUBLISH_CURRENT=${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
+          EOF
 
           bash ci/prepare-hpcsim-root.sh
           fs_type="$(findmnt -n -T "${HPCSIM_ROOT}" -o FSTYPE)"
           source="$(findmnt -n -T "${HPCSIM_ROOT}" -o SOURCE)"
           cache_fs_type="$(findmnt -n -T "${CHAPAR_BUILDCACHE_ROOT}" -o FSTYPE)"
           cache_source="$(findmnt -n -T "${CHAPAR_BUILDCACHE_ROOT}" -o SOURCE)"
+          ccache_fs_type="$(findmnt -n -T "${CHAPAR_CCACHE_ROOT}" -o FSTYPE)"
+          ccache_source="$(findmnt -n -T "${CHAPAR_CCACHE_ROOT}" -o SOURCE)"
           echo "hpcsim root: ${HPCSIM_ROOT}"
           echo "mount source: ${source}"
           echo "mount type:   ${fs_type}"
           echo "buildcache root: ${CHAPAR_BUILDCACHE_ROOT}"
           echo "cache source:     ${cache_source}"
           echo "cache type:       ${cache_fs_type}"
+          echo "ccache root:      ${CHAPAR_CCACHE_ROOT}"
+          echo "ccache source:    ${ccache_source}"
+          echo "ccache type:      ${ccache_fs_type}"
 
           case "${fs_type}" in
             nfs|nfs4) ;;
@@ -121,6 +141,10 @@ jobs:
             nfs|nfs4) ;;
             *) echo "ERROR: ${CHAPAR_BUILDCACHE_ROOT} must be on the resources NFS mount, got ${cache_fs_type}" >&2; exit 1 ;;
           esac
+          case "${ccache_fs_type}" in
+            nfs|nfs4) ;;
+            *) echo "ERROR: ${CHAPAR_CCACHE_ROOT} must be on the resources NFS mount, got ${ccache_fs_type}" >&2; exit 1 ;;
+          esac
 
           test_dir="${HPCSIM_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
           mkdir -p "${test_dir}"
@@ -128,6 +152,9 @@ jobs:
           cache_test_dir="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
           mkdir -p "${cache_test_dir}"
           rmdir "${cache_test_dir}"
+          ccache_test_dir="${CHAPAR_CCACHE_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
+          mkdir -p "${ccache_test_dir}"
+          rmdir "${ccache_test_dir}"
 
       - name: Run hpcsim build
         env:
@@ -139,7 +166,8 @@ jobs:
           REPO_DIR: ${{ github.workspace }}
           OS_NAME: ${{ matrix.os_name }}
           HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
-          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache' }}
+          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
+          CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
           PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1' }}

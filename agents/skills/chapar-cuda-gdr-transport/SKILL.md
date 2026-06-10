@@ -34,17 +34,12 @@ only when the environment or user request requires GPU-aware transports.
 For hpcsim today:
 
 ```text
-envs/hpcsim/linux/definitions.yaml
-envs/hpcsim/rocky8/definitions.yaml
-envs/hpcsim/rocky9/definitions.yaml
-envs/hpcsim/linux/packages.yaml
-envs/hpcsim/rocky8/packages.yaml
-envs/hpcsim/rocky9/packages.yaml
+envs/hpcsim/spack.yaml
 envs/hpcsim/release.sh
 ```
 
-For future environments, use the analogous `envs/<env>/{linux,rocky8,rocky9}`
-scopes if they exist.
+For future environments, inspect their own manifest and included scopes before
+assuming the hpcsim layout.
 
 Common specs:
 

@@ -12,8 +12,8 @@ with Chapar. OpenCode loads project skills from `agents/skills`.
   `envs/<name>` environments.
 - `skills/chapar-release-helper` is intentionally hpcsim-specific because the
   current release helper is `envs/hpcsim/release.sh`.
-- `skills/chapar-macos-ci-triage` covers native macOS self-hosted runner and CI
-  failures; Linux Incus CI remains covered by `skills/chapar-incus-ci-triage`.
+- `skills/chapar-incus-ci-triage` covers Rocky self-hosted Incus runner and CI
+  failures.
 - `skills/chapar-cve-checker` covers the security scanner workflow and its
   restricted trust boundary.
 - `skills/chapar-spack-repo-overlay` covers local Spack package recipes and

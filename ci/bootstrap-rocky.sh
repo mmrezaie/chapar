@@ -6,6 +6,12 @@ if ! command -v dnf >/dev/null 2>&1; then
     exit 1
 fi
 
+source /etc/os-release
+case "${ID}:${VERSION_ID%%.*}" in
+    rocky:9|rocky:10) ;;
+    *) echo "ERROR: hpcsim Incus builders support only Rocky 9 or Rocky 10, got ${PRETTY_NAME:-${ID} ${VERSION_ID}}" >&2; exit 1 ;;
+esac
+
 as_root() {
     if [ "$(id -u)" -eq 0 ]; then
         "$@"
@@ -67,27 +73,12 @@ as_root dnf -y install \
     xz \
     zstd
 
-source /etc/os-release
-case "${VERSION_ID%%.*}" in
-    8) as_root dnf config-manager --set-enabled powertools || true ;;
-    9) as_root dnf config-manager --set-enabled crb || true ;;
-esac
+as_root dnf config-manager --set-enabled crb || true
 
 as_root dnf -y install epel-release
 as_root dnf -y install ccache
 
-as_root dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
-as_root rpm --import https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-as_root dnf -y install \
-    intel-oneapi-compiler-dpcpp-cpp-2026.0 \
-    intel-oneapi-compiler-fortran-2026.0
-
 as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh /etc/profile.d/zz-chapar-hpcsim.sh
-
-if ! command -v gh >/dev/null 2>&1; then
-    as_root dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
-    as_root dnf -y install gh
-fi
 
 for safe_dir in \
     "${GITHUB_WORKSPACE:-}" \

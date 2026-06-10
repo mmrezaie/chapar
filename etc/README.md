@@ -9,25 +9,23 @@ environments outside that checkout.
 ```text
 etc/
 |-- system/                 # System scope shared by all users on a machine
-|   |-- include.yaml        # Routes rocky8/rocky9/macos, linux fallback, base
+|   |-- include.yaml        # Routes rocky9/rocky10, linux fallback, base
 |   |-- base/               # Cross-platform settings
 |   |   |-- concretizer.yaml
 |   |   |-- config.yaml
 |   |   |-- mirrors.yaml
 |   |   |-- packages.yaml   # Virtual providers and shared package policy
 |   |   `-- repos.yaml
-|   |-- rocky8/             # Rocky 8 compiler, ccache, libc externals, buildcache mirror
 |   |-- rocky9/             # Rocky 9 compiler, ccache, libc externals, buildcache mirror
-|   |-- macos/              # macOS compiler and ccache externals
+|   |-- rocky10/            # Rocky 10 compiler, ccache, libc externals, buildcache mirror
 |   `-- linux/              # Generic Linux fallback
 `-- user/                   # User scope for per-user paths and overrides
     |-- include.yaml
     |-- base/
     |   |-- config.yaml
     |   `-- modules.yaml
-    |-- rocky8/
     |-- rocky9/
-    `-- macos/
+    `-- rocky10/
 ```
 
 ## Scope Precedence
@@ -46,8 +44,8 @@ Spack applies scopes in this order, from low to high precedence:
 
 This repository provides scopes 2 and 4. `envs/hpcsim/release.sh` uses a
 temporary command-line scope to direct installs and modules into
-`/resources/share/hpcsim/<os>` and to control buildcache autopush while still
-using `/resources/chapar/cache/<os>`.
+`${HPCSIM_ROOT}/<os>` and to control buildcache autopush while using
+`${CHAPAR_BUILDCACHE_ROOT}/<os>`.
 
 The tracked scopes do not reference legacy sectioned environments. The current
 workflow uses only `envs/hpcsim` plus OS-specific scope overlays.
@@ -66,12 +64,14 @@ Initialize a shell with this checkout's scopes:
 source /path/to/chapar/etc/init.sh
 ```
 
-The initializer sets `SPACK_USER_CONFIG_PATH`, `SPACK_SYSTEM_CONFIG_PATH`, and a
-fast local `SPACK_USER_CACHE_PATH`. The active Rocky scopes attach the shared
-`chapar-buildcache` mirror under `/resources/chapar/cache/<os>` so hpcsim and
-user installs share one NAS-backed binary cache. If environment modules are
-available and a current hpcsim release exists for the detected OS, it adds the
-resolved release module path to `MODULEPATH`.
+The initializer sources `envs/hpcsim/hpcsim-site.env` when present, sets
+`SPACK_USER_CONFIG_PATH`, `SPACK_SYSTEM_CONFIG_PATH`, and a fast local
+`SPACK_USER_CACHE_PATH`. The active Rocky scopes attach the shared
+`chapar-buildcache` mirror under `${CHAPAR_BUILDCACHE_ROOT}/<os>` so hpcsim and
+user installs can share one configured binary cache. It also exports shared
+ccache variables rooted at `${CHAPAR_CCACHE_ROOT}/<os>`. If environment modules
+are available and a current hpcsim release exists for the detected OS, it adds
+the resolved release module path to `MODULEPATH`.
 
 ## Platform Routing
 
@@ -79,15 +79,12 @@ Both system and user scopes use this include pattern:
 
 ```yaml
 include:
-- path: rocky8
-  optional: true
-  when: os == "rocky8"
 - path: rocky9
   optional: true
   when: os == "rocky9"
-- path: macos
+- path: rocky10
   optional: true
-  when: platform == "darwin"
+  when: os == "rocky10"
 - path: linux
   optional: true
   when: platform == "linux"
@@ -100,12 +97,11 @@ defaults when necessary.
 ## External Package Policy
 
 Use OS externals sparingly. The hpcsim environment should mostly depend on
-Spack-built packages so Rocky8, Rocky9, and macOS stay as similar as practical.
+Spack-built packages so Rocky 9 and Rocky 10 stay as similar as practical.
 
 Expected system externals:
 
 - Rocky: system GCC, `glibc`, and `ccache`. CUDA should be built by Spack for hpcsim GPU packages.
-- macOS: Apple Clang, Homebrew GCC/GFortran, and optionally `ccache`.
 
 Do not add ordinary link-time dependencies such as OpenSSL, zlib, libpng, curl,
 OpenBLAS, HDF5, or NetCDF as generic OS externals. Add such externals only for a
@@ -134,10 +130,11 @@ bash envs/hpcsim/release.sh promote 2026-05-02
 
 Release layout:
 
-- Install store: `/resources/share/hpcsim/<os>/store`
-- Modules: `/resources/share/hpcsim/<os>/releases/<release-id>/modulefiles`
-- Active release symlink: `/resources/share/hpcsim/<os>/current`
-- Buildcache: `/resources/chapar/cache/<os>`
+- Install store: `${HPCSIM_ROOT}/<os>/store`
+- Modules: `${HPCSIM_ROOT}/<os>/releases/<release-id>/modulefiles`
+- Active release symlink: `${HPCSIM_ROOT}/<os>/current`
+- Buildcache: `${CHAPAR_BUILDCACHE_ROOT}/<os>`
+- ccache: `${CHAPAR_CCACHE_ROOT}/<os>`
 
 The store is shared per OS and package prefixes include hashes. Module trees are
 release-specific. This allows new modules and packages to be added without
@@ -185,10 +182,13 @@ spack arch --platform
 | `SPACK_SYSTEM_CONFIG_PATH` | `/etc/spack/` | Override system scope location |
 | `SPACK_USER_CONFIG_PATH` | `~/.spack/` | Override user scope location |
 | `SPACK_USER_CACHE_PATH` | `/tmp/$USER/spack-cache` | Fast local cache root from `etc/init.sh` |
-| `HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim release root |
-| `CHAPAR_HPCSIM_ROOT` | `/resources/share/hpcsim` | Shared hpcsim root used when adding promoted modules |
-| `CHAPAR_BUILDCACHE_ROOT` | `/resources/chapar/cache` | Shared NAS binary buildcache root |
-| `OS_NAME` | auto-detected | `rocky8`, `rocky9`, or `macos` for release commands |
+| `CHAPAR_INSTALL_MODE` | `home` | `home` or `public`; chooses the release root when `HPCSIM_ROOT` is unset |
+| `HPCSIM_HOME_ROOT` | `~/resources/share/hpcsim` | User-owned hpcsim release root |
+| `HPCSIM_PUBLIC_ROOT` | empty | Site/public hpcsim release root for `CHAPAR_INSTALL_MODE=public` |
+| `HPCSIM_ROOT` | mode-dependent | Effective hpcsim release root |
+| `CHAPAR_HPCSIM_ROOT` | `$HPCSIM_ROOT` | hpcsim root used when adding promoted modules |
+| `CHAPAR_SHARED_CACHE_ROOT` | `~/resources/chapar/cache` | Parent namespace for shared buildcache and ccache roots |
+| `CHAPAR_BUILDCACHE_ROOT` | `$CHAPAR_SHARED_CACHE_ROOT/buildcache` | Shared Spack binary buildcache root |
+| `CHAPAR_CCACHE_ROOT` | `$CHAPAR_SHARED_CACHE_ROOT/ccache` | Shared compiler ccache root |
+| `OS_NAME` | auto-detected | `rocky9` or `rocky10` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |
-| `CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT` | `false` | Allow non-standard absolute `HPCSIM_ROOT` values for local tests |
-| `CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT` | `false` | Allow non-standard absolute `CHAPAR_BUILDCACHE_ROOT` values for local tests |

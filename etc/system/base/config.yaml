@@ -1,5 +1,5 @@
 config:
-  environments_root: /resources/share/hpcsim/environments
+  environments_root: $HPCSIM_HOME_ROOT/environments
   build_jobs: 16
   concurrent_packages: 16
   ccache: true

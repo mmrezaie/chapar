@@ -11,8 +11,8 @@ modules:
 
   default:
     roots:
-      tcl: /share/base/modulefiles/
-      lmod: /share/base/modulefiles/lmod
+      tcl: $HPCSIM_HOME_ROOT/modulefiles
+      lmod: $HPCSIM_HOME_ROOT/modulefiles/lmod
 
     enable: [tcl]
 

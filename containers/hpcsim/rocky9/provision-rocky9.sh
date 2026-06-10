@@ -38,12 +38,9 @@ as_root dnf -y makecache
 as_root dnf -y install dnf-plugins-core
 as_root dnf config-manager --set-enabled crb
 as_root dnf -y install epel-release
-as_root dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
-as_root rpm --import https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-as_root dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
 as_root dnf -y install "${packages[@]}"
 
-as_root install -d -m 0755 /resources/share/hpcsim /resources/chapar/cache
+as_root install -d -m 0755 /resources/chapar/hpcsim /resources/chapar/cache/buildcache /resources/chapar/cache/ccache
 as_root chmod 0755 /usr/local/bin/chapar-hpcsim-entrypoint
 if [ -r /etc/profile.d/zz-chapar-hpcsim.sh ]; then
     as_root chmod 0644 /etc/profile.d/zz-chapar-hpcsim.sh
