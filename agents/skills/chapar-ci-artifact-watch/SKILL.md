@@ -66,8 +66,8 @@ Map CI-internal paths to local mount paths before reading artifacts. Examples:
 CI path:    /resources/chapar/hpcsim
 Local path: /Volumes/resources/chapar/hpcsim
 
-CI path:    /resources/share/hpcsim
-Local path: ~/resources/share/hpcsim
+CI path:    /resources/chapar/cache/buildcache
+Local path: /Volumes/resources/chapar/cache/buildcache
 
 CI path:    /site/apps/hpcsim
 Local path: /Volumes/site/apps/hpcsim
