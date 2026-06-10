@@ -39,8 +39,8 @@ esac
 
 mkdir -p "$HOME/slogs" "$HOME/chapar-diagnostics"
 job_id="${SLURM_JOB_ID:-manual}"
-release_suffix="$(date -u +%Y%m%d%H%M%S)"
-: "${RELEASE_ID:=${OS_NAME}-${job_id}-${release_suffix}}"
+release_date="$(date -u +%Y%m%d)"
+: "${RELEASE_ID:=${OS_NAME}-${release_date}}"
 
 diag_dir="$HOME/chapar-diagnostics/${SLURM_JOB_NAME:-hpcsim-release}_${job_id}_${OS_NAME}"
 mkdir -p "$diag_dir"

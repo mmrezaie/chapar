@@ -93,14 +93,32 @@ The release helper performs root-only module refreshes. Do not refresh modules
 from every `spack find -c -H` result; that includes dependency-only specs and
 can collide with hpcsim's hashless `{name}/{version}` module names.
 
-For home testing or public deployment, use the release helper or sbatch wrappers.
-They build packages into a per-OS store and write modules into a release-specific
-staging tree:
+For home testing or public deployment, use the release helper or Slurm submit
+helper. They build packages into a per-OS store and write modules into a
+release-specific staging tree:
 
 ```bash
-bash envs/hpcsim/release.sh build 2026-05-02
-bash envs/hpcsim/release.sh module-use 2026-05-02
-bash envs/hpcsim/release.sh promote 2026-05-02
+bash envs/hpcsim/release.sh build rocky9-20260610
+bash envs/hpcsim/release.sh module-use rocky9-20260610
+bash envs/hpcsim/release.sh promote rocky9-20260610
+```
+
+On a Slurm cluster, use the interactive submit helper so the partition and usable
+CPU cores are selected before `sbatch` allocates the job:
+
+```bash
+ci/submit-hpcsim-release.sh
+```
+
+For non-interactive submission, pass the same values explicitly:
+
+```bash
+ci/submit-hpcsim-release.sh \
+  --os rocky9 \
+  --partition <partition> \
+  --cores <usable-cores> \
+  --release-id rocky9-20260610 \
+  --publish-current false
 ```
 
 Default home release layout:
@@ -117,8 +135,12 @@ Supported OS names are `rocky9` and `rocky10`. The helper auto-detects the OS,
 or you can set `OS_NAME` explicitly:
 
 ```bash
-OS_NAME=rocky9 bash envs/hpcsim/release.sh build 2026-05-02
+OS_NAME=rocky9 bash envs/hpcsim/release.sh build rocky9-20260610
 ```
+
+When `RELEASE_ID` is not set, the sbatch wrappers default to `<os>-YYYYMMDD`, for
+example `rocky9-20260610`. A second automatic build for the same OS on the same
+day needs an explicit release ID such as `rocky9-20260610-rerun1`.
 
 ## Loading Modules
 
@@ -127,7 +149,7 @@ After `etc/init.sh`, the current hpcsim module tree is added automatically when
 release:
 
 ```bash
-bash envs/hpcsim/release.sh module-use 2026-05-02
+bash envs/hpcsim/release.sh module-use rocky9-20260610
 ```
 
 The helper resolves the release directory before printing `module use`. That

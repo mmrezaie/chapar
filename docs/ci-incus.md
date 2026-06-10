@@ -70,8 +70,8 @@ current Incus builders use this writable resources tree by default:
 ```
 
 For production releases, pre-create the site NAS path with suitable ACLs and
-pass it as the workflow `hpcsim_root` input, or prefer the sbatch wrappers with
-an ignored `envs/hpcsim/hpcsim-site.env` on the target cluster.
+pass it as the workflow `hpcsim_root` input, or prefer `ci/submit-hpcsim-release.sh`
+with an ignored `envs/hpcsim/hpcsim-site.env` on the target Slurm cluster.
 
 ## Manual Workflow
 
