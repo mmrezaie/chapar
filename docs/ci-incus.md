@@ -59,7 +59,7 @@ On the Incus host, mount the resources export at `/resources`:
 
 ```bash
 sudo mkdir -p /resources
-sudo mount -t nfs -o vers=4.2 10.151.98.25:/mnt/resources /resources
+sudo mount -t nfs -o vers=4.2 <nfs-server>:/<export-path> /resources
 ```
 
 The default CI hpcsim output root is the workflow `hpcsim_root` input. The
