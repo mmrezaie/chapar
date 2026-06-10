@@ -1,14 +1,14 @@
 ---
 name: chapar-buildcache
-description: Modify or debug Chapar buildcache behavior, migration, quarantine, index refresh, and cache publication for hpcsim or future Spack environments. Use for docs/buildcache.md, ci/push-buildcache.sh, release helper migration, or buildcache CI failures.
+description: Modify or debug Chapar buildcache or shared ccache behavior, migration, quarantine, index refresh, and cache publication for hpcsim or future Spack environments. Use for docs/buildcache.md, ci/push-buildcache.sh, release helper migration, or buildcache CI failures.
 ---
 
 # Chapar Buildcache
 
-Use this playbook for `/resources/chapar/cache/<os>` and binary cache logic used
-by Chapar Spack environments. The current release-helper implementation is
-hpcsim-specific, but the cache policy is project-wide and should remain usable by
-future environments.
+Use this playbook for `${CHAPAR_BUILDCACHE_ROOT}/<os>`,
+`${CHAPAR_CCACHE_ROOT}/<os>`, and cache logic used by Chapar Spack environments.
+The current release-helper implementation is hpcsim-specific, but the cache
+policy is project-wide and should remain usable by future environments.
 
 ## Non-Negotiable Policy
 
@@ -21,10 +21,12 @@ future environments.
   builds use the cache.
 - Keep layout marker checks aligned with `INSTALL_TREE_PADDED_LENGTH` and
   `BUILDCACHE_LAYOUT_VERSION` where those helpers are used.
-- Preserve per-OS cache roots; do not cross-copy Rocky 8/Rocky 9/macOS caches
+- Preserve per-OS cache roots; do not cross-copy Rocky 9/Rocky 10 caches
   unless explicitly validated by the user.
-- Future environments should reuse the per-OS Chapar cache root unless the user
-  explicitly designs a separate cache namespace.
+- Future environments should reuse the per-OS Chapar cache and ccache roots
+  unless the user explicitly designs a separate cache namespace.
+- Site-specific cache paths, groups, and publication policy belong in ignored
+  `envs/hpcsim/hpcsim-site.env`, not tracked YAML.
 
 ## Key Files
 
@@ -33,10 +35,9 @@ docs/buildcache.md
 envs/hpcsim/release.sh              # current hpcsim release/cache helper
 ci/push-buildcache.sh
 .github/workflows/incus-spack-build.yml
-etc/system/rocky8/mirrors.yaml
 etc/system/rocky9/mirrors.yaml
-etc/user/rocky8/mirrors.yaml
-etc/user/rocky9/mirrors.yaml
+etc/system/rocky10/mirrors.yaml
+envs/hpcsim/hpcsim-site.env.example
 ```
 
 For future environments, inspect their workflow/build helper before assuming the
@@ -55,9 +56,7 @@ spack -e "${ENV_PATH}" config blame mirrors
 For hpcsim release-helper cache status:
 
 ```bash
-OS_NAME=rocky8 HPCSIM_ROOT=/resources/chapar/hpcsim \
-  CHAPAR_BUILDCACHE_ROOT=/resources/chapar/cache \
-  bash envs/hpcsim/release.sh status
+OS_NAME=rocky9 bash envs/hpcsim/release.sh status
 ```
 
 ## Index and Payload Checks

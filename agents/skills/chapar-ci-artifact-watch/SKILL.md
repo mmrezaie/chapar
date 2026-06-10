@@ -1,6 +1,6 @@
 ---
 name: chapar-ci-artifact-watch
-description: Inspect live Chapar CI/CD build progress by reading durable filesystem artifact roots directly instead of waiting for GitHub Actions or GitLab UI logs. Use whenever the user asks what is happening with a running, queued, stuck, timed-out, or slow CI build, especially Rocky 8/Rocky 9/macOS hpcsim builds, package installs, modulefile publication, release roots, buildcache roots, or site-specific mounts such as /resources, /share/base, /Volumes/resources, ~/resources, or another mounted artifact tree.
+description: Inspect live Chapar CI/CD build progress by reading durable filesystem artifact roots directly instead of waiting for GitHub Actions or GitLab UI logs. Use whenever the user asks what is happening with a running, queued, stuck, timed-out, or slow CI build, especially Rocky 9/Rocky 10 hpcsim builds, package installs, modulefile publication, release roots, buildcache roots, ccache roots, or site-specific mounts such as /resources, /Volumes/resources, ~/resources, or another mounted artifact tree.
 ---
 
 # Chapar CI Artifact Watch
@@ -33,8 +33,8 @@ has already written. Useful signals include:
 - Workflow inputs such as `hpcsim_root`, `buildcache_root`, `release_id`, `os`,
   `git_ref`, and site-specific equivalents.
 - Job environment variables such as `HPCSIM_ROOT`, `CHAPAR_HPCSIM_ROOT`,
-  `CHAPAR_BUILDCACHE_ROOT`, `RUN_ID`, `RELEASE_ID`, `OS_NAME`, and future
-  environment-specific root names.
+  `CHAPAR_BUILDCACHE_ROOT`, `CHAPAR_CCACHE_ROOT`, `RUN_ID`, `RELEASE_ID`,
+  `OS_NAME`, and future environment-specific root names.
 - Durable log lines such as `output:`, `store:`, `releases:`, `module:`,
   `buildcache:`, `hpcsim root:`, and `buildcache root:`.
 - Release-helper status output that names store, release, modulefile, current,
@@ -55,6 +55,7 @@ Current hpcsim layouts are examples, not hard-coded policy:
 <env-root>/<os>/releases/<release-id>/modulefiles/
 <env-root>/<os>/current
 <buildcache-root>/<os>/
+<ccache-root>/<os>/
 ```
 
 ## Local Path Mapping
@@ -68,8 +69,8 @@ Local path: /Volumes/resources/chapar/hpcsim
 CI path:    /resources/share/hpcsim
 Local path: ~/resources/share/hpcsim
 
-CI path:    /share/base/hpcsim
-Local path: /share/base/hpcsim
+CI path:    /site/apps/hpcsim
+Local path: /Volumes/site/apps/hpcsim
 ```
 
 Use existing local directories only. Do not create compatibility symlinks such as
@@ -129,7 +130,7 @@ Use the bundled helper when a quick read-only summary is useful:
 
 ```bash
 python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id>
-python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --os rocky8 --local-root /share/base
+python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --os rocky10 --local-root /Volumes/resources
 python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --ci-root /resources/chapar/hpcsim --local-root /Volumes/resources
 ```
 
@@ -141,7 +142,6 @@ Default local roots are only discovery hints:
 
 ```text
 /resources
-/share/base
 /Volumes/resources
 ~/resources
 ```

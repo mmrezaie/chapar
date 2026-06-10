@@ -1,6 +1,6 @@
 ---
 name: chapar-incus-ci-triage
-description: Triage Chapar GitHub Actions Incus Spack-environment CI failures, including hpcsim Rocky 8/Rocky 9 builds and future environment workflows. Use when an Incus Spack build fails, succeeds on one Rocky version but not the other, or when inspecting self-hosted runner/build logs.
+description: Triage Chapar GitHub Actions Incus Spack-environment CI failures, including hpcsim Rocky 9/Rocky 10 builds and future environment workflows. Use when an Incus Spack build fails, succeeds on one Rocky version but not the other, or when inspecting self-hosted runner/build logs.
 ---
 
 # Chapar Incus CI Triage
@@ -17,7 +17,7 @@ environments. Identify the environment before changing config.
 - If the user asks about a currently running or stuck build and artifact roots
   are locally mounted, use `chapar-ci-artifact-watch` first to inspect durable
   logs and output files directly instead of waiting for GitHub web logs.
-- Compare Rocky 8 and Rocky 9 when one succeeds and the other fails.
+- Compare Rocky 9 and Rocky 10 when one succeeds and the other fails.
 - Prefer durable CI artifacts/logs under the configured run root over GitHub web
   log summaries when available.
 - Do not change `spack/` or generated lock/cache directories.
@@ -43,13 +43,12 @@ gh run view <run-id> --json jobs,conclusion,displayTitle,headSha,headBranch,work
 Look for:
 
 - Which workflow failed.
-- Which matrix job failed, e.g. `Build hpcsim on rocky8`.
+- Which matrix job failed, e.g. `Build hpcsim on rocky10`.
 - Which environment is targeted, e.g. `ENV_PATH=envs/hpcsim`.
 - Which step failed: bootstrap, mount verification, or the environment build.
 - Whether failure duration suggests timeout. Common clues:
   - ~1 hour: old generic `CHAPAR_CONCRETIZE_TIMEOUT=3600` guardrail.
-  - ~3 hours: Rocky 9 minimum or older Rocky-wide minimum.
-  - ~6 hours: Rocky 8 minimum after the 2026-05 timeout fix.
+  - ~3 hours: Rocky 9/Rocky 10 minimum or older Rocky-wide minimum.
   - ~24 hours: workflow-level timeout or a stuck install.
 
 ## Logs and Run Outputs
@@ -68,7 +67,8 @@ Defaults from the hpcsim workflow are:
 
 ```text
 HPCSIM_ROOT=/resources/chapar/hpcsim
-CHAPAR_BUILDCACHE_ROOT=/resources/chapar/cache
+CHAPAR_BUILDCACHE_ROOT=/resources/chapar/cache/buildcache
+CHAPAR_CCACHE_ROOT=/resources/chapar/cache/ccache
 ENV_PATH=envs/hpcsim
 ```
 
@@ -86,11 +86,17 @@ Inspect the bootstrap script used by the workflow, currently
 current CI. Avoid adding heavyweight runtime packages unless the target
 environment needs them.
 
+Do not fix hpcsim builder failures by adding OS CUDA Toolkit, OS Intel oneAPI
+compiler/MPI, or GitHub CLI RPM repos/packages. hpcsim CUDA, Intel MPI, and any
+future Intel compiler dependency should come from Spack unless the user
+explicitly changes that policy.
+
 ### Verify resources mount
 
 Inspect the workflow inputs and preparation script, currently
-`ci/prepare-hpcsim-root.sh` for hpcsim. Resources and buildcache roots must be
-NFS (`nfs` or `nfs4`) and writable for the OS-specific run/cache directories.
+`ci/prepare-hpcsim-root.sh` for hpcsim. Resources, buildcache, and ccache roots
+must be NFS (`nfs` or `nfs4`) and writable for the OS-specific run/cache
+directories.
 
 ### Concretization timeout/failure
 
@@ -99,7 +105,9 @@ policy:
 
 - Do not pin dependency minor/patch versions just to make the solver faster.
 - Keep CUDA/GDR transport support for GPU environments.
-- Put OS-specific constraints in the matching OS scope.
+- Put hpcsim root specs and package constraints in `envs/hpcsim/spack.yaml`.
+- Keep package-wide Python policy to allowed minor versions only; do not force
+  `python+tkinter` globally.
 
 ### Install/build failure
 

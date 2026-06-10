@@ -45,11 +45,11 @@ Avoid messages that only restate the diff.
 Example:
 
 ```text
-Extend Rocky 8 hpcsim concretization timeout
+Add Rocky 10 hpcsim release support
 
-The latest Incus hpcsim run completed on Rocky 9 but Rocky 8 failed after hitting the release helper's three-hour concretization guardrail. Rocky 8 has the heavier constrained solve because ...
+The hpcsim environment now targets Rocky 9 and Rocky 10 with one Spack-built GCC 15 compiler stack. Keeping the package policy in one manifest avoids review drift across per-OS directories while release-time scopes continue to isolate stores and module trees by OS.
 
-Keep the existing Rocky 9 limit ...
+The site-local roots and shared cache paths are loaded from ignored envs/hpcsim/hpcsim-site.env so cluster-specific mount points do not leak into tracked config.
 
 Validation: bash -n envs/hpcsim/release.sh; git diff --check ...
 ```

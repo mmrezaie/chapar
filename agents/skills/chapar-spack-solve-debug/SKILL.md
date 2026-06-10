@@ -63,17 +63,10 @@ spack -e "${ENV_PATH}" spec <pkg> %gcc@15
 
 ## Scope Placement Rules
 
-For environments that use Chapar's include-scope layout, place files as follows:
-
-- Cross-platform specs: `envs/<env>/common/definitions.yaml`
-- Linux-only specs: `envs/<env>/linux/definitions.yaml`
-- Rocky 8-only specs: `envs/<env>/rocky8/definitions.yaml`
-- Rocky 9-only specs: `envs/<env>/rocky9/definitions.yaml`
-- macOS-only specs: `envs/<env>/macos/definitions.yaml`
-
-Package requirements belong in the matching `packages.yaml` in the same scope
-level. Future environments may not need every scope; add only the scopes required
-by real platform differences.
+For hpcsim, root specs and package requirements belong in
+`envs/hpcsim/spack.yaml`. Use `when:` conditionals only for real Rocky 9/Rocky 10
+differences. Future environments may use included scopes, but inspect their own
+layout before moving policy.
 
 ## Concretization Checks
 
@@ -98,10 +91,14 @@ release/build helper should generate that scope.
 
 - C/C++/Fortran provider conflict: inspect `c`, `cxx`, and `fortran` virtual
   package requirements in the relevant scope.
-- Old system compiler on Rocky 8: prefer `%gcc@15` constraints in Rocky 8 scope
-  for packages that need a newer compiler.
+- Compiler provider conflict: hpcsim should use the Spack-built GCC 15 stack for
+  Rocky 9 and Rocky 10, with the OS GCC used only to bootstrap GCC 15.
 - CUDA-aware MPI stack: use `chapar-cuda-gdr-transport`; do not disable `+cuda`,
   GDRCopy, UCX, Open MPI, or libfabric capability to pass a build.
+- Python root conflicts: if hpcsim has multiple Python minor-version roots, keep
+  `+tkinter` on explicit Python roots only. A package-wide `python+tkinter`
+  requirement can make otherwise valid `python@3.10`, `python@3.11`, or
+  `python@3.12` roots unsatisfiable.
 - Visualization or frontend packages pulling Node/C++ requirements: constrain
   compiler provider, not source package patch levels unless requested.
 

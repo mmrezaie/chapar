@@ -20,7 +20,7 @@ DEFAULT_LOCAL_ROOTS = (
     "~/resources",
 )
 
-DEFAULT_OS_NAMES = ("rocky8", "rocky9", "macos")
+DEFAULT_OS_NAMES = ("rocky9", "rocky10")
 
 ROOT_ENV_VARS = (
     "HPCSIM_ROOT",
