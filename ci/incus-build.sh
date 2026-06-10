@@ -12,9 +12,9 @@ Options:
   --repo-url URL                  Repository URL to clone inside container
   --incus-remote REMOTE           Incus remote name; empty means default local remote
   --resources-source PATH         Incus host path for resources export (default: /resources)
-  --hpcsim-root PATH              Path inside container for hpcsim output
-  --buildcache-root PATH          Path inside container for shared binary cache
-  --ccache-root PATH              Path inside container for shared compiler ccache
+  --hpcsim-root PATH              Path inside container for hpcsim output (default: /resources/chapar/hpcsim)
+  --buildcache-root PATH          Path inside container for shared binary cache (default: /resources/chapar/cache/buildcache)
+  --ccache-root PATH              Path inside container for shared compiler ccache (default: /resources/chapar/cache/ccache)
   --repo-dir PATH                 Repo clone path inside container (default: /root/workspace/chapar)
   --run-id ID                     Output run identifier (default: GitHub run ID or timestamp)
   --publish-current true|false    Update current symlink after build (default: false)
@@ -30,9 +30,9 @@ GIT_REF="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' main)"
 REPO_URL="${REPO_URL:-https://github.com/mmrezaie/chapar.git}"
 INCUS_REMOTE="${INCUS_REMOTE:-}"
 RESOURCES_SOURCE="${RESOURCES_SOURCE:-/resources}"
-HPCSIM_ROOT="${HPCSIM_ROOT:-}"
-CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
-CHAPAR_CCACHE_ROOT="${CHAPAR_CCACHE_ROOT:-}"
+HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/chapar/hpcsim}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache/buildcache}"
+CHAPAR_CCACHE_ROOT="${CHAPAR_CCACHE_ROOT:-/resources/chapar/cache/ccache}"
 CHAPAR_INSTALL_MODE="${CHAPAR_INSTALL_MODE:-}"
 REPO_DIR="${REPO_DIR:-/root/workspace/chapar}"
 PUBLISH_CURRENT="${PUBLISH_CURRENT:-false}"

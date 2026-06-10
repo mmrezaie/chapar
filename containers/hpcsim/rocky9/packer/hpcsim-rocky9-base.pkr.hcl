@@ -39,7 +39,7 @@ source "docker" "rocky9" {
   platform = var.docker_platform
 
   changes = [
-    "ENV CHAPAR_HPCSIM_ROOT=/resources/share/hpcsim",
+    "ENV CHAPAR_HPCSIM_ROOT=/resources/chapar/hpcsim",
     "ENV CHAPAR_HPCSIM_OS=rocky9",
     "ENTRYPOINT [\"/usr/local/bin/chapar-hpcsim-entrypoint\"]",
     "CMD [\"bash\", \"--login\"]"

@@ -612,7 +612,7 @@ migrate_legacy_buildcaches() {
     echo "    destination: ${BUILDCACHE_ROOT}"
     echo "    policy: copy only, do not delete sources, do not overwrite destination files"
 
-    acquire_buildcache_migration_lock || return 0
+    acquire_buildcache_migration_lock || die "could not acquire buildcache migration lock"
     for source_dir in "${sources[@]}"; do
         [ -d "${source_dir}" ] || continue
         echo "    source: ${source_dir}"

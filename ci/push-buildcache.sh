@@ -19,6 +19,9 @@ HPCSIM_ROOT="${HPCSIM_ROOT:-}"
 CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
 BUILDCACHE_DIR=""
 SCOPE_DIR=""
+INSTALL_TREE_PADDED_LENGTH="256"
+BUILDCACHE_LAYOUT_VERSION="install-tree-padded-${INSTALL_TREE_PADDED_LENGTH}"
+BUILDCACHE_LAYOUT_MARKER=".chapar-buildcache-layout"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHAPAR_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -80,7 +83,7 @@ cat > "${SCOPE_DIR}/config.yaml" <<EOF
 config:
   install_tree:
     root: ${STORE_ROOT}
-    padded_length: 256
+    padded_length: ${INSTALL_TREE_PADDED_LENGTH}
     projections:
       all: "{name}-{version}-{hash}"
 EOF
@@ -96,3 +99,9 @@ spack -e "${ENV_PATH}" -C "${SCOPE_DIR}" buildcache push \
     --unsigned \
     --update-index \
     "file://${BUILDCACHE_DIR}"
+
+{
+    printf 'layout: %s\n' "${BUILDCACHE_LAYOUT_VERSION}"
+    printf 'install_tree_padded_length: %s\n' "${INSTALL_TREE_PADDED_LENGTH}"
+    printf 'updated_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "${BUILDCACHE_DIR}/${BUILDCACHE_LAYOUT_MARKER}"

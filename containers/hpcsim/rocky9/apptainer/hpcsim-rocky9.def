@@ -19,15 +19,15 @@ From: {{ base_archive }}
 
     The image expects modules under:
 
-      /resources/share/hpcsim/rocky9/current/modulefiles
+      /resources/chapar/hpcsim/rocky9/current/modulefiles
 
 %environment
-    export CHAPAR_HPCSIM_ROOT="${CHAPAR_HPCSIM_ROOT:-/resources/share/hpcsim}"
+    export CHAPAR_HPCSIM_ROOT="${CHAPAR_HPCSIM_ROOT:-/resources/chapar/hpcsim}"
     export CHAPAR_HPCSIM_OS="${CHAPAR_HPCSIM_OS:-rocky9}"
 
 %post
     set -e
-    mkdir -p /resources/share/hpcsim /resources/chapar/cache
+    mkdir -p /resources/chapar/hpcsim /resources/chapar/cache
     chmod 0755 /usr/local/bin/chapar-hpcsim-entrypoint
 
 %runscript

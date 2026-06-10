@@ -4,38 +4,29 @@ This document records the host/container setup needed for the Rocky Incus hpcsim
 
 ## Tested Smoke Path
 
-The validated host-side smoke command was:
+Use this host-side smoke command to exercise the current Incus build path:
 
 ```bash
 ci/incus-build.sh \
   --os rocky9 \
   --release-id smoke-local-rocky9 \
-  --git-ref simplify-hpcsim \
-  --repo-url file:///resources/chapar/ci-test/chapar.git \
-  --resources-source /resources \
-  --hpcsim-root /resources/share/hpcsim \
-  --buildcache-root /resources/chapar/cache/buildcache \
-  --ccache-root /resources/chapar/cache/ccache \
   --run-id smoke-local-rocky9 \
   --publish-buildcache false \
   --keep-running
 ```
 
-The old sectioned smoke test completed successfully on Rocky Linux 9.7 and installed these root toolchain specs. The current hpcsim workflow builds the full `envs/hpcsim` environment instead of a section:
-
-- `cuda@13.0.2`
-- `gcc@13.4.0`
-- `gcc@14.3.0`
-- `gcc@15`
+The current hpcsim workflow builds the full `envs/hpcsim` environment instead
+of an old sectioned subset. The compiler/toolkit policy selects the Spack-built
+GCC 15 compiler stack and CUDA 13 root.
 
 CUDA is expected to be installed by Spack for hpcsim GPU builds rather than provided by the host/container. The builders do not need a local CUDA toolkit or a GPU to build CUDA-dependent packages, though runtime GPU Direct behavior still depends on NVIDIA drivers, GPUs, and fabric hardware on the target nodes.
 
 Intel oneAPI packages, including Intel MPI and any future Intel compiler root, must also come from Spack instead of OS RPM repositories. The hpcsim compiler policy currently selects GCC 15 for builds; do not install OS Intel compiler RPMs just to provision an Incus builder.
 
-Artifacts were written under:
+Artifacts are written under:
 
 ```text
-/resources/share/hpcsim/rocky9/runs/smoke-local-rocky9
+/resources/chapar/hpcsim/rocky9/runs/smoke-local-rocky9
 /resources/chapar/cache/buildcache/rocky9
 /resources/chapar/cache/ccache/rocky9
 ```
