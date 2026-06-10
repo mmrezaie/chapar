@@ -25,7 +25,7 @@ Intel MPI together.
 ```bash
 module purge
 module load openmpi cuda
-make -C tests/mpi-rdma cpu gpu
+make -C validation/mpi-rdma cpu gpu
 ```
 
 For Intel MPI:
@@ -33,7 +33,7 @@ For Intel MPI:
 ```bash
 module purge
 module load intel-oneapi-mpi cuda
-make -C tests/mpi-rdma cpu gpu
+make -C validation/mpi-rdma cpu gpu
 ```
 
 If the CUDA module does not set `CUDA_HOME`, set one of `CUDA_HOME`, `CUDA_ROOT`,
@@ -44,17 +44,17 @@ or `CUDA_PATH` before building the GPU test.
 The examples default to two nodes with one rank per node:
 
 ```bash
-sbatch tests/mpi-rdma/slurm/openmpi-cpu.sbatch
-sbatch tests/mpi-rdma/slurm/openmpi-gpu.sbatch
-sbatch tests/mpi-rdma/slurm/intelmpi-cpu.sbatch
-sbatch tests/mpi-rdma/slurm/intelmpi-gpu.sbatch
+sbatch validation/mpi-rdma/slurm/openmpi-cpu.sbatch
+sbatch validation/mpi-rdma/slurm/openmpi-gpu.sbatch
+sbatch validation/mpi-rdma/slurm/intelmpi-cpu.sbatch
+sbatch validation/mpi-rdma/slurm/intelmpi-gpu.sbatch
 ```
 
 Common overrides:
 
 ```bash
-sbatch --export=ALL,HPCSIM_OPENMPI_MODULE=openmpi/5.0.8 tests/mpi-rdma/slurm/openmpi-cpu.sbatch
-sbatch --export=ALL,HPCSIM_INTELMPI_MODULE=intel-oneapi-mpi/2021.17.0 tests/mpi-rdma/slurm/intelmpi-gpu.sbatch
+sbatch --export=ALL,HPCSIM_OPENMPI_MODULE=openmpi/5.0.8 validation/mpi-rdma/slurm/openmpi-cpu.sbatch
+sbatch --export=ALL,HPCSIM_INTELMPI_MODULE=intel-oneapi-mpi/2021.17.0 validation/mpi-rdma/slurm/intelmpi-gpu.sbatch
 ```
 
 Runtime knobs:

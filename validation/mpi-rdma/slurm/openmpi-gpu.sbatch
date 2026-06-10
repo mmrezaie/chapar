@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-: "${MPI_RDMA_TEST_DIR:=${SLURM_SUBMIT_DIR:-$PWD}/tests/mpi-rdma}"
+: "${MPI_RDMA_TEST_DIR:=${SLURM_SUBMIT_DIR:-$PWD}/validation/mpi-rdma}"
 : "${MPI_RDMA_BYTES:=8388608}"
 : "${MPI_RDMA_ITERS:=100}"
 : "${MPI_RANKS:=${SLURM_NTASKS:-${SLURM_NNODES:-2}}}"
