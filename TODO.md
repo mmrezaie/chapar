@@ -8,7 +8,7 @@
 
 ## Operating system support
 
-- Finish Rocky 8 testing and start preparing for Rocky 10 support. InfiniBand is not working yet, but the rest of the stack can be prepared.
+- Validate Rocky 9 and Rocky 10 hpcsim builds on the target clusters. InfiniBand is not working yet, but the rest of the stack can be prepared.
 - Add equivalent support for AlmaLinux releases.
 - Continue reducing OS-specific assumptions.
 

@@ -14,7 +14,8 @@ ci/incus-build.sh \
   --repo-url file:///resources/chapar/ci-test/chapar.git \
   --resources-source /resources \
   --hpcsim-root /resources/share/hpcsim \
-  --buildcache-root /resources/chapar/cache \
+  --buildcache-root /resources/chapar/cache/buildcache \
+  --ccache-root /resources/chapar/cache/ccache \
   --run-id smoke-local-rocky9 \
   --publish-buildcache false \
   --keep-running
@@ -27,47 +28,41 @@ The old sectioned smoke test completed successfully on Rocky Linux 9.7 and insta
 - `gcc@14.3.0`
 - `gcc@15`
 
-The latest Intel oneAPI compiler is installed from Intel's RPM repository and modeled as an external compiler, but the current hpcsim compiler policy only selects GCC.
+CUDA is expected to be installed by Spack for hpcsim GPU builds rather than provided by the host/container. The builders do not need a local CUDA toolkit or a GPU to build CUDA-dependent packages, though runtime GPU Direct behavior still depends on NVIDIA drivers, GPUs, and fabric hardware on the target nodes.
 
-CUDA is now expected to be installed by Spack for hpcsim GPU builds rather than provided by the host/container. The builders do not need a local CUDA toolkit or a GPU to build CUDA-dependent packages, though runtime GPU Direct behavior still depends on NVIDIA drivers, GPUs, and fabric hardware on the target nodes.
+Intel oneAPI packages, including Intel MPI and any future Intel compiler root, must also come from Spack instead of OS RPM repositories. The hpcsim compiler policy currently selects GCC 15 for builds; do not install OS Intel compiler RPMs just to provision an Incus builder.
 
 Artifacts were written under:
 
 ```text
 /resources/share/hpcsim/rocky9/runs/smoke-local-rocky9
-/resources/chapar/cache/rocky9
+/resources/chapar/cache/buildcache/rocky9
+/resources/chapar/cache/ccache/rocky9
 ```
 
 ## Enabled Repositories
 
-The base Rocky images provide `BaseOS`, `AppStream`, and `Extras`. Additional repositories are required:
+The base Rocky images provide `BaseOS`, `AppStream`, and `Extras`. Additional repositories are limited to:
 
-- Rocky8: enable `powertools`.
-- Rocky9: enable `crb`.
+- Rocky9/Rocky10: enable `crb`.
 - EPEL: required for `ccache`.
-- Intel oneAPI RPM repo: required for the external Intel compiler.
-- GitHub CLI RPM repo: required for `gh`.
+
+Do not add CUDA, Intel oneAPI, or GitHub CLI RPM repositories to hpcsim builders. The build process must not depend on them.
 
 The bootstrap commands are:
 
 ```bash
 dnf -y install dnf-plugins-core
 
-# Rocky8 only
-dnf config-manager --set-enabled powertools
-
-# Rocky9 only
+# Rocky9/Rocky10
 dnf config-manager --set-enabled crb
 
 dnf -y install epel-release
-dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
-rpm --import https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
 ```
 
 ## Required RPM Packages
 
-Install these packages in both Rocky8 and Rocky9 builders:
+Install these packages in both Rocky 9 and Rocky 10 builders:
 
 ```bash
 dnf -y install \
@@ -120,23 +115,19 @@ dnf -y install \
 
 dnf -y install epel-release
 dnf -y install ccache
-dnf -y install \
-  intel-oneapi-compiler-dpcpp-cpp-2026.0 \
-  intel-oneapi-compiler-fortran-2026.0
-dnf -y install gh
 ```
 
 ## Why These Extras Matter
 
 - `ccache` is required because `etc/system/base/config.yaml` enables Spack ccache support.
 - System GCC and `glibc` are modeled as Rocky externals; ordinary build tools and link-time libraries are intentionally not modeled as externals.
-- The Intel oneAPI compiler RPMs are modeled as externals so sites can opt into `%oneapi`, but hpcsim currently constrains compiler virtuals to GCC.
+- Intel oneAPI compiler RPMs are intentionally not installed or modeled as externals. hpcsim currently constrains compiler virtuals to GCC; if an Intel compiler root becomes required, add the Spack `intel-oneapi-compilers` package to the environment instead of adding an OS repo.
 - `libtool` is built by Spack because packages such as PulseAudio link against `libltdl`; modeling the OS command-line tool as a generic external can miss the development library metadata.
 - `zlib-api` is constrained to Spack `zlib-ng+compat` on Rocky so libpng and other consumers see matching headers, libraries, and pkg-config metadata.
 - Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
-- `gh` is not required by the build itself, but is useful for manual debugging and GitHub operations inside persistent builder containers.
+- `gh` is not required by the build itself and is intentionally not installed in the builder baseline.
 - `nfs-utils` supports resource/NAS access and diagnostics.
-- `/resources/chapar/cache/<os>` must be writable by trusted Chapar builders and users because Rocky scopes use `autopush: true` for the shared binary buildcache.
+- `${CHAPAR_BUILDCACHE_ROOT}/<os>` and `${CHAPAR_CCACHE_ROOT}/<os>` must be writable by trusted Chapar builders and users because Rocky scopes use `autopush: true` for the shared binary buildcache and Chapar exports shared ccache settings.
 
 ## XPMEM Policy
 
@@ -146,13 +137,13 @@ If a production cluster needs XPMEM, install and load the kernel module on match
 
 ## CI Install Concurrency
 
-Intel oneAPI offline installers share Intel cache state under `/var/intel/installercache`. Running multiple oneAPI installs concurrently corrupted that cache during testing. The container CI driver therefore defaults to serialized package installation:
+Spack-built Intel oneAPI packages, such as Intel MPI, can share Intel installer cache state under `/var/intel/installercache`. Running multiple oneAPI installs concurrently corrupted that cache during testing. The container CI driver therefore defaults to serialized package installation:
 
 ```bash
 SPACK_INSTALL_ARGS="-p 1"
 ```
 
-Override `SPACK_INSTALL_ARGS` only when you know the selected hpcsim build does not contain Intel oneAPI installers or another package with shared global installer state.
+Override `SPACK_INSTALL_ARGS` only when you know the selected hpcsim build does not contain Spack-built Intel oneAPI installers or another package with shared global installer state.
 
 For local runs, pass the override through the Incus wrapper:
 

@@ -6,7 +6,8 @@ This directory contains the initial Apptainer workflow for running the Chapar
 The image is intentionally a runtime wrapper around the existing Chapar release
 layout. It does not embed the Spack install tree. At runtime, bind the site
 resources tree so the container sees the promoted release at
-`/resources/share/hpcsim/rocky9/current`.
+`/resources/chapar/hpcsim/rocky9/current` or the root selected by
+`CHAPAR_HPCSIM_ROOT`.
 
 ## Layout
 
@@ -53,15 +54,15 @@ containers/hpcsim/rocky9/build.sh
 ## Runtime
 
 Before running the image, build and promote a Rocky 9 hpcsim release with the
-existing Chapar release workflow. The default runtime root is
-`/resources/share/hpcsim`; set `CHAPAR_HPCSIM_ROOT` if you are using the CI tree
-at `/resources/chapar/hpcsim` or another approved root.
+existing Chapar release workflow. The default CI runtime root is
+`/resources/chapar/hpcsim`; set `CHAPAR_HPCSIM_ROOT` if you are using another
+site root.
 
 The SIF expects the hpcsim release tree to be visible at the same absolute path
 used by Chapar modules:
 
 ```text
-/resources/share/hpcsim/rocky9/current
+/resources/chapar/hpcsim/rocky9/current
 ```
 
 Run a quick module discovery check:
@@ -94,7 +95,7 @@ Useful overrides:
 
 ```bash
 CHAPAR_HPCSIM_IMAGE=/path/to/hpcsim-rocky9.sif \
-CHAPAR_HPCSIM_ROOT=/resources/share/hpcsim \
+CHAPAR_HPCSIM_ROOT=/resources/chapar/hpcsim \
 CHAPAR_HPCSIM_COMMAND='module avail' \
 sbatch containers/hpcsim/rocky9/slurm/hpcsim.sbatch
 ```
