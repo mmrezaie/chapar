@@ -26,7 +26,8 @@
       ".spack-env/**": "deny",
       "**/.spack-env/**": "deny",
       ".git/**": "deny",
-      "*.lock": "deny"
+      "*.lock": "deny",
+      "**/*.lock": "deny"
     },
     "bash": {
       "*": "deny",
@@ -35,6 +36,7 @@
       "bash ci/incus-build.sh*": "allow",
       "bash ci/prepare-hpcsim-root.sh*": "allow",
       "bash ci/push-buildcache.sh*": "allow",
+      "bash ci/submit-hpcsim-release.sh*": "allow",
       "bash envs/hpcsim/release.sh*": "allow",
       "bash etc/link-scopes.sh*": "allow",
       "git *": "allow",
@@ -60,9 +62,9 @@
       "envs/hpcsim/release.sh*": "allow",
       "etc/link-scopes.sh*": "allow",
       "ci/incus-build.sh*": "allow",
+      "ci/submit-hpcsim-release.sh*": "allow",
       "incus list*": "allow",
       "incus info*": "allow",
-      "kill *": "allow",
       "node agents/skills/brave-search/content.js*": "allow",
       "node agents/skills/brave-search/search.js*": "allow",
       "npm install*": "allow",
@@ -90,16 +92,11 @@
       "spack -e envs/* find*": "allow",
       "spack -e envs/* install*": "allow",
       "spack -e envs/* module *": "allow",
-      "spack -e envs/* spec *": "allow",
-      "*/agents/skills/brave-search/content.js*": "allow",
-      "*/agents/skills/brave-search/search.js*": "allow",
-      "*bash envs/hpcsim/release.sh*": "allow",
-      "*envs/hpcsim/release.sh*": "allow"
+      "spack -e envs/* spec *": "allow"
     },
     "task": {
-      "*": "allow",
       "explore": "allow",
-      "scout": "allow"
+      "general": "allow"
     },
     "webfetch": "allow",
     "websearch": "allow"
