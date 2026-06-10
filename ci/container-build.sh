@@ -5,8 +5,9 @@ set -euo pipefail
 : "${GIT_REF:?GIT_REF is required}"
 : "${REPO_DIR:=/root/workspace/chapar}"
 : "${OS_NAME:=rocky9}"
-: "${HPCSIM_ROOT:=/resources/share/hpcsim}"
-: "${CHAPAR_BUILDCACHE_ROOT:=/resources/chapar/cache}"
+: "${HPCSIM_ROOT:=}"
+: "${CHAPAR_BUILDCACHE_ROOT:=}"
+: "${CHAPAR_CCACHE_ROOT:=}"
 : "${RUN_ID:=manual}"
 : "${RELEASE_ID:=${RUN_ID}}"
 : "${PUBLISH_CURRENT:=false}"
@@ -16,9 +17,33 @@ set -euo pipefail
 : "${SPACK_INSTALL_ARGS:=-p 1}"
 : "${CHAPAR_UPDATE_SPACK:=false}"
 
+site_config="${CHAPAR_SITE_CONFIG:-${REPO_DIR}/envs/hpcsim/hpcsim-site.env}"
+if [ -r "${site_config}" ]; then
+    # shellcheck disable=SC1090
+    . "${site_config}"
+fi
+
+: "${CHAPAR_INSTALL_MODE:=home}"
+: "${HPCSIM_HOME_ROOT:=${HOME}/resources/share/hpcsim}"
+: "${HPCSIM_PUBLIC_ROOT:=}"
+: "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
+: "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
+: "${CHAPAR_CCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/ccache}"
+
+if [ -z "${HPCSIM_ROOT}" ]; then
+    case "${CHAPAR_INSTALL_MODE}" in
+        home) HPCSIM_ROOT="${HPCSIM_HOME_ROOT}" ;;
+        public)
+            [ -n "${HPCSIM_PUBLIC_ROOT}" ] || { echo "ERROR: HPCSIM_PUBLIC_ROOT is required when CHAPAR_INSTALL_MODE=public" >&2; exit 1; }
+            HPCSIM_ROOT="${HPCSIM_PUBLIC_ROOT}"
+            ;;
+        *) echo "ERROR: CHAPAR_INSTALL_MODE must be home or public, got ${CHAPAR_INSTALL_MODE}" >&2; exit 1 ;;
+    esac
+fi
+
 case "${OS_NAME}" in
-    rocky8|rocky9|macos) ;;
-    *) echo "ERROR: OS_NAME must be rocky8, rocky9, or macos, got ${OS_NAME}" >&2; exit 1 ;;
+    rocky9|rocky10) ;;
+    *) echo "ERROR: OS_NAME must be rocky9 or rocky10, got ${OS_NAME}" >&2; exit 1 ;;
 esac
 
 case "${PUBLISH_CURRENT}" in
@@ -48,6 +73,7 @@ echo "    ref:               ${GIT_REF}"
 echo "    repo dir:          ${REPO_DIR}"
 echo "    hpcsim root:       ${HPCSIM_ROOT}"
 echo "    buildcache root:   ${CHAPAR_BUILDCACHE_ROOT}"
+echo "    ccache root:       ${CHAPAR_CCACHE_ROOT}"
 echo "    spack user cache:  ${SPACK_USER_CACHE_PATH:-}"
 echo "    output:            ${RUN_ROOT}"
 
@@ -86,7 +112,7 @@ source ./etc/init.sh
 spack --version | tee "${RUN_ROOT}/spack-version.txt"
 git -C "${SPACK_ROOT}" rev-parse HEAD | tee "${RUN_ROOT}/spack-commit.txt"
 
-export HPCSIM_ROOT CHAPAR_BUILDCACHE_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
+export HPCSIM_ROOT CHAPAR_BUILDCACHE_ROOT CHAPAR_CCACHE_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
 bash ./envs/hpcsim/release.sh build "${RELEASE_ID}"
 
 if [ "${PUBLISH_CURRENT}" = "true" ]; then
@@ -96,12 +122,6 @@ fi
 cp envs/hpcsim/spack.yaml "${ENV_DIR}/hpcsim.spack.yaml"
 mkdir -p "${ENV_DIR}/hpcsim"
 cp envs/hpcsim/spack.yaml "${ENV_DIR}/hpcsim/spack.yaml"
-for config_scope in common linux rocky8 rocky9 macos; do
-    if [ -d "envs/hpcsim/${config_scope}" ]; then
-        mkdir -p "${ENV_DIR}/hpcsim/${config_scope}"
-        cp "envs/hpcsim/${config_scope}"/*.yaml "${ENV_DIR}/hpcsim/${config_scope}/"
-    fi
-done
 if [ -f envs/hpcsim/spack.lock ]; then
     cp envs/hpcsim/spack.lock "${ENV_DIR}/hpcsim.spack.lock"
 fi

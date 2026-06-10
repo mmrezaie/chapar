@@ -6,14 +6,15 @@ usage() {
 Usage: ci/incus-build.sh [options]
 
 Options:
-  --os rocky8|rocky9|all          Target container OS (default: rocky9)
+  --os rocky9|rocky10|all         Target container OS (default: rocky9)
   --release-id ID                 hpcsim release ID (default: run ID)
   --git-ref REF                   Git branch/tag/SHA to build (default: current branch)
   --repo-url URL                  Repository URL to clone inside container
   --incus-remote REMOTE           Incus remote name; empty means default local remote
   --resources-source PATH         Incus host path for resources export (default: /resources)
-  --hpcsim-root PATH              Path inside container for hpcsim output (default: /resources/share/hpcsim)
-  --buildcache-root PATH          Path inside container for shared binary cache (default: /resources/chapar/cache)
+  --hpcsim-root PATH              Path inside container for hpcsim output
+  --buildcache-root PATH          Path inside container for shared binary cache
+  --ccache-root PATH              Path inside container for shared compiler ccache
   --repo-dir PATH                 Repo clone path inside container (default: /root/workspace/chapar)
   --run-id ID                     Output run identifier (default: GitHub run ID or timestamp)
   --publish-current true|false    Update current symlink after build (default: false)
@@ -29,8 +30,10 @@ GIT_REF="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' main)"
 REPO_URL="${REPO_URL:-https://github.com/mmrezaie/chapar.git}"
 INCUS_REMOTE="${INCUS_REMOTE:-}"
 RESOURCES_SOURCE="${RESOURCES_SOURCE:-/resources}"
-HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
-CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
+HPCSIM_ROOT="${HPCSIM_ROOT:-}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
+CHAPAR_CCACHE_ROOT="${CHAPAR_CCACHE_ROOT:-}"
+CHAPAR_INSTALL_MODE="${CHAPAR_INSTALL_MODE:-}"
 REPO_DIR="${REPO_DIR:-/root/workspace/chapar}"
 PUBLISH_CURRENT="${PUBLISH_CURRENT:-false}"
 PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-true}"
@@ -53,6 +56,7 @@ while [ "$#" -gt 0 ]; do
         --resources-source) RESOURCES_SOURCE="$2"; shift 2 ;;
         --hpcsim-root) HPCSIM_ROOT="$2"; shift 2 ;;
         --buildcache-root) CHAPAR_BUILDCACHE_ROOT="$2"; shift 2 ;;
+        --ccache-root) CHAPAR_CCACHE_ROOT="$2"; shift 2 ;;
         --repo-dir) REPO_DIR="$2"; shift 2 ;;
         --run-id) RUN_ID="$2"; shift 2 ;;
         --publish-current) PUBLISH_CURRENT="$2"; shift 2 ;;
@@ -70,7 +74,7 @@ if [ "${OS_NAME}" = "all" ]; then
         extra_args+=(--keep-running)
     fi
 
-    for one_os in rocky8 rocky9; do
+    for one_os in rocky9 rocky10; do
         "$0" \
             --os "${one_os}" \
             --release-id "${RELEASE_ID}" \
@@ -80,6 +84,7 @@ if [ "${OS_NAME}" = "all" ]; then
             --resources-source "${RESOURCES_SOURCE}" \
             --hpcsim-root "${HPCSIM_ROOT}" \
             --buildcache-root "${CHAPAR_BUILDCACHE_ROOT}" \
+            --ccache-root "${CHAPAR_CCACHE_ROOT}" \
             --repo-dir "${REPO_DIR}" \
             --run-id "${RUN_ID}" \
             --publish-current "${PUBLISH_CURRENT}" \
@@ -90,10 +95,18 @@ if [ "${OS_NAME}" = "all" ]; then
     exit 0
 fi
 
+if [ -z "${CHAPAR_INSTALL_MODE}" ]; then
+    if [ -n "${HPCSIM_ROOT}" ]; then
+        CHAPAR_INSTALL_MODE="public"
+    else
+        CHAPAR_INSTALL_MODE="home"
+    fi
+fi
+
 case "${OS_NAME}" in
-    rocky8) IMAGE="${ROCKY8_IMAGE:-images:rockylinux/8}" ;;
     rocky9) IMAGE="${ROCKY9_IMAGE:-images:rockylinux/9}" ;;
-    *) echo "ERROR: --os must be rocky8, rocky9, or all" >&2; exit 1 ;;
+    rocky10) IMAGE="${ROCKY10_IMAGE:-images:rockylinux/10}" ;;
+    *) echo "ERROR: --os must be rocky9, rocky10, or all" >&2; exit 1 ;;
 esac
 
 case "${PUBLISH_CURRENT}" in
@@ -137,13 +150,25 @@ incus exec "${INSTANCE}" -- rm -f \
     /tmp/chapar-container-build.sh \
     /tmp/chapar-prepare-hpcsim-root.sh \
     /tmp/chapar-push-buildcache.sh
+incus exec "${INSTANCE}" -- rm -rf /tmp/chapar-bootstrap
+incus exec "${INSTANCE}" -- mkdir -p /tmp/chapar-bootstrap/ci /tmp/chapar-bootstrap/etc/profile.d
 
-incus file push ci/bootstrap-rocky.sh "${INSTANCE}/tmp/chapar-bootstrap-rocky.sh"
+incus file push ci/bootstrap-rocky.sh "${INSTANCE}/tmp/chapar-bootstrap/ci/bootstrap-rocky.sh"
+incus file push etc/profile.d/zz-chapar-hpcsim.sh "${INSTANCE}/tmp/chapar-bootstrap/etc/profile.d/zz-chapar-hpcsim.sh"
 incus file push ci/container-build.sh "${INSTANCE}/tmp/chapar-container-build.sh"
 incus file push ci/prepare-hpcsim-root.sh "${INSTANCE}/tmp/chapar-prepare-hpcsim-root.sh"
 incus file push ci/push-buildcache.sh "${INSTANCE}/tmp/chapar-push-buildcache.sh"
 
-incus exec "${INSTANCE}" -- bash /tmp/chapar-bootstrap-rocky.sh
+incus exec "${INSTANCE}" -- bash -lc "cat > /tmp/chapar-hpcsim-site.env <<'EOF'
+CHAPAR_INSTALL_MODE=${CHAPAR_INSTALL_MODE}
+HPCSIM_PUBLIC_ROOT=${HPCSIM_ROOT}
+CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
+CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
+PUBLISH_BUILDCACHE=${PUBLISH_BUILDCACHE}
+PUBLISH_CURRENT=${PUBLISH_CURRENT}
+EOF"
+
+incus exec "${INSTANCE}" -- bash -lc 'cd /tmp/chapar-bootstrap && bash ci/bootstrap-rocky.sh'
 
 incus exec "${INSTANCE}" \
     --env "REPO_URL=${REPO_URL}" \
@@ -152,6 +177,8 @@ incus exec "${INSTANCE}" \
     --env "OS_NAME=${OS_NAME}" \
     --env "HPCSIM_ROOT=${HPCSIM_ROOT}" \
     --env "CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}" \
+    --env "CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}" \
+    --env "CHAPAR_SITE_CONFIG=/tmp/chapar-hpcsim-site.env" \
     --env "RUN_ID=${RUN_ID}" \
     --env "RELEASE_ID=${RELEASE_ID}" \
     --env "PUBLISH_CURRENT=${PUBLISH_CURRENT}" \

@@ -1,7 +1,6 @@
 # Keep this list aligned with ci/bootstrap-rocky.sh and
 # docs/ci-rocky-builder-dependencies.md. These are OS/runtime bootstrap RPMs,
-# not Spack externals, except for the Rocky system compiler, glibc, ccache, and
-# Intel compiler packages modeled by etc/system/rocky9/packages.yaml.
+# not Spack externals, except for the Rocky system compiler, glibc, and ccache.
 autoconf
 automake
 bash
@@ -25,13 +24,10 @@ gcc
 gcc-c++
 gcc-gfortran
 gettext
-gh
 git
 groff
 gzip
 hostname
-intel-oneapi-compiler-dpcpp-cpp-2026.0
-intel-oneapi-compiler-fortran-2026.0
 jq
 m4
 make
