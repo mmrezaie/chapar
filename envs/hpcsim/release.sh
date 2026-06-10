@@ -25,15 +25,19 @@ set -euo pipefail
 #   would collide on the same visible module name.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHAPAR_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+CHAPAR_SITE_CONFIG_LOADED="false"
 ENV_PATH="${ENV_PATH:-${SCRIPT_DIR}}"
-HPCSIM_ROOT="${HPCSIM_ROOT:-/resources/share/hpcsim}"
-CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-/resources/chapar/cache}"
+HPCSIM_ROOT="${HPCSIM_ROOT:-}"
+CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
+CHAPAR_CCACHE_ROOT="${CHAPAR_CCACHE_ROOT:-}"
 SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:-}"
-PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-false}"
+PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-}"
 CHAPAR_CONCRETIZE_TIMEOUT="${CHAPAR_CONCRETIZE_TIMEOUT:-}"
 BUILD_SCOPE_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
 REFRESH_BUILDCACHE_ON_EXIT="false"
+CCACHE_ROOT=""
 # Keep this as a major version to follow Chapar policy: dependency constraints
 # may select the latest CUDA 13 patch release, but release helper code should not
 # bake in a minor/patch CUDA toolkit version.
@@ -41,6 +45,43 @@ CUDA_MAJOR_VERSION="13"
 INSTALL_TREE_PADDED_LENGTH="256"
 BUILDCACHE_LAYOUT_VERSION="install-tree-padded-${INSTALL_TREE_PADDED_LENGTH}"
 BUILDCACHE_LAYOUT_MARKER=".chapar-buildcache-layout"
+
+load_site_config() {
+    local site_config
+    local env_hpcsim_root="${HPCSIM_ROOT:-}"
+    local env_buildcache_root="${CHAPAR_BUILDCACHE_ROOT:-}"
+    local env_ccache_root="${CHAPAR_CCACHE_ROOT:-}"
+    local env_install_mode="${CHAPAR_INSTALL_MODE:-}"
+    local env_publish_buildcache="${PUBLISH_BUILDCACHE:-}"
+
+    site_config="${CHAPAR_SITE_CONFIG:-${SCRIPT_DIR}/hpcsim-site.env}"
+    if [ -r "${site_config}" ]; then
+        # shellcheck disable=SC1090
+        . "${site_config}"
+        CHAPAR_SITE_CONFIG_LOADED="true"
+    fi
+
+    # Environment variables passed to one command should still be able to override
+    # the local site file.
+    [ -n "${env_hpcsim_root}" ] && HPCSIM_ROOT="${env_hpcsim_root}"
+    [ -n "${env_buildcache_root}" ] && CHAPAR_BUILDCACHE_ROOT="${env_buildcache_root}"
+    [ -n "${env_ccache_root}" ] && CHAPAR_CCACHE_ROOT="${env_ccache_root}"
+    [ -n "${env_install_mode}" ] && CHAPAR_INSTALL_MODE="${env_install_mode}"
+    [ -n "${env_publish_buildcache}" ] && PUBLISH_BUILDCACHE="${env_publish_buildcache}"
+
+    : "${CHAPAR_INSTALL_MODE:=home}"
+    : "${HPCSIM_HOME_ROOT:=${HOME}/resources/share/hpcsim}"
+    : "${HPCSIM_PUBLIC_ROOT:=}"
+    : "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
+    : "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
+    : "${CHAPAR_CCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/ccache}"
+    : "${CHAPAR_SHARED_GROUP:=}"
+    : "${CHAPAR_SHARED_DIR_MODE:=2775}"
+    : "${CHAPAR_CCACHE_COMPILERCHECK:=content}"
+    : "${PUBLISH_BUILDCACHE:=false}"
+}
+
+load_site_config
 
 # User-facing CLI help. Keep the usage text focused on operator commands; the
 # policy details live in the header above and docs/buildcache.md.
@@ -55,10 +96,15 @@ Usage:
 
 Environment:
   ENV_PATH             Spack environment path. Default: envs/hpcsim
-  HPCSIM_ROOT          Shared root. Default: /resources/share/hpcsim
+  HPCSIM_ROOT          Release root. Default comes from envs/hpcsim/hpcsim-site.env:
+                       HPCSIM_HOME_ROOT when CHAPAR_INSTALL_MODE=home, or
+                       HPCSIM_PUBLIC_ROOT when CHAPAR_INSTALL_MODE=public.
   CHAPAR_BUILDCACHE_ROOT
-                       Shared binary cache root. Default: /resources/chapar/cache
-  OS_NAME              rocky8, rocky9, or macos. Auto-detected when unset.
+                       Shared binary cache root. Default comes from
+                       CHAPAR_SHARED_CACHE_ROOT/buildcache.
+  CHAPAR_CCACHE_ROOT   Shared compiler ccache root. Default comes from
+                       CHAPAR_SHARED_CACHE_ROOT/ccache.
+  OS_NAME              rocky9 or rocky10. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
   CHAPAR_CONCRETIZE_TIMEOUT
                        Optional timeout in seconds for final environment
@@ -68,10 +114,11 @@ Environment:
                        with the current padded install-tree layout.
 
 Release layout:
-  /resources/share/hpcsim/<os>/store
-  /resources/share/hpcsim/<os>/releases/<release-id>
-  /resources/share/hpcsim/<os>/current -> releases/<release-id>
-  /resources/chapar/cache/<os>
+  ${HPCSIM_ROOT}/<os>/store
+  ${HPCSIM_ROOT}/<os>/releases/<release-id>
+  ${HPCSIM_ROOT}/<os>/current -> releases/<release-id>
+  ${CHAPAR_BUILDCACHE_ROOT}/<os>
+  ${CHAPAR_CCACHE_ROOT}/<os>
 
 Legacy buildcache migration is explicit and one-shot. Run migrate-buildcache
 when intentionally retiring old per-release cache directories.
@@ -97,60 +144,73 @@ validate_release_id() {
     esac
 }
 
-# Root validation deliberately allows only simple absolute paths under known
-# shared roots by default. The unsafe overrides exist for local testing, not for
-# production releases.
-validate_hpcsim_root() {
-    local home_root="${HOME}/resources/share/hpcsim"
+# Site roots must be absolute simple paths. Non-home paths are accepted only via
+# envs/hpcsim/hpcsim-site.env so datacenter-specific filesystem policy stays outside Git.
+validate_simple_absolute_path() {
+    local name="$1"
+    local value="$2"
 
-    case "${HPCSIM_ROOT}" in
+    [ -n "${value}" ] || die "${name} is required"
+    case "${value}" in
         /*) ;;
-        *) die "HPCSIM_ROOT must be an absolute path: ${HPCSIM_ROOT}" ;;
+        *) die "${name} must be an absolute path: ${value}" ;;
     esac
 
-    case "${HPCSIM_ROOT}" in
+    case "${value}" in
         /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
-            die "HPCSIM_ROOT is not an approved simple shared hpcsim path: ${HPCSIM_ROOT}"
+            die "${name} is not an approved simple path: ${value}"
             ;;
     esac
+}
 
-    case "${HPCSIM_ROOT}" in
-        /resources/share/hpcsim|/resources/share/hpcsim/*|/resources/chapar/hpcsim|/resources/chapar/hpcsim/*|"${home_root}"|"${home_root}"/*)
-            ;;
+validate_site_backed_path() {
+    local name="$1"
+    local value="$2"
+    local home_prefix="${HOME}/"
+
+    validate_simple_absolute_path "${name}" "${value}"
+    case "${value}" in
+        "${home_prefix}"*) ;;
         *)
-            if [ "${CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT:-false}" != "true" ]; then
-                die "HPCSIM_ROOT must be under /resources/share/hpcsim, /resources/chapar/hpcsim, or ${home_root}; set CHAPAR_ALLOW_UNSAFE_HPCSIM_ROOT=true for local testing"
+            if [ "${CHAPAR_SITE_CONFIG_LOADED}" != "true" ]; then
+                die "${name} points outside HOME but no envs/hpcsim/hpcsim-site.env was loaded: ${value}"
             fi
             ;;
     esac
 }
 
-# The buildcache root is separate from HPCSIM_ROOT so binary artifacts can be
-# shared across releases and ordinary user installs without living inside a
-# mutable release tree.
-validate_buildcache_root() {
-    local home_root="${HOME}/resources/chapar/cache"
+resolve_hpcsim_root() {
+    if [ -n "${HPCSIM_ROOT}" ]; then
+        return 0
+    fi
 
-    case "${CHAPAR_BUILDCACHE_ROOT}" in
-        /*) ;;
-        *) die "CHAPAR_BUILDCACHE_ROOT must be an absolute path: ${CHAPAR_BUILDCACHE_ROOT}" ;;
-    esac
-
-    case "${CHAPAR_BUILDCACHE_ROOT}" in
-        /|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._/+-]*)
-            die "CHAPAR_BUILDCACHE_ROOT is not an approved simple shared cache path: ${CHAPAR_BUILDCACHE_ROOT}"
+    case "${CHAPAR_INSTALL_MODE}" in
+        home)
+            HPCSIM_ROOT="${HPCSIM_HOME_ROOT}"
             ;;
-    esac
-
-    case "${CHAPAR_BUILDCACHE_ROOT}" in
-        /resources/chapar/cache|/resources/chapar/cache/*|"${home_root}"|"${home_root}"/*)
+        public)
+            [ -n "${HPCSIM_PUBLIC_ROOT}" ] || die "HPCSIM_PUBLIC_ROOT is required when CHAPAR_INSTALL_MODE=public"
+            HPCSIM_ROOT="${HPCSIM_PUBLIC_ROOT}"
             ;;
         *)
-            if [ "${CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT:-false}" != "true" ]; then
-                die "CHAPAR_BUILDCACHE_ROOT must be under /resources/chapar/cache or ${home_root}; set CHAPAR_ALLOW_UNSAFE_BUILDCACHE_ROOT=true for local testing"
-            fi
+            die "CHAPAR_INSTALL_MODE must be home or public, got ${CHAPAR_INSTALL_MODE}"
             ;;
     esac
+}
+
+validate_hpcsim_root() {
+    resolve_hpcsim_root
+    validate_site_backed_path HPCSIM_ROOT "${HPCSIM_ROOT}"
+}
+
+# The buildcache root is separate from HPCSIM_ROOT so binary artifacts can be
+# shared across home test releases and public releases at the same site.
+validate_buildcache_root() {
+    validate_site_backed_path CHAPAR_BUILDCACHE_ROOT "${CHAPAR_BUILDCACHE_ROOT}"
+}
+
+validate_ccache_root() {
+    validate_site_backed_path CHAPAR_CCACHE_ROOT "${CHAPAR_CCACHE_ROOT}"
 }
 
 # OS_NAME controls all per-OS paths and conditional hpcsim specs. CI can set it
@@ -161,15 +221,15 @@ detect_os() {
     if [ -z "${detected}" ]; then
         case "$(uname -s)" in
             Darwin)
-                detected="macos"
+                detected=""
                 ;;
             Linux)
                 if [ -r /etc/os-release ]; then
                     # shellcheck disable=SC1091
                     . /etc/os-release
                     case "${ID:-}:${VERSION_ID%%.*}" in
-                        rocky:8|rhel:8|almalinux:8|centos:8) detected="rocky8" ;;
                         rocky:9|rhel:9|almalinux:9|centos:9) detected="rocky9" ;;
+                        rocky:10|rhel:10|almalinux:10|centos:10) detected="rocky10" ;;
                     esac
                 fi
                 ;;
@@ -177,24 +237,72 @@ detect_os() {
     fi
 
     case "${detected}" in
-        rocky8|rocky9|macos) printf '%s\n' "${detected}" ;;
-        "") die "could not detect OS_NAME; set OS_NAME=rocky8, rocky9, or macos" ;;
+        rocky9|rocky10) printf '%s\n' "${detected}" ;;
+        "") die "could not detect OS_NAME; set OS_NAME=rocky9 or rocky10" ;;
         *) die "unsupported OS_NAME: ${detected}" ;;
     esac
 }
 
 # Derive all path globals from the validated roots and selected OS. Keeping the
-# path calculation in one place avoids accidentally mixing Rocky 8/Rocky 9 stores
+# path calculation in one place avoids accidentally mixing Rocky 9/Rocky 10 stores
 # or caches in migration and promotion commands.
 set_paths() {
     OS_NAME="$(detect_os)"
     validate_hpcsim_root
     validate_buildcache_root
+    validate_ccache_root
     OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
     STORE_ROOT="${OS_ROOT}/store"
     RELEASES_ROOT="${OS_ROOT}/releases"
     CURRENT_LINK="${OS_ROOT}/current"
     BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
+    CCACHE_ROOT="${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
+}
+
+prepare_shared_directory() {
+    local path="$1"
+    local label="$2"
+
+    mkdir -p "${path}" || die "could not create ${label}: ${path}"
+
+    if [ -n "${CHAPAR_SHARED_GROUP}" ]; then
+        chgrp "${CHAPAR_SHARED_GROUP}" "${path}" || die "could not set group ${CHAPAR_SHARED_GROUP} on ${label}: ${path}"
+    fi
+
+    chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" || die "could not set mode ${CHAPAR_SHARED_DIR_MODE} on ${label}: ${path}"
+}
+
+configure_ccache() {
+    local ccache_tmp
+
+    prepare_shared_directory "${CHAPAR_CCACHE_ROOT}" "shared ccache root"
+    prepare_shared_directory "${CCACHE_ROOT}" "${OS_NAME} ccache root"
+
+    ccache_tmp="${CCACHE_TEMPDIR:-${TMPDIR:-/tmp}/${USER}/hpcsim-ccache-tmp/${OS_NAME}}"
+    mkdir -p "${ccache_tmp}" || die "could not create ccache temp directory: ${ccache_tmp}"
+
+    export CCACHE_DIR="${CCACHE_ROOT}"
+    export CCACHE_TEMPDIR="${ccache_tmp}"
+    export CCACHE_UMASK="${CCACHE_UMASK:-002}"
+    export CCACHE_COMPILERCHECK="${CCACHE_COMPILERCHECK:-${CHAPAR_CCACHE_COMPILERCHECK}}"
+    if [ -n "${CHAPAR_CCACHE_MAXSIZE:-}" ]; then
+        export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-${CHAPAR_CCACHE_MAXSIZE}}"
+    fi
+
+    if command -v ccache >/dev/null 2>&1 && [ -n "${CHAPAR_CCACHE_MAXSIZE:-}" ]; then
+        ccache --max-size "${CHAPAR_CCACHE_MAXSIZE}" >/dev/null || die "could not set ccache max size: ${CHAPAR_CCACHE_MAXSIZE}"
+    fi
+}
+
+prepare_release_roots() {
+    umask 0002
+    prepare_shared_directory "${HPCSIM_ROOT}" "hpcsim release root"
+    prepare_shared_directory "${OS_ROOT}" "${OS_NAME} hpcsim root"
+    prepare_shared_directory "${STORE_ROOT}" "${OS_NAME} Spack store"
+    prepare_shared_directory "${RELEASES_ROOT}" "${OS_NAME} releases root"
+    prepare_shared_directory "${CHAPAR_BUILDCACHE_ROOT}" "shared buildcache root"
+    prepare_shared_directory "${BUILDCACHE_ROOT}" "${OS_NAME} buildcache root"
+    configure_ccache
 }
 
 # Create a temporary Spack scope for this one release command. The generated
@@ -603,7 +711,7 @@ install_cuda_libfabric_specs() {
     local saved_library_path="${LIBRARY_PATH:-}"
 
     case "${OS_NAME}" in
-        rocky8|rocky9) ;;
+        rocky9|rocky10) ;;
         *) return 0 ;;
     esac
 
@@ -653,60 +761,6 @@ install_cuda_libfabric_specs() {
     done
     export CPATH="${saved_cpath}"
     export LIBRARY_PATH="${saved_library_path}"
-}
-
-install_rocky8_hpctoolkit_specs() {
-    local install_args_ref=("$@")
-    local spec_line
-    local spec_hash
-    local spec_hashes=()
-    local missing_hashes=()
-    local seen_hashes=()
-    local saved_ldflags="${LDFLAGS:-}"
-
-    [ "${OS_NAME}" = "rocky8" ] || return 0
-
-    while IFS= read -r spec_line; do
-        case "${spec_line}" in
-            *hpctoolkit*HASH=/*) ;;
-            *) continue ;;
-        esac
-        spec_hash="${spec_line##*HASH=}"
-        [ -n "${spec_hash}" ] || continue
-        case " ${seen_hashes[*]} " in
-            *" ${spec_hash} "*) continue ;;
-        esac
-        seen_hashes+=("${spec_hash}")
-        spec_hashes+=("${spec_hash}")
-    done < <(spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups --format "{name} HASH={/hash}")
-
-    [ "${#spec_hashes[@]}" -gt 0 ] || return 0
-
-    for spec_hash in "${spec_hashes[@]}"; do
-        if spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" location -i "${spec_hash}" >/dev/null 2>&1; then
-            continue
-        fi
-        missing_hashes+=("${spec_hash}")
-    done
-
-    if [ "${#missing_hashes[@]}" -eq 0 ]; then
-        echo "==> Rocky 8 hpctoolkit specs already installed"
-        echo "    count: ${#spec_hashes[@]}"
-        return 0
-    fi
-
-    echo "==> Preinstalling Rocky 8 hpctoolkit specs"
-    echo "    missing: ${#missing_hashes[@]} of ${#spec_hashes[@]}"
-
-    for spec_hash in "${missing_hashes[@]}"; do
-        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete "${install_args_ref[@]}" --only dependencies "${spec_hash}"
-    done
-
-    export LDFLAGS="-Wl,--allow-shlib-undefined${saved_ldflags:+ ${saved_ldflags}}"
-    for spec_hash in "${missing_hashes[@]}"; do
-        spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" install --only-concrete --dirty "${install_args_ref[@]}" --only package "${spec_hash}"
-    done
-    export LDFLAGS="${saved_ldflags}"
 }
 
 cleanup_build() {
@@ -865,28 +919,12 @@ cmd_build() {
 
     concretize_timeout="${CHAPAR_CONCRETIZE_TIMEOUT}"
     case "${OS_NAME}" in
-        rocky8)
-            # Rocky 8 has the largest constrained solve today because it uses a
-            # GCC 15 provider stack on an older base OS while preserving the
-            # CUDA/GDR-capable MPI transport policy. Keep CI's guardrail, but
-            # give the solver more than the three hours that recent runs hit.
-            case "${concretize_timeout}" in
-                ""|0|*[!0-9]*) ;;
-                *)
-                    if [ "${concretize_timeout}" -lt 21600 ]; then
-                        echo "==> Raising Rocky 8 concretization timeout to 21600 seconds"
-                        echo "    requested: ${concretize_timeout}"
-                        concretize_timeout="21600"
-                    fi
-                    ;;
-            esac
-            ;;
-        rocky9)
+        rocky9|rocky10)
             case "${concretize_timeout}" in
                 ""|0|*[!0-9]*) ;;
                 *)
                     if [ "${concretize_timeout}" -lt 10800 ]; then
-                        echo "==> Raising Rocky 9 concretization timeout to 10800 seconds"
+                        echo "==> Raising ${OS_NAME} concretization timeout to 10800 seconds"
                         echo "    requested: ${concretize_timeout}"
                         concretize_timeout="10800"
                     fi
@@ -900,13 +938,8 @@ cmd_build() {
     [ ! -e "${final_dir}" ] || die "release already exists: ${final_dir}"
     [ ! -e "${staging_dir}" ] || die "staging path already exists: ${staging_dir}"
 
-    if [ "${OS_NAME}" = "rocky8" ] && [ "${PUBLISH_BUILDCACHE}" = "true" ]; then
-        echo "==> Disabling Rocky 8 buildcache publication"
-        echo "    reason: hpctoolkit link workaround uses dirty LDFLAGS"
-        PUBLISH_BUILDCACHE="false"
-    fi
-
-    mkdir -p "${STORE_ROOT}" "${RELEASES_ROOT}" "${staging_dir}/logs"
+    prepare_release_roots
+    mkdir -p "${staging_dir}/logs"
     trap cleanup_build EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
@@ -929,18 +962,14 @@ cmd_build() {
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
     trust_buildcache_keys
     case "${OS_NAME}" in
-        rocky8)
-            # Rocky 8's system GCC is too old for Node 24 and CUDA 13 host builds.
-            install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
-            ;;
-        rocky9)
-            # Node 24 needs a newer C++ toolchain than Rocky 9's system GCC 11.
+        rocky9|rocky10)
+            # GCC 15 is the only hpcsim compiler stack; bootstrap it with the OS compiler.
             install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
     esac
 
     case "${OS_NAME}" in
-        rocky8|rocky9)
+        rocky9|rocky10)
             # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
             install_release_prerequisite "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
             ;;
@@ -951,7 +980,6 @@ cmd_build() {
     echo "==> Concretizing hpcsim environment"
     run_with_timeout "${concretize_timeout}" spack -e "${ENV_PATH}" -C "${scope_dir}" concretize -f
     install_cuda_libfabric_specs "${install_args[@]}"
-    install_rocky8_hpctoolkit_specs "${install_args[@]}"
     echo "==> Installing hpcsim environment"
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     echo "==> Refreshing hpcsim root modules"
@@ -1064,12 +1092,15 @@ EOF
 # Lightweight diagnostics for operators and CI logs.
 cmd_status() {
     set_paths
+    echo "install mode: ${CHAPAR_INSTALL_MODE}"
     echo "hpcsim root: ${HPCSIM_ROOT}"
     echo "buildcache root: ${CHAPAR_BUILDCACHE_ROOT}"
+    echo "ccache root: ${CHAPAR_CCACHE_ROOT}"
     echo "os root:     ${OS_ROOT}"
     echo "store:       ${STORE_ROOT}"
     echo "releases:    ${RELEASES_ROOT}"
     echo "buildcache:  ${BUILDCACHE_ROOT}"
+    echo "ccache:      ${CCACHE_ROOT}"
     if [ -L "${CURRENT_LINK}" ]; then
         echo "current:     ${CURRENT_LINK} -> $(readlink "${CURRENT_LINK}")"
     elif [ -e "${CURRENT_LINK}" ]; then
