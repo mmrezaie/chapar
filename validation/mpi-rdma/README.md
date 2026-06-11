@@ -79,11 +79,11 @@ Runtime knobs:
 - `MPI_RDMA_BYTES`: message size in bytes. Defaults to `8388608`.
 - `MPI_RDMA_ITERS`: ring iterations. Defaults to `100`.
 - `MPI_RANKS`: total rank count. Defaults to `SLURM_NTASKS` or `SLURM_NNODES`.
-- `MPI_LAUNCHER`: launcher command. Defaults to `mpirun` for Open MPI wrappers
-  and `srun` for Intel MPI wrappers.
+- `MPI_LAUNCHER`: launcher command. Defaults to `mpirun` for Open MPI and Intel
+  MPI wrappers.
 - `MPI_LAUNCHER_ARGS`: launcher arguments. Open MPI wrappers default to
   `-np ${MPI_RANKS} --bind-to none --map-by ppr:1:node --prtemca prte_launch_agent ${HPCSIM_PRTED}`.
-  Intel MPI wrappers default to `-n ${MPI_RANKS} --cpu-bind=none`.
+  Intel MPI wrappers default to `-bootstrap slurm -np ${MPI_RANKS} -ppn 1`.
 - `HPCSIM_PRTED`: Open MPI 5 `prted` path. Open MPI wrappers auto-detect it
   from the loaded Open MPI prefix or a sibling `prrte-*` install.
 - `HPCSIM_PRTE_SLURM_ARGS`: Slurm arguments for PRRTE daemon launch. Defaults to
@@ -98,6 +98,11 @@ GDRCopy user library is available and the host kernel driver is loaded on the GP
 node. Check for `/dev/gdrdrv` or `/sys/module/gdrdrv` if UCX warns that
 `gdr_copy` is unavailable. CUDA-buffer MPI can still pass via `cuda_copy`,
 `cuda_ipc`, and IB/RC transports when the GDRCopy driver is missing.
+
+The Intel MPI examples default to `FI_PROVIDER=verbs;ofi_rxm` because this
+cluster exposes raw verbs endpoints but not the `mlx` provider. The hpcsim
+libfabric build must include the `rxm` utility provider for these examples to
+start through Intel MPI's OFI path.
 
 Use provider-specific counters or cluster telemetry alongside these tests when
 you need proof that traffic used the expected HCA and GPUDirect path.

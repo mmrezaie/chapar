@@ -44,10 +44,10 @@ spack:
     - gcc@15+profiled %gcc
     - cuda@13
   - mpi_specs:
-    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
-    # - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
-    # - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
-    - libfabric@2+cuda+gdrcopy fabrics=mlx,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
+    # - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
+    # - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
+    - libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     - pmix@6
     - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
     # Non-Slurm OpenMPI root disabled for the current cluster build.
@@ -246,7 +246,7 @@ spack:
       require:
       - spec: '@2'
         when: platform=linux
-      - spec: +cuda+gdrcopy fabrics=mlx,verbs
+      - spec: +cuda+gdrcopy fabrics=mlx,rxm,verbs
         when: platform=linux
       - spec: cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
         when: '+cuda platform=linux'
