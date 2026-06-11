@@ -173,6 +173,10 @@ present but the required CUDA driver stubs cannot be generated.
 The generated `intel-oneapi-mpi` module sets default OFI provider variables when
 users have not already set them: `I_MPI_FABRICS=shm:ofi`,
 `I_MPI_OFI_PROVIDER=verbs`, and `FI_PROVIDER=verbs;ofi_rxm`.
+The generated `openmpi` module prepends its own library directory and sets
+guarded UCX defaults for `OMPI_MCA_pml`, `OMPI_MCA_osc`, `UCX_TLS`, and
+`UCX_MEMTYPE_CACHE`, choosing CPU or GPU UCX transports based on the node where
+the module is loaded.
 
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are

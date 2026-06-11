@@ -1111,6 +1111,53 @@ EOF
     } >> "${module_file}"
 }
 
+append_openmpi_transport_module_policy() {
+    local module_file="$1"
+    local openmpi_prefix
+    local lib_dir
+    local marker="# Chapar Open MPI UCX transport policy"
+
+    modulefile_has_marker "${module_file}" "${marker}" && return 0
+
+    openmpi_prefix="$(modulefile_prefix_for_exe "${module_file}" mpirun || true)"
+
+    {
+        printf '\n%s\n' "${marker}"
+        if [ -n "${openmpi_prefix}" ]; then
+            for lib_dir in "${openmpi_prefix}/lib" "${openmpi_prefix}/lib64"; do
+                [ -d "${lib_dir}" ] || continue
+                printf 'prepend-path LD_LIBRARY_PATH {%s}\n' "${lib_dir}"
+            done
+        else
+            echo "# WARNING: Chapar could not locate this Open MPI module prefix."
+        fi
+        cat <<'EOF'
+# Default to the UCX transport path validated for hpcsim. Users can override
+# these before loading the module when testing another Open MPI transport setup.
+if {![info exists env(OMPI_MCA_pml)]} {
+    setenv OMPI_MCA_pml {ucx}
+}
+if {![info exists env(OMPI_MCA_osc)]} {
+    setenv OMPI_MCA_osc {ucx}
+}
+if {![info exists env(UCX_TLS)]} {
+    if {[file exists "/dev/nvidiactl"] || [file exists "/proc/driver/nvidia/version"]} {
+        setenv UCX_TLS {rc,ud,sm,self,cuda_copy,cuda_ipc,gdr_copy}
+    } else {
+        setenv UCX_TLS {rc,ud,sm,self}
+    }
+}
+if {![info exists env(UCX_MEMTYPE_CACHE)]} {
+    if {[file exists "/dev/nvidiactl"] || [file exists "/proc/driver/nvidia/version"]} {
+        setenv UCX_MEMTYPE_CACHE {y}
+    } else {
+        setenv UCX_MEMTYPE_CACHE {n}
+    }
+}
+EOF
+    } >> "${module_file}"
+}
+
 append_cuda_stub_module_policy() {
     local module_file="$1"
     local stub_dir="$2"
@@ -1178,6 +1225,7 @@ apply_release_module_runtime_policy() {
     for module_file in "${release_dir}/modulefiles"/*/openmpi/*; do
         [ -f "${module_file}" ] || continue
         append_openmpi_module_policy "${module_file}"
+        append_openmpi_transport_module_policy "${module_file}"
     done
 
     for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/*; do

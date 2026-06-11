@@ -72,9 +72,9 @@ fi
 make -B -C "${MPI_RDMA_TEST_DIR}" CPU_EXE="${MPI_RDMA_CPU_EXE}" cpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
-export OMPI_MCA_pml=ucx
-export OMPI_MCA_osc=ucx
-export UCX_TLS=rc,ud,sm,self
-export UCX_MEMTYPE_CACHE=n
+export OMPI_MCA_pml="${OMPI_MCA_pml:-ucx}"
+export OMPI_MCA_osc="${OMPI_MCA_osc:-ucx}"
+export UCX_TLS="${UCX_TLS:-rc,ud,sm,self}"
+export UCX_MEMTYPE_CACHE="${UCX_MEMTYPE_CACHE:-n}"
 
 ${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_CPU_EXE}"

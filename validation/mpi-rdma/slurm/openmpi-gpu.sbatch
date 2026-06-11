@@ -71,9 +71,9 @@ fi
 make -B -C "${MPI_RDMA_TEST_DIR}" GPU_EXE="${MPI_RDMA_GPU_EXE}" gpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
-export OMPI_MCA_pml=ucx
-export OMPI_MCA_osc=ucx
-export UCX_TLS=rc,ud,sm,self,cuda_copy,cuda_ipc,gdr_copy
-export UCX_MEMTYPE_CACHE=y
+export OMPI_MCA_pml="${OMPI_MCA_pml:-ucx}"
+export OMPI_MCA_osc="${OMPI_MCA_osc:-ucx}"
+export UCX_TLS="${UCX_TLS:-rc,ud,sm,self,cuda_copy,cuda_ipc,gdr_copy}"
+export UCX_MEMTYPE_CACHE="${UCX_MEMTYPE_CACHE:-y}"
 
 ${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_GPU_EXE}"
