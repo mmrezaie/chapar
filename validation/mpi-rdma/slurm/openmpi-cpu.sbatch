@@ -16,9 +16,14 @@ set -euo pipefail
 : "${HPCSIM_OPENMPI_MODULE:=openmpi}"
 : "${HPCSIM_PRTED:=}"
 : "${HPCSIM_PRTE_SLURM_ARGS:=--cpu-bind=none --export=ALL}"
+: "${MPI_RDMA_CPU_EXE:=mpi_rdma_cpu.openmpi}"
 
 module purge
 module load "${HPCSIM_OPENMPI_MODULE}"
+
+if [ ! -e /dev/nvidiactl ] && [ ! -e /proc/driver/nvidia/version ]; then
+    export OMPI_MCA_mca_base_component_show_load_errors="${OMPI_MCA_mca_base_component_show_load_errors:-0}"
+fi
 
 if [ "${MPI_LAUNCHER}" = "mpirun" ]; then
     if [ -z "${HPCSIM_PRTED}" ]; then
@@ -50,7 +55,7 @@ else
     : "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS} --cpu-bind=none}"
 fi
 
-make -C "${MPI_RDMA_TEST_DIR}" cpu
+make -B -C "${MPI_RDMA_TEST_DIR}" CPU_EXE="${MPI_RDMA_CPU_EXE}" cpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
 export OMPI_MCA_pml=ucx
@@ -58,4 +63,4 @@ export OMPI_MCA_osc=ucx
 export UCX_TLS=rc,ud,sm,self
 export UCX_MEMTYPE_CACHE=n
 
-${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/mpi_rdma_cpu"
+${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_CPU_EXE}"

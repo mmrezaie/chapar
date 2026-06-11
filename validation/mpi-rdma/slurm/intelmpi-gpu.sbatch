@@ -17,17 +17,18 @@ set -euo pipefail
 : "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS} --cpu-bind=none}"
 : "${HPCSIM_INTELMPI_MODULE:=intel-oneapi-mpi}"
 : "${HPCSIM_CUDA_MODULE:=cuda}"
+: "${MPI_RDMA_GPU_EXE:=mpi_rdma_cuda.intelmpi}"
 
 module purge
 module load "${HPCSIM_INTELMPI_MODULE}"
 module load "${HPCSIM_CUDA_MODULE}"
 
-make -C "${MPI_RDMA_TEST_DIR}" gpu
+make -B -C "${MPI_RDMA_TEST_DIR}" GPU_EXE="${MPI_RDMA_GPU_EXE}" gpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
-export I_MPI_FABRICS=shm:ofi
-export I_MPI_OFI_PROVIDER=mlx
-export FI_PROVIDER=mlx
-export I_MPI_OFFLOAD=1
+export I_MPI_FABRICS="${I_MPI_FABRICS:-shm:ofi}"
+export I_MPI_OFI_PROVIDER="${I_MPI_OFI_PROVIDER:-mlx}"
+export FI_PROVIDER="${FI_PROVIDER:-${I_MPI_OFI_PROVIDER}}"
+export I_MPI_OFFLOAD="${I_MPI_OFFLOAD:-1}"
 
-${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/mpi_rdma_cuda"
+${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_GPU_EXE}"

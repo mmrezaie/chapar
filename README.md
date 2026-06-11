@@ -189,6 +189,13 @@ names. If two root specs would produce the same module name, fix the root specs;
 dependency-only duplicate concrete specs are excluded from release module
 generation.
 
+Release-generated MPI modules adapt to CPU and GPU nodes without changing the
+CUDA-aware build. On non-GPU nodes, `openmpi` suppresses harmless CUDA plugin
+load warnings, while `intel-oneapi-mpi` and `libfabric` expose a release-local
+CUDA driver stub so CPU-only commands can start when the real NVIDIA driver
+library is absent. On GPU nodes, the modules leave the real NVIDIA driver path in
+control.
+
 ## Safe Deployment Model
 
 New builds must not overwrite active module trees. The release helper builds in
@@ -199,7 +206,8 @@ New builds must not overwrite active module trees. The release helper builds in
 `CHAPAR_MODULE_ROOT`; use it when users should load modules from a stable shared
 module root instead of `${HPCSIM_ROOT}/<os>/current`. `promote` updates the
 per-OS `current` symlink and, when `CHAPAR_MODULE_ROOT` is set, the shared module
-symlink too. Do not run `spack uninstall`, `spack gc`, or manual cleanup against
+symlink too. Both commands idempotently ensure generated modulefiles carry the
+current MPI runtime policy before updating public pointers. Do not run `spack uninstall`, `spack gc`, or manual cleanup against
 the configured install tree while users may still have jobs running from older
 releases.
 

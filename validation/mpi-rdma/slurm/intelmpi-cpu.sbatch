@@ -15,16 +15,29 @@ set -euo pipefail
 : "${MPI_LAUNCHER:=srun}"
 : "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS} --cpu-bind=none}"
 : "${HPCSIM_INTELMPI_MODULE:=intel-oneapi-mpi}"
+: "${MPI_RDMA_CPU_EXE:=mpi_rdma_cpu.intelmpi}"
 
 module purge
 module load "${HPCSIM_INTELMPI_MODULE}"
 
-make -C "${MPI_RDMA_TEST_DIR}" cpu
+if [ ! -e /dev/nvidiactl ] && [ ! -e /proc/driver/nvidia/version ] && command -v fi_info >/dev/null 2>&1; then
+    if ! fi_info_output="$(fi_info -l 2>&1 >/dev/null)"; then
+        case "${fi_info_output}" in
+            *libcuda.so.1*)
+                echo "CUDA-enabled libfabric cannot load on this non-GPU node because libcuda.so.1 is unavailable." >&2
+                echo "Run Intel MPI validation on GPU-driver nodes or provide a site-supported CUDA driver compatibility library." >&2
+                exit 2
+                ;;
+        esac
+    fi
+fi
+
+make -B -C "${MPI_RDMA_TEST_DIR}" CPU_EXE="${MPI_RDMA_CPU_EXE}" cpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
-export I_MPI_FABRICS=shm:ofi
-export I_MPI_OFI_PROVIDER=verbs
-export FI_PROVIDER=verbs
-unset I_MPI_OFFLOAD
+export I_MPI_FABRICS="${I_MPI_FABRICS:-shm:ofi}"
+export I_MPI_OFI_PROVIDER="${I_MPI_OFI_PROVIDER:-verbs}"
+export FI_PROVIDER="${FI_PROVIDER:-${I_MPI_OFI_PROVIDER}}"
+export I_MPI_OFFLOAD="${I_MPI_OFFLOAD:-0}"
 
-${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/mpi_rdma_cpu"
+${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_CPU_EXE}"

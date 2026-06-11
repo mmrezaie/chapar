@@ -20,7 +20,9 @@ For RDMA validation, run across at least two nodes.
 ## Build
 
 Load exactly one MPI implementation before building. Do not load Open MPI and
-Intel MPI together.
+Intel MPI together. The Slurm wrappers rebuild provider-specific binaries by
+default so Open MPI and Intel MPI tests cannot accidentally reuse each other's
+executables.
 
 ```bash
 module purge
@@ -63,6 +65,12 @@ integrations launch singleton Open MPI ranks with bare `srun` or hang with
 loaded release tree, add its directory to `PATH`, and pass `--cpu-bind=none` to
 PRRTE's Slurm daemon launch.
 
+Generated hpcsim modulefiles handle CUDA-aware MPI on CPU and GPU nodes. On
+non-GPU nodes, Open MPI hides harmless CUDA plugin load warnings, and Intel
+MPI/libfabric get a release-local CUDA driver-stub path so CPU-only MPI commands
+can start even though the real NVIDIA driver library is absent. GPU nodes keep
+using the real NVIDIA driver library.
+
 Runtime knobs:
 
 - `MPI_RDMA_TEST_DIR`: path to this directory. Defaults to the submission working directory.
@@ -78,6 +86,9 @@ Runtime knobs:
   from the loaded Open MPI prefix or a sibling `prrte-*` install.
 - `HPCSIM_PRTE_SLURM_ARGS`: Slurm arguments for PRRTE daemon launch. Defaults to
   `--cpu-bind=none --export=ALL`.
+- `MPI_RDMA_CPU_EXE` / `MPI_RDMA_GPU_EXE`: test binary names. Wrappers default to
+  MPI-specific names such as `mpi_rdma_cpu.openmpi` and
+  `mpi_rdma_cuda.intelmpi`.
 
 The GPU Open MPI example keeps `gdr_copy` in `UCX_TLS` to validate the intended
 CUDA/GDR-capable stack. UCX only exposes the `gdr_copy` transport when the

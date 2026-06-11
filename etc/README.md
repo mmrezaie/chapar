@@ -158,6 +158,12 @@ roots; duplicate dependency-only concrete specs must not force hashes into modul
 names. If root specs collide on `{name}/{version}`, fix the roots before
 publishing the release.
 
+Release module generation also adds runtime policy for CUDA-aware MPI modules.
+Open MPI suppresses CUDA plugin load warnings only on non-GPU nodes.
+Intel MPI/libfabric expose a release-local CUDA driver stub only on non-GPU nodes
+so CPU-only commands can load CUDA-enabled libfabric without requiring the real
+NVIDIA driver library. GPU nodes continue to use the real driver.
+
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are
 preferred before falling back to source builds. The generated scope uses the same

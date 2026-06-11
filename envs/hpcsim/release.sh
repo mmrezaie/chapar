@@ -946,6 +946,168 @@ validate_root_module_names() {
     fi
 }
 
+modulefile_has_marker() {
+    local module_file="$1"
+    local marker="$2"
+    local line
+
+    while IFS= read -r line; do
+        [ "${line}" = "${marker}" ] && return 0
+    done < "${module_file}"
+    return 1
+}
+
+modulefile_prefix_for_exe() {
+    local module_file="$1"
+    local exe_name="$2"
+    local directive=""
+    local variable=""
+    local value=""
+    local _rest=""
+
+    while read -r directive variable value _rest; do
+        [ "${directive}" = "prepend-path" ] || continue
+        [ "${variable}" = "PATH" ] || continue
+        [ -n "${value}" ] || continue
+        value="${value#\{}"
+        value="${value%\}}"
+        value="${value#\"}"
+        value="${value%\"}"
+        if [ -x "${value}/${exe_name}" ]; then
+            dirname "${value}"
+            return 0
+        fi
+    done < "${module_file}"
+
+    return 1
+}
+
+find_prted_for_openmpi_prefix() {
+    local openmpi_prefix="$1"
+    local store_root
+    local candidate
+
+    store_root="$(dirname "${openmpi_prefix}")"
+    for candidate in "${openmpi_prefix}/bin/prted" "${store_root}"/prrte-*/bin/prted; do
+        [ -x "${candidate}" ] || continue
+        printf '%s\n' "${candidate}"
+        return 0
+    done
+
+    return 1
+}
+
+ensure_release_cuda_driver_stub_dir() {
+    local release_dir="$1"
+    local cuda_module
+    local cuda_prefix
+    local candidate
+    local stub_dir
+
+    for cuda_module in "${release_dir}/modulefiles"/*/cuda/*; do
+        [ -f "${cuda_module}" ] || continue
+        cuda_prefix="$(modulefile_prefix_for_exe "${cuda_module}" nvcc || true)"
+        [ -n "${cuda_prefix}" ] || continue
+
+        for candidate in "${cuda_prefix}"/targets/*-linux/lib/stubs/libcuda.so "${cuda_prefix}"/lib64/stubs/libcuda.so; do
+            [ -r "${candidate}" ] || continue
+            stub_dir="${release_dir}/support/cuda-driver-stubs"
+            mkdir -p "${stub_dir}"
+            ln -sf "${candidate}" "${stub_dir}/libcuda.so"
+            ln -sf "${candidate}" "${stub_dir}/libcuda.so.1"
+            printf '%s\n' "${stub_dir}"
+            return 0
+        done
+    done
+
+    return 1
+}
+
+append_openmpi_module_policy() {
+    local module_file="$1"
+    local openmpi_prefix
+    local prted
+    local prte_bin
+    local marker="# Chapar Open MPI runtime policy"
+
+    modulefile_has_marker "${module_file}" "${marker}" && return 0
+
+    openmpi_prefix="$(modulefile_prefix_for_exe "${module_file}" mpirun || true)"
+    if [ -n "${openmpi_prefix}" ]; then
+        prted="$(find_prted_for_openmpi_prefix "${openmpi_prefix}" || true)"
+    fi
+
+    {
+        printf '\n%s\n' "${marker}"
+        cat <<'EOF'
+# Suppress CUDA plugin dlopen noise only on nodes without the NVIDIA driver.
+if {![file exists "/dev/nvidiactl"] && ![file exists "/proc/driver/nvidia/version"]} {
+    if {![info exists env(OMPI_MCA_mca_base_component_show_load_errors)]} {
+        setenv OMPI_MCA_mca_base_component_show_load_errors 0
+    }
+}
+EOF
+        if [ -n "${prted}" ]; then
+            prte_bin="$(dirname "${prted}")"
+            cat <<EOF
+# Open MPI 5 uses PRRTE daemons for multi-node mpirun launches.
+prepend-path PATH {${prte_bin}}
+if {![info exists env(PRTE_MCA_prte_launch_agent)]} {
+    setenv PRTE_MCA_prte_launch_agent {${prted}}
+}
+if {![info exists env(PRTE_MCA_plm_slurm_args)]} {
+    setenv PRTE_MCA_plm_slurm_args {--cpu-bind=none --export=ALL}
+}
+if {![info exists env(OMPI_MCA_plm_slurm_args)]} {
+    setenv OMPI_MCA_plm_slurm_args {--cpu-bind=none --export=ALL}
+}
+EOF
+        else
+            echo "# WARNING: Chapar could not locate prted for this Open MPI module."
+        fi
+    } >> "${module_file}"
+}
+
+append_cuda_stub_module_policy() {
+    local module_file="$1"
+    local stub_dir="$2"
+    local marker="# Chapar CUDA driver-stub runtime policy"
+
+    [ -n "${stub_dir}" ] || return 0
+    modulefile_has_marker "${module_file}" "${marker}" && return 0
+
+    cat >> "${module_file}" <<EOF
+
+${marker}
+# CUDA-aware libfabric has a libcuda.so.1 dependency. On non-GPU nodes, expose
+# CUDA's driver stub so CPU-only MPI/libfabric commands can start. GPU nodes keep
+# using the real NVIDIA driver library.
+if {![file exists "/dev/nvidiactl"] && ![file exists "/proc/driver/nvidia/version"]} {
+    prepend-path LD_LIBRARY_PATH {${stub_dir}}
+}
+EOF
+}
+
+apply_release_module_runtime_policy() {
+    local release_dir="$1"
+    local cuda_stub_dir=""
+    local module_file
+
+    [ -d "${release_dir}/modulefiles" ] || return 0
+
+    cuda_stub_dir="$(ensure_release_cuda_driver_stub_dir "${release_dir}" || true)"
+
+    for module_file in "${release_dir}/modulefiles"/*/openmpi/*; do
+        [ -f "${module_file}" ] || continue
+        append_openmpi_module_policy "${module_file}"
+    done
+
+    for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/* "${release_dir}/modulefiles"/*/libfabric/*; do
+        [ -f "${module_file}" ] || continue
+        append_cuda_stub_module_policy "${module_file}" "${cuda_stub_dir}"
+    done
+}
+
 refresh_root_modules() {
     local root_specs_file
     local root_hash
@@ -1189,6 +1351,7 @@ cmd_build() {
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     echo "==> Refreshing hpcsim root modules"
     refresh_root_modules
+    apply_release_module_runtime_policy "${staging_dir}"
 
     arch_triplet="$(release_arch_triplet "${staging_dir}")"
     copy_manifest "${staging_dir}" "${arch_triplet}"
@@ -1239,8 +1402,9 @@ cmd_migrate_buildcache() {
     migrate_legacy_buildcaches
 }
 
-# Promotion is intentionally only a symlink update. Stores and release module
-# directories remain immutable so running jobs keep using the files they loaded.
+# Promotion is intentionally a pointer update after ensuring generated modulefiles
+# carry the current runtime policy. Stores remain immutable so running jobs keep
+# using the package prefixes they loaded.
 cmd_promote() {
     local release_id="${1:-}"
     local release_dir
@@ -1257,6 +1421,7 @@ cmd_promote() {
     if [ -e "${CURRENT_LINK}" ] && [ ! -L "${CURRENT_LINK}" ]; then
         die "current exists and is not a symlink: ${CURRENT_LINK}"
     fi
+    apply_release_module_runtime_policy "${release_dir}"
     prepare_shared_module_link "${release_dir}"
 
     tmp_link="${OS_ROOT}/.current.$$"
@@ -1294,6 +1459,7 @@ cmd_publish_modules() {
     [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
     ensure_cmd perl
 
+    apply_release_module_runtime_policy "${release_dir}"
     prepare_shared_module_link "${release_dir}"
     echo "==> Published hpcsim modules"
     echo "    os:      ${OS_NAME}"

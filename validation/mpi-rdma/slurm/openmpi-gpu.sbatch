@@ -18,6 +18,7 @@ set -euo pipefail
 : "${HPCSIM_CUDA_MODULE:=cuda}"
 : "${HPCSIM_PRTED:=}"
 : "${HPCSIM_PRTE_SLURM_ARGS:=--cpu-bind=none --export=ALL}"
+: "${MPI_RDMA_GPU_EXE:=mpi_rdma_cuda.openmpi}"
 
 module purge
 module load "${HPCSIM_OPENMPI_MODULE}"
@@ -53,7 +54,7 @@ else
     : "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS} --cpu-bind=none}"
 fi
 
-make -C "${MPI_RDMA_TEST_DIR}" gpu
+make -B -C "${MPI_RDMA_TEST_DIR}" GPU_EXE="${MPI_RDMA_GPU_EXE}" gpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
 export OMPI_MCA_pml=ucx
@@ -61,4 +62,4 @@ export OMPI_MCA_osc=ucx
 export UCX_TLS=rc,ud,sm,self,cuda_copy,cuda_ipc,gdr_copy
 export UCX_MEMTYPE_CACHE=y
 
-${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/mpi_rdma_cuda"
+${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_GPU_EXE}"
