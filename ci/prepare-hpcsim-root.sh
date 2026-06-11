@@ -19,6 +19,8 @@ fi
 : "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
 : "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
 : "${CHAPAR_CCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/ccache}"
+: "${CHAPAR_INSTALL_TREE_ROOT:=}"
+: "${CHAPAR_MODULE_ROOT:=}"
 : "${CHAPAR_SHARED_GROUP:=}"
 : "${CHAPAR_SHARED_DIR_MODE:=2775}"
 
@@ -60,6 +62,14 @@ validate_site_backed_path() {
     esac
 }
 
+validate_optional_site_backed_path() {
+    local name="$1"
+    local value="$2"
+
+    [ -n "${value}" ] || return 0
+    validate_site_backed_path "${name}" "${value}"
+}
+
 case "${OS_NAME}" in
     rocky9|rocky10) ;;
     *) die "OS_NAME must be rocky9 or rocky10, got ${OS_NAME}" ;;
@@ -79,6 +89,8 @@ fi
 validate_site_backed_path HPCSIM_ROOT "${HPCSIM_ROOT}"
 validate_site_backed_path CHAPAR_BUILDCACHE_ROOT "${CHAPAR_BUILDCACHE_ROOT}"
 validate_site_backed_path CHAPAR_CCACHE_ROOT "${CHAPAR_CCACHE_ROOT}"
+validate_optional_site_backed_path CHAPAR_INSTALL_TREE_ROOT "${CHAPAR_INSTALL_TREE_ROOT}"
+validate_optional_site_backed_path CHAPAR_MODULE_ROOT "${CHAPAR_MODULE_ROOT}"
 
 run_as_root() {
     if [ "$(id -u)" -eq 0 ]; then
@@ -112,6 +124,7 @@ ensure_dir() {
 }
 
 os_root="${HPCSIM_ROOT}/${OS_NAME}"
+store_dir="${CHAPAR_INSTALL_TREE_ROOT:-${os_root}/store}"
 buildcache_dir="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
 ccache_dir="${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
 
@@ -120,7 +133,10 @@ ensure_dir "${HPCSIM_ROOT}" "hpcsim root"
 ensure_dir "${os_root}" "${OS_NAME} hpcsim root"
 ensure_dir "${os_root}/releases" "${OS_NAME} releases root"
 ensure_dir "${os_root}/runs" "${OS_NAME} runs root"
-ensure_dir "${os_root}/store" "${OS_NAME} Spack store"
+ensure_dir "${store_dir}" "Spack install tree"
+if [ -n "${CHAPAR_MODULE_ROOT}" ]; then
+    ensure_dir "${CHAPAR_MODULE_ROOT}" "shared module root"
+fi
 ensure_dir "${CHAPAR_BUILDCACHE_ROOT}" "shared buildcache root"
 ensure_dir "${buildcache_dir}" "${OS_NAME} buildcache root"
 ensure_dir "${CHAPAR_CCACHE_ROOT}" "shared ccache root"
@@ -129,5 +145,9 @@ ensure_dir "${ccache_dir}" "${OS_NAME} ccache root"
 echo "Prepared hpcsim roots"
 echo "  install mode: ${CHAPAR_INSTALL_MODE}"
 echo "  hpcsim root: ${HPCSIM_ROOT}"
+echo "  install tree: ${store_dir}"
+if [ -n "${CHAPAR_MODULE_ROOT}" ]; then
+    echo "  module root: ${CHAPAR_MODULE_ROOT}"
+fi
 echo "  buildcache:  ${buildcache_dir}"
 echo "  ccache:      ${ccache_dir}"

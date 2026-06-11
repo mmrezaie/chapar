@@ -7,12 +7,13 @@ set -euo pipefail
 # shared hpcsim deployment has a few invariants that are easy to violate when
 # debugging CI failures or doing emergency cache repairs:
 #
-# - The Spack install tree is shared per OS, but module trees are release-local.
-#   A new build may add packages to the shared store, but it must not rewrite the
-#   module tree used by running jobs.
+# - The Spack install tree is shared, but module trees are release-local until
+#   promotion. A new build may add packages to the shared store, but it must not
+#   rewrite the module tree used by running jobs.
 # - A release is assembled in `releases/.<id>.staging.<pid>` and moved into place
 #   only after installation, module generation, and manifest writing succeed.
-#   Promotion is a separate atomic symlink swap of `<os>/current`.
+#   Promotion is a separate atomic symlink swap of `<os>/current`; when configured,
+#   it also atomically updates shared module-root symlinks per architecture.
 # - Release builds use a temporary command-line Spack scope. That scope points at
 #   the shared install tree, release module root, and per-OS binary buildcache
 #   without changing repository, system, or user Spack config.
@@ -31,11 +32,17 @@ ENV_PATH="${ENV_PATH:-${SCRIPT_DIR}}"
 HPCSIM_ROOT="${HPCSIM_ROOT:-}"
 CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
 CHAPAR_CCACHE_ROOT="${CHAPAR_CCACHE_ROOT:-}"
+CHAPAR_INSTALL_TREE_ROOT="${CHAPAR_INSTALL_TREE_ROOT:-}"
+CHAPAR_INSTALL_TREE_PROJECTION="${CHAPAR_INSTALL_TREE_PROJECTION:-}"
+CHAPAR_MODULE_ROOT="${CHAPAR_MODULE_ROOT:-}"
 SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:-}"
 PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-}"
 CHAPAR_CONCRETIZE_TIMEOUT="${CHAPAR_CONCRETIZE_TIMEOUT:-}"
 BUILD_SCOPE_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
+PROMOTE_MODULE_LINK=""
+PROMOTE_MODULE_TMP_LINK=""
+PROMOTE_MODULE_TARGET=""
 REFRESH_BUILDCACHE_ON_EXIT="false"
 CCACHE_ROOT=""
 # Keep this as a major version to follow Chapar policy: dependency constraints
@@ -51,6 +58,9 @@ load_site_config() {
     local env_hpcsim_root="${HPCSIM_ROOT:-}"
     local env_buildcache_root="${CHAPAR_BUILDCACHE_ROOT:-}"
     local env_ccache_root="${CHAPAR_CCACHE_ROOT:-}"
+    local env_install_tree_root="${CHAPAR_INSTALL_TREE_ROOT:-}"
+    local env_install_tree_projection="${CHAPAR_INSTALL_TREE_PROJECTION:-}"
+    local env_module_root="${CHAPAR_MODULE_ROOT:-}"
     local env_install_mode="${CHAPAR_INSTALL_MODE:-}"
     local env_publish_buildcache="${PUBLISH_BUILDCACHE:-}"
 
@@ -66,6 +76,9 @@ load_site_config() {
     [ -n "${env_hpcsim_root}" ] && HPCSIM_ROOT="${env_hpcsim_root}"
     [ -n "${env_buildcache_root}" ] && CHAPAR_BUILDCACHE_ROOT="${env_buildcache_root}"
     [ -n "${env_ccache_root}" ] && CHAPAR_CCACHE_ROOT="${env_ccache_root}"
+    [ -n "${env_install_tree_root}" ] && CHAPAR_INSTALL_TREE_ROOT="${env_install_tree_root}"
+    [ -n "${env_install_tree_projection}" ] && CHAPAR_INSTALL_TREE_PROJECTION="${env_install_tree_projection}"
+    [ -n "${env_module_root}" ] && CHAPAR_MODULE_ROOT="${env_module_root}"
     [ -n "${env_install_mode}" ] && CHAPAR_INSTALL_MODE="${env_install_mode}"
     [ -n "${env_publish_buildcache}" ] && PUBLISH_BUILDCACHE="${env_publish_buildcache}"
 
@@ -79,6 +92,13 @@ load_site_config() {
     : "${CHAPAR_SHARED_DIR_MODE:=2775}"
     : "${CHAPAR_CCACHE_COMPILERCHECK:=content}"
     : "${PUBLISH_BUILDCACHE:=false}"
+    if [ -z "${CHAPAR_INSTALL_TREE_PROJECTION}" ]; then
+        if [ -n "${CHAPAR_INSTALL_TREE_ROOT}" ]; then
+            CHAPAR_INSTALL_TREE_PROJECTION='{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
+        else
+            CHAPAR_INSTALL_TREE_PROJECTION='{name}-{version}-{hash}'
+        fi
+    fi
 }
 
 load_site_config
@@ -103,7 +123,16 @@ Environment:
                        Shared binary cache root. Default comes from
                        CHAPAR_SHARED_CACHE_ROOT/buildcache.
   CHAPAR_CCACHE_ROOT   Shared compiler ccache root. Default comes from
-                       CHAPAR_SHARED_CACHE_ROOT/ccache.
+                        CHAPAR_SHARED_CACHE_ROOT/ccache.
+  CHAPAR_INSTALL_TREE_ROOT
+                        Optional Spack install tree root. Empty means
+                        ${HPCSIM_ROOT}/<os>/store.
+  CHAPAR_INSTALL_TREE_PROJECTION
+                        Spack install-tree projection. Defaults to package-hash
+                        directories, or architecture/compiler directories when
+                        CHAPAR_INSTALL_TREE_ROOT is set.
+  CHAPAR_MODULE_ROOT   Optional promoted module root. Promotion atomically updates
+                        <arch> symlinks below this root.
   OS_NAME              rocky9 or rocky10. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
   CHAPAR_CONCRETIZE_TIMEOUT
@@ -114,9 +143,10 @@ Environment:
                        with the current padded install-tree layout.
 
 Release layout:
-  ${HPCSIM_ROOT}/<os>/store
+  ${CHAPAR_INSTALL_TREE_ROOT:-${HPCSIM_ROOT}/<os>/store}
   ${HPCSIM_ROOT}/<os>/releases/<release-id>
   ${HPCSIM_ROOT}/<os>/current -> releases/<release-id>
+  ${CHAPAR_MODULE_ROOT}/<arch> -> release modulefiles, when configured
   ${CHAPAR_BUILDCACHE_ROOT}/<os>
   ${CHAPAR_CCACHE_ROOT}/<os>
 
@@ -179,6 +209,25 @@ validate_site_backed_path() {
     esac
 }
 
+validate_optional_site_backed_path() {
+    local name="$1"
+    local value="$2"
+
+    [ -n "${value}" ] || return 0
+    validate_site_backed_path "${name}" "${value}"
+}
+
+validate_install_tree_projection() {
+    local value="${CHAPAR_INSTALL_TREE_PROJECTION}"
+
+    [ -n "${value}" ] || die "CHAPAR_INSTALL_TREE_PROJECTION is required"
+    case "${value}" in
+        /*|.|..|*'/../'*|*/..|*'/./'*|*/.|*[!A-Za-z0-9._{}:/+-]*)
+            die "CHAPAR_INSTALL_TREE_PROJECTION is not an approved relative projection: ${value}"
+            ;;
+    esac
+}
+
 resolve_hpcsim_root() {
     if [ -n "${HPCSIM_ROOT}" ]; then
         return 0
@@ -211,6 +260,15 @@ validate_buildcache_root() {
 
 validate_ccache_root() {
     validate_site_backed_path CHAPAR_CCACHE_ROOT "${CHAPAR_CCACHE_ROOT}"
+}
+
+validate_install_tree_root() {
+    validate_optional_site_backed_path CHAPAR_INSTALL_TREE_ROOT "${CHAPAR_INSTALL_TREE_ROOT}"
+    validate_install_tree_projection
+}
+
+validate_module_root() {
+    validate_optional_site_backed_path CHAPAR_MODULE_ROOT "${CHAPAR_MODULE_ROOT}"
 }
 
 # OS_NAME controls all per-OS paths and conditional hpcsim specs. CI can set it
@@ -251,8 +309,10 @@ set_paths() {
     validate_hpcsim_root
     validate_buildcache_root
     validate_ccache_root
+    validate_install_tree_root
+    validate_module_root
     OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
-    STORE_ROOT="${OS_ROOT}/store"
+    STORE_ROOT="${CHAPAR_INSTALL_TREE_ROOT:-${OS_ROOT}/store}"
     RELEASES_ROOT="${OS_ROOT}/releases"
     CURRENT_LINK="${OS_ROOT}/current"
     BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
@@ -298,8 +358,11 @@ prepare_release_roots() {
     umask 0002
     prepare_shared_directory "${HPCSIM_ROOT}" "hpcsim release root"
     prepare_shared_directory "${OS_ROOT}" "${OS_NAME} hpcsim root"
-    prepare_shared_directory "${STORE_ROOT}" "${OS_NAME} Spack store"
+    prepare_shared_directory "${STORE_ROOT}" "${OS_NAME} Spack install tree"
     prepare_shared_directory "${RELEASES_ROOT}" "${OS_NAME} releases root"
+    if [ -n "${CHAPAR_MODULE_ROOT}" ]; then
+        prepare_shared_directory "${CHAPAR_MODULE_ROOT}" "shared module root"
+    fi
     prepare_shared_directory "${CHAPAR_BUILDCACHE_ROOT}" "shared buildcache root"
     prepare_shared_directory "${BUILDCACHE_ROOT}" "${OS_NAME} buildcache root"
     configure_ccache
@@ -320,7 +383,7 @@ config:
     root: ${STORE_ROOT}
     padded_length: ${INSTALL_TREE_PADDED_LENGTH}
     projections:
-      all: "{name}-{version}-{hash}"
+      all: "${CHAPAR_INSTALL_TREE_PROJECTION}"
   template_dirs:
   - ${OS_ROOT}/templates
   license_dir: ${OS_ROOT}/licenses
@@ -797,19 +860,27 @@ cleanup_migration() {
 # questions about which environment file and store/cache roots produced it.
 copy_manifest() {
     local release_dir="$1"
+    local arch_triplet="$2"
 
     cp "${ENV_PATH}/spack.yaml" "${release_dir}/spack.yaml"
     if [ -f "${ENV_PATH}/spack.lock" ]; then
         cp "${ENV_PATH}/spack.lock" "${release_dir}/spack.lock"
     fi
 
+    printf '%s\n' "${arch_triplet}" > "${release_dir}/.chapar-arch"
+
     {
         printf 'release_id: %s\n' "${RELEASE_ID}"
         printf 'os: %s\n' "${OS_NAME}"
+        printf 'arch: %s\n' "${arch_triplet}"
         printf 'built_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         printf 'env_path: %s\n' "${ENV_PATH}"
         printf 'store: %s\n' "${STORE_ROOT}"
+        printf 'install_tree_projection: %s\n' "${CHAPAR_INSTALL_TREE_PROJECTION}"
         printf 'buildcache: %s\n' "${BUILDCACHE_ROOT}"
+        if [ -n "${CHAPAR_MODULE_ROOT}" ]; then
+            printf 'promoted_module_root: %s\n' "${CHAPAR_MODULE_ROOT}"
+        fi
     } > "${release_dir}/metadata.txt"
 }
 
@@ -892,8 +963,110 @@ resolve_release_dir() {
     (cd -P "${release_dir}" && pwd)
 }
 
-# Build command: install into the shared per-OS store, generate release-local
-# modules in staging, then atomically publish the immutable release directory.
+validate_arch_triplet() {
+    local arch_triplet="$1"
+
+    case "${arch_triplet}" in
+        ""|.|..|*/*|*[!A-Za-z0-9._-]*)
+            die "invalid Spack architecture triplet for module symlink: ${arch_triplet}"
+            ;;
+    esac
+}
+
+release_arch_triplet() {
+    local release_dir="$1"
+    local arch_triplet=""
+    local arch_dir
+    local candidate
+
+    if [ -r "${release_dir}/.chapar-arch" ]; then
+        IFS= read -r arch_triplet < "${release_dir}/.chapar-arch" || true
+        validate_arch_triplet "${arch_triplet}"
+        printf '%s\n' "${arch_triplet}"
+        return 0
+    fi
+
+    if [ -r "${release_dir}/metadata.txt" ]; then
+        while IFS= read -r candidate; do
+            case "${candidate}" in
+                arch:\ *)
+                    arch_triplet="${candidate#arch: }"
+                    validate_arch_triplet "${arch_triplet}"
+                    printf '%s\n' "${arch_triplet}"
+                    return 0
+                    ;;
+            esac
+        done < "${release_dir}/metadata.txt"
+    fi
+
+    for arch_dir in "${release_dir}/modulefiles"/*; do
+        [ -d "${arch_dir}" ] || continue
+        candidate="$(basename "${arch_dir}")"
+        case "${candidate}" in
+            *-*-*) ;;
+            *) continue ;;
+        esac
+        validate_arch_triplet "${candidate}"
+        if [ -n "${arch_triplet}" ] && [ "${arch_triplet}" != "${candidate}" ]; then
+            die "release has multiple module architectures; cannot choose shared symlink: ${release_dir}"
+        fi
+        arch_triplet="${candidate}"
+    done
+
+    [ -n "${arch_triplet}" ] || die "could not determine release architecture from ${release_dir}"
+    printf '%s\n' "${arch_triplet}"
+}
+
+prepare_shared_module_link() {
+    local release_dir="$1"
+    local arch_triplet
+    local module_dir
+    local module_link
+    local tmp_link
+
+    [ -n "${CHAPAR_MODULE_ROOT}" ] || return 0
+
+    arch_triplet="$(release_arch_triplet "${release_dir}")"
+    module_dir="${release_dir}/modulefiles/${arch_triplet}"
+    module_link="${CHAPAR_MODULE_ROOT}/${arch_triplet}"
+    tmp_link="${CHAPAR_MODULE_ROOT}/.${arch_triplet}.$$"
+
+    [ -d "${module_dir}" ] || die "missing release module directory: ${module_dir}"
+    prepare_shared_directory "${CHAPAR_MODULE_ROOT}" "shared module root"
+    if [ -e "${module_link}" ] && [ ! -L "${module_link}" ]; then
+        die "shared module path exists and is not a symlink: ${module_link}"
+    fi
+
+    rm -f "${tmp_link}"
+    ln -s "${module_dir}" "${tmp_link}"
+
+    PROMOTE_MODULE_LINK="${module_link}"
+    PROMOTE_MODULE_TMP_LINK="${tmp_link}"
+    PROMOTE_MODULE_TARGET="${module_dir}"
+}
+
+discard_prepared_shared_module_link() {
+    if [ -n "${PROMOTE_MODULE_TMP_LINK}" ]; then
+        rm -f "${PROMOTE_MODULE_TMP_LINK}"
+    fi
+    PROMOTE_MODULE_LINK=""
+    PROMOTE_MODULE_TMP_LINK=""
+    PROMOTE_MODULE_TARGET=""
+}
+
+commit_prepared_shared_module_link() {
+    [ -n "${PROMOTE_MODULE_TMP_LINK}" ] || return 0
+
+    perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${PROMOTE_MODULE_TMP_LINK}" "${PROMOTE_MODULE_LINK}"
+    echo "    module:  ${PROMOTE_MODULE_LINK} -> ${PROMOTE_MODULE_TARGET}"
+    PROMOTE_MODULE_LINK=""
+    PROMOTE_MODULE_TMP_LINK=""
+    PROMOTE_MODULE_TARGET=""
+}
+
+# Build command: install into the configured shared install tree, generate
+# release-local modules in staging, then atomically publish the immutable release
+# directory.
 cmd_build() {
     RELEASE_ID="${1:-}"
     local promote="${2:-}"
@@ -986,7 +1159,7 @@ cmd_build() {
     refresh_root_modules
 
     arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"
-    copy_manifest "${staging_dir}"
+    copy_manifest "${staging_dir}" "${arch_triplet}"
 
     # The final rename is the publication point. Anything before this can fail
     # without creating a partially visible release directory.
@@ -1051,17 +1224,26 @@ cmd_promote() {
     if [ -e "${CURRENT_LINK}" ] && [ ! -L "${CURRENT_LINK}" ]; then
         die "current exists and is not a symlink: ${CURRENT_LINK}"
     fi
+    prepare_shared_module_link "${release_dir}"
 
     tmp_link="${OS_ROOT}/.current.$$"
     rm -f "${tmp_link}"
-    ln -s "releases/${release_id}" "${tmp_link}"
+    if ! ln -s "releases/${release_id}" "${tmp_link}"; then
+        discard_prepared_shared_module_link
+        die "could not prepare current symlink: ${tmp_link}"
+    fi
     # POSIX rename is atomic on the same filesystem, which avoids readers seeing
     # a missing or half-written `current` link during promotion/rollback.
-    perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${tmp_link}" "${CURRENT_LINK}"
+    if ! perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${tmp_link}" "${CURRENT_LINK}"; then
+        rm -f "${tmp_link}"
+        discard_prepared_shared_module_link
+        die "could not update current symlink: ${CURRENT_LINK}"
+    fi
 
     echo "==> Promoted hpcsim release"
     echo "    os:      ${OS_NAME}"
     echo "    current: ${CURRENT_LINK} -> releases/${release_id}"
+    commit_prepared_shared_module_link
 }
 
 # Print shell commands rather than mutating the caller's environment. Operators
@@ -1098,6 +1280,12 @@ cmd_status() {
     echo "ccache root: ${CHAPAR_CCACHE_ROOT}"
     echo "os root:     ${OS_ROOT}"
     echo "store:       ${STORE_ROOT}"
+    echo "projection:  ${CHAPAR_INSTALL_TREE_PROJECTION}"
+    if [ -n "${CHAPAR_MODULE_ROOT}" ]; then
+        echo "module root: ${CHAPAR_MODULE_ROOT}"
+    else
+        echo "module root: (release-local)"
+    fi
     echo "releases:    ${RELEASES_ROOT}"
     echo "buildcache:  ${BUILDCACHE_ROOT}"
     echo "ccache:      ${CCACHE_ROOT}"
@@ -1107,6 +1295,21 @@ cmd_status() {
         echo "current:     ${CURRENT_LINK} (not a symlink)"
     else
         echo "current:     (none)"
+    fi
+    if [ -n "${CHAPAR_MODULE_ROOT}" ] && [ -d "${CHAPAR_MODULE_ROOT}" ]; then
+        local module_link
+        for module_link in "${CHAPAR_MODULE_ROOT}"/*; do
+            [ -e "${module_link}" ] || [ -L "${module_link}" ] || continue
+            case "$(basename "${module_link}")" in
+                *-*-*) ;;
+                *) continue ;;
+            esac
+            if [ -L "${module_link}" ]; then
+                echo "module link: $(basename "${module_link}") -> $(readlink "${module_link}")"
+            else
+                echo "module link: $(basename "${module_link}") (not a symlink)"
+            fi
+        done
     fi
 }
 

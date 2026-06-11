@@ -27,7 +27,17 @@ fi
 : "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
 : "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
 : "${CHAPAR_CCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/ccache}"
+: "${CHAPAR_INSTALL_TREE_ROOT:=}"
+: "${CHAPAR_INSTALL_TREE_PROJECTION:=}"
+: "${CHAPAR_MODULE_ROOT:=}"
 : "${CHAPAR_CCACHE_COMPILERCHECK:=content}"
+if [ -z "${CHAPAR_INSTALL_TREE_PROJECTION}" ]; then
+    if [ -n "${CHAPAR_INSTALL_TREE_ROOT}" ]; then
+        CHAPAR_INSTALL_TREE_PROJECTION='{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
+    else
+        CHAPAR_INSTALL_TREE_PROJECTION='{name}-{version}-{hash}'
+    fi
+fi
 
 case "${CHAPAR_INSTALL_MODE}" in
     public)
@@ -44,6 +54,7 @@ esac
 : "${CHAPAR_HPCSIM_ROOT:=${HPCSIM_ROOT}}"
 export CHAPAR_INSTALL_MODE HPCSIM_HOME_ROOT HPCSIM_PUBLIC_ROOT
 export CHAPAR_SHARED_CACHE_ROOT CHAPAR_BUILDCACHE_ROOT CHAPAR_CCACHE_ROOT
+export CHAPAR_INSTALL_TREE_ROOT CHAPAR_INSTALL_TREE_PROJECTION CHAPAR_MODULE_ROOT
 export CHAPAR_CCACHE_COMPILERCHECK HPCSIM_ROOT CHAPAR_HPCSIM_ROOT
 
 _chapar_detect_hpcsim_os() {
@@ -116,8 +127,21 @@ if type module >/dev/null 2>&1; then
     fi
 
     _chapar_hpcsim_root="${CHAPAR_HPCSIM_ROOT}"
+    _chapar_shared_module_added="false"
+    if [ -n "${_chapar_hpcsim_os}" ] && [ -n "${CHAPAR_MODULE_ROOT}" ] && [ -d "${CHAPAR_MODULE_ROOT}" ]; then
+        for _chapar_hpcsim_module_dir in "${CHAPAR_MODULE_ROOT}"/*; do
+            [ -d "${_chapar_hpcsim_module_dir}" ] || continue
+            case "$(basename "${_chapar_hpcsim_module_dir}")" in
+                *-"${_chapar_hpcsim_os}"-*)
+                    module use "${_chapar_hpcsim_module_dir}" >/dev/null 2>&1 || true
+                    _chapar_shared_module_added="true"
+                    ;;
+            esac
+        done
+    fi
+
     _chapar_hpcsim_current="${_chapar_hpcsim_root}/${_chapar_hpcsim_os}/current"
-    if [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
+    if [ "${_chapar_shared_module_added}" != "true" ] && [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
         _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
         _chapar_hpcsim_module_root="${_chapar_hpcsim_release}/modulefiles"
         if [ -n "${_chapar_hpcsim_release}" ] && [ -d "${_chapar_hpcsim_module_root}" ]; then
@@ -135,4 +159,5 @@ unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_root _chapa
 unset _chapar_module_root _chapar_module_archdir
 unset _chapar_hpcsim_os _chapar_hpcsim_root _chapar_hpcsim_current _chapar_hpcsim_release
 unset _chapar_hpcsim_module_root _chapar_hpcsim_module_dir
+unset _chapar_shared_module_added
 unset -f _chapar_detect_hpcsim_os 2>/dev/null || true
