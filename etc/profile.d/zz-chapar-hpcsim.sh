@@ -15,7 +15,8 @@ if type module >/dev/null 2>&1; then
         esac
     fi
 
-    _chapar_hpcsim_root="${CHAPAR_HPCSIM_ROOT:-${HPCSIM_ROOT:-${HOME}/resources/share/hpcsim}}"
+    _chapar_home_root="${CHAPAR_HOME_ROOT:-${HOME}/.spack/chapar}"
+    _chapar_hpcsim_root="${CHAPAR_HPCSIM_ROOT:-${HPCSIM_ROOT:-${_chapar_home_root}/envs/hpcsim}}"
     _chapar_hpcsim_current="${_chapar_hpcsim_root}/${_chapar_hpcsim_os}/current"
     if [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
         _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
@@ -31,5 +32,5 @@ if type module >/dev/null 2>&1; then
     fi
 fi
 
-unset _chapar_hpcsim_os _chapar_hpcsim_root _chapar_hpcsim_current _chapar_hpcsim_release
+unset _chapar_hpcsim_os _chapar_home_root _chapar_hpcsim_root _chapar_hpcsim_current _chapar_hpcsim_release
 unset _chapar_hpcsim_module_root _chapar_hpcsim_module_dir

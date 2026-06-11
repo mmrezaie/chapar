@@ -32,9 +32,10 @@ if [ -r "${site_config}" ]; then
 fi
 
 : "${CHAPAR_INSTALL_MODE:=home}"
-: "${HPCSIM_HOME_ROOT:=${HOME}/resources/share/hpcsim}"
+: "${CHAPAR_HOME_ROOT:=${HOME}/.spack/chapar}"
+: "${HPCSIM_HOME_ROOT:=${CHAPAR_HOME_ROOT}/envs/hpcsim}"
 : "${HPCSIM_PUBLIC_ROOT:=}"
-: "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
+: "${CHAPAR_SHARED_CACHE_ROOT:=${CHAPAR_HOME_ROOT}/cache}"
 : "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
 
 while [ "$#" -gt 0 ]; do

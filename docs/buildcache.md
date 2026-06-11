@@ -1,7 +1,7 @@
 # Chapar Buildcache And ccache Policy
 
 Chapar uses one configured Spack binary buildcache root and one compiler ccache
-root for hpcsim. Configure both in the ignored local
+root for Chapar environments. hpcsim can configure both in the ignored local
 `envs/hpcsim/hpcsim-site.env` file copied from
 `envs/hpcsim/hpcsim-site.env.example`.
 
@@ -12,7 +12,7 @@ ${CHAPAR_CCACHE_ROOT}/rocky9
 ${CHAPAR_CCACHE_ROOT}/rocky10
 ```
 
-By default, `CHAPAR_SHARED_CACHE_ROOT` is `~/resources/chapar/cache`, with
+By default, `CHAPAR_SHARED_CACHE_ROOT` is `~/.spack/chapar/cache`, with
 buildcache and ccache roots below it as `buildcache` and `ccache`. Use different
 cache roots for clusters or datacenters that should not share artifacts. Sharing
 cache roots across incompatible security boundaries can leak paths, compiler
@@ -27,8 +27,10 @@ URLs rooted at `${CHAPAR_BUILDCACHE_ROOT}/<os>`. This makes the cache visible to
 
 - `spack -e envs/hpcsim install` after `source etc/init.sh`
 - release builds driven by `envs/hpcsim/release.sh`
-- sbatch builds submitted by `ci/submit-hpcsim-release.sh` or directly through
-  `ci/sbatch-hpcsim-release-rocky9.sh` / `ci/sbatch-hpcsim-release-rocky10.sh`
+- generic sbatch builds submitted by `ci/submit-env-build.sh` or directly
+  through `ci/sbatch-env-build.sh`
+- hpcsim release builds submitted by `ci/submit-hpcsim-release.sh` or directly
+  through `ci/sbatch-hpcsim-release-rocky9.sh` / `ci/sbatch-hpcsim-release-rocky10.sh`
 - future Chapar environments that inherit the same scopes
 
 Release builds generate a temporary command-line scope with the same mirror name.

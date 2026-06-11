@@ -83,9 +83,10 @@ load_site_config() {
     [ -n "${env_publish_buildcache}" ] && PUBLISH_BUILDCACHE="${env_publish_buildcache}"
 
     : "${CHAPAR_INSTALL_MODE:=home}"
-    : "${HPCSIM_HOME_ROOT:=${HOME}/resources/share/hpcsim}"
+    : "${CHAPAR_HOME_ROOT:=${HOME}/.spack/chapar}"
+    : "${HPCSIM_HOME_ROOT:=${CHAPAR_HOME_ROOT}/envs/hpcsim}"
     : "${HPCSIM_PUBLIC_ROOT:=}"
-    : "${CHAPAR_SHARED_CACHE_ROOT:=${HOME}/resources/chapar/cache}"
+    : "${CHAPAR_SHARED_CACHE_ROOT:=${CHAPAR_HOME_ROOT}/cache}"
     : "${CHAPAR_BUILDCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/buildcache}"
     : "${CHAPAR_CCACHE_ROOT:=${CHAPAR_SHARED_CACHE_ROOT}/ccache}"
     : "${CHAPAR_SHARED_GROUP:=}"
@@ -119,6 +120,8 @@ Environment:
   HPCSIM_ROOT          Release root. Default comes from envs/hpcsim/hpcsim-site.env:
                        HPCSIM_HOME_ROOT when CHAPAR_INSTALL_MODE=home, or
                        HPCSIM_PUBLIC_ROOT when CHAPAR_INSTALL_MODE=public.
+  CHAPAR_HOME_ROOT     Default private root for local Chapar outputs:
+                       ~/.spack/chapar.
   CHAPAR_BUILDCACHE_ROOT
                        Shared binary cache root. Default comes from
                        CHAPAR_SHARED_CACHE_ROOT/buildcache.

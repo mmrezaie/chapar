@@ -191,11 +191,12 @@ spack arch --platform
 | `SPACK_USER_CONFIG_PATH` | `~/.spack/` | Override user scope location |
 | `SPACK_USER_CACHE_PATH` | `/tmp/$USER/spack-cache` | Fast local cache root from `etc/init.sh` |
 | `CHAPAR_INSTALL_MODE` | `home` | `home` or `public`; chooses the release root when `HPCSIM_ROOT` is unset |
-| `HPCSIM_HOME_ROOT` | `~/resources/share/hpcsim` | User-owned hpcsim release root |
+| `CHAPAR_HOME_ROOT` | `~/.spack/chapar` | Private default root for local Chapar env outputs, modules, and caches |
+| `HPCSIM_HOME_ROOT` | `$CHAPAR_HOME_ROOT/envs/hpcsim` | User-owned hpcsim release root |
 | `HPCSIM_PUBLIC_ROOT` | empty | Site/public hpcsim release root for `CHAPAR_INSTALL_MODE=public` |
 | `HPCSIM_ROOT` | mode-dependent | Effective hpcsim release root |
 | `CHAPAR_HPCSIM_ROOT` | `$HPCSIM_ROOT` | hpcsim root used when adding promoted modules |
-| `CHAPAR_SHARED_CACHE_ROOT` | `~/resources/chapar/cache` | Parent namespace for shared buildcache and ccache roots |
+| `CHAPAR_SHARED_CACHE_ROOT` | `$CHAPAR_HOME_ROOT/cache` | Parent namespace for buildcache and ccache roots |
 | `CHAPAR_BUILDCACHE_ROOT` | `$CHAPAR_SHARED_CACHE_ROOT/buildcache` | Shared Spack binary buildcache root |
 | `CHAPAR_CCACHE_ROOT` | `$CHAPAR_SHARED_CACHE_ROOT/ccache` | Shared compiler ccache root |
 | `CHAPAR_INSTALL_TREE_ROOT` | empty | Optional shared Spack install tree root; empty uses `${HPCSIM_ROOT}/<os>/store` |
