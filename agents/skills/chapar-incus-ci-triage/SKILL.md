@@ -53,23 +53,24 @@ Look for:
 
 ## Logs and Run Outputs
 
-For the hpcsim workflow, `ci/container-build.sh` writes durable logs under:
+For the generic environment workflow, `ci/container-build.sh` writes durable logs under:
 
 ```text
-${HPCSIM_ROOT}/${OS_NAME}/runs/${RUN_ID}/logs/build.log
-${HPCSIM_ROOT}/${OS_NAME}/runs/${RUN_ID}/commit.txt
-${HPCSIM_ROOT}/${OS_NAME}/runs/${RUN_ID}/spack-version.txt
-${HPCSIM_ROOT}/${OS_NAME}/runs/${RUN_ID}/spack-commit.txt
-${HPCSIM_ROOT}/${OS_NAME}/runs/${RUN_ID}/concrete-envs/
+${CHAPAR_ENV_ROOT}/${OS_NAME}/runs/${RUN_ID}/logs/build.log
+${CHAPAR_ENV_ROOT}/${OS_NAME}/runs/${RUN_ID}/commit.txt
+${CHAPAR_ENV_ROOT}/${OS_NAME}/runs/${RUN_ID}/spack-version.txt
+${CHAPAR_ENV_ROOT}/${OS_NAME}/runs/${RUN_ID}/spack-commit.txt
+${CHAPAR_ENV_ROOT}/${OS_NAME}/runs/${RUN_ID}/concrete-envs/
 ```
 
 Defaults from the hpcsim workflow are:
 
 ```text
-HPCSIM_ROOT=/resources/chapar/hpcsim
+ENV_NAME=hpcsim
+ENV_PATH=envs/hpcsim
+CHAPAR_ENV_ROOT=/resources/chapar/hpcsim
 CHAPAR_BUILDCACHE_ROOT=/resources/chapar/cache/buildcache
 CHAPAR_CCACHE_ROOT=/resources/chapar/cache/ccache
-ENV_PATH=envs/hpcsim
 ```
 
 Future environment workflows should have analogous run roots and must be read
@@ -93,10 +94,10 @@ explicitly changes that policy.
 
 ### Verify resources mount
 
-Inspect the workflow inputs and preparation script, currently
-`ci/prepare-hpcsim-root.sh` for hpcsim. Resources, buildcache, and ccache roots
-must be NFS (`nfs` or `nfs4`) and writable for the OS-specific run/cache
-directories.
+Inspect the workflow inputs and preparation script. hpcsim release-mode builds
+use `ci/prepare-hpcsim-root.sh`; generic Spack-mode builds create the run/cache
+directories directly. Resources, buildcache, and ccache roots must be NFS (`nfs`
+or `nfs4`) and writable for the OS-specific run/cache directories.
 
 ### Concretization timeout/failure
 

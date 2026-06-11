@@ -30,13 +30,13 @@ code/config change. Keep this skill focused on observation.
 Find the CI output roots from the job definition and from the files that the job
 has already written. Useful signals include:
 
-- Workflow inputs such as `hpcsim_root`, `buildcache_root`, `release_id`, `os`,
-  `git_ref`, and site-specific equivalents.
-- Job environment variables such as `HPCSIM_ROOT`, `CHAPAR_HPCSIM_ROOT`,
-  `CHAPAR_BUILDCACHE_ROOT`, `CHAPAR_CCACHE_ROOT`, `RUN_ID`, `RELEASE_ID`,
-  `OS_NAME`, and future environment-specific root names.
+- Workflow inputs such as `env_name`, `env_path`, `env_root`, `buildcache_root`,
+  `release_id`, `os`, `git_ref`, and site-specific equivalents.
+- Job environment variables such as `ENV_NAME`, `ENV_PATH`, `CHAPAR_ENV_ROOT`,
+  `HPCSIM_ROOT`, `CHAPAR_HPCSIM_ROOT`, `CHAPAR_BUILDCACHE_ROOT`,
+  `CHAPAR_CCACHE_ROOT`, `RUN_ID`, `RELEASE_ID`, and `OS_NAME`.
 - Durable log lines such as `output:`, `store:`, `releases:`, `module:`,
-  `buildcache:`, `hpcsim root:`, and `buildcache root:`.
+  `buildcache:`, `env root:`, `hpcsim root:`, and `buildcache root:`.
 - Release-helper status output that names store, release, modulefile, current,
   and cache paths.
 - Concrete environment snapshots copied to a run directory after a successful or
@@ -116,7 +116,8 @@ Header and staging only              Release helper started; likely concretizing
 Install/package messages present     Build is installing or fetching binaries.
 `Regenerating tcl module files`      Install finished; module generation is running or just completed.
 `Release build complete`             Release tree and modulefiles were created.
-`hpcsim CI build completed`          Container build script reached the end.
+`Chapar environment CI build completed` Container build script reached the end.
+`hpcsim CI build completed`          Older container build script reached the end.
 Error/FAILED/Killed/timeout lines    Report the first failing package or phase with nearby context.
 ```
 
