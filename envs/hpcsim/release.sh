@@ -998,27 +998,30 @@ validate_arch_triplet() {
 release_arch_triplet() {
     local release_dir="$1"
     local arch_triplet=""
+    local module_arch_triplet=""
     local arch_dir
     local candidate
 
     if [ -r "${release_dir}/.chapar-arch" ]; then
         IFS= read -r arch_triplet < "${release_dir}/.chapar-arch" || true
         validate_arch_triplet "${arch_triplet}"
-        printf '%s\n' "${arch_triplet}"
-        return 0
     fi
 
-    if [ -r "${release_dir}/metadata.txt" ]; then
+    if [ -z "${arch_triplet}" ] && [ -r "${release_dir}/metadata.txt" ]; then
         while IFS= read -r candidate; do
             case "${candidate}" in
                 arch:\ *)
                     arch_triplet="${candidate#arch: }"
                     validate_arch_triplet "${arch_triplet}"
-                    printf '%s\n' "${arch_triplet}"
-                    return 0
+                    break
                     ;;
             esac
         done < "${release_dir}/metadata.txt"
+    fi
+
+    if [ -n "${arch_triplet}" ] && [ -d "${release_dir}/modulefiles/${arch_triplet}" ]; then
+        printf '%s\n' "${arch_triplet}"
+        return 0
     fi
 
     for arch_dir in "${release_dir}/modulefiles"/*; do
@@ -1029,13 +1032,19 @@ release_arch_triplet() {
             *) continue ;;
         esac
         validate_arch_triplet "${candidate}"
-        if [ -n "${arch_triplet}" ] && [ "${arch_triplet}" != "${candidate}" ]; then
+        if [ -n "${module_arch_triplet}" ] && [ "${module_arch_triplet}" != "${candidate}" ]; then
             die "release has multiple module architectures; cannot choose shared symlink: ${release_dir}"
         fi
-        arch_triplet="${candidate}"
+        module_arch_triplet="${candidate}"
     done
 
-    [ -n "${arch_triplet}" ] || die "could not determine release architecture from ${release_dir}"
+    [ -n "${module_arch_triplet}" ] || die "could not determine release module architecture from ${release_dir}"
+    if [ -n "${arch_triplet}" ] && [ "${arch_triplet}" != "${module_arch_triplet}" ]; then
+        echo "==> Recorded release arch has no module tree; using generated module arch" >&2
+        echo "    recorded: ${arch_triplet}" >&2
+        echo "    module:   ${module_arch_triplet}" >&2
+    fi
+    arch_triplet="${module_arch_triplet}"
     printf '%s\n' "${arch_triplet}"
 }
 
@@ -1181,7 +1190,7 @@ cmd_build() {
     echo "==> Refreshing hpcsim root modules"
     refresh_root_modules
 
-    arch_triplet="$(spack -e "${ENV_PATH}" -C "${scope_dir}" arch)"
+    arch_triplet="$(release_arch_triplet "${staging_dir}")"
     copy_manifest "${staging_dir}" "${arch_triplet}"
 
     # The final rename is the publication point. Anything before this can fail

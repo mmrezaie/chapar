@@ -153,6 +153,9 @@ That produces package prefixes such as
 Run `publish-modules` to update
 `/path/to/shared/modulefiles/linux-rocky9-x86_64_v4` as a symlink to the
 selected release's module tree without changing `${HPCSIM_ROOT}/<os>/current`.
+The published architecture name comes from the generated release module
+directory. A generic Rocky 9 build publishes `linux-rocky9-x86_64_v4`; a
+CPU-specific build publishes its concrete target such as `linux-rocky9-zen5`.
 
 Supported OS names are `rocky9` and `rocky10`. The helper auto-detects the OS,
 or you can set `OS_NAME` explicitly:

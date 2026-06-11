@@ -143,6 +143,9 @@ prefixes include architecture, compiler, package, version, and hash.
 as a symlink to the selected release-local module tree without changing
 `${HPCSIM_ROOT}/<os>/current`. `release.sh promote <release-id>` updates both
 `current` and the shared module symlink when `CHAPAR_MODULE_ROOT` is set.
+The `<arch>` name is the actual generated module architecture. Generic builds use
+targets such as `linux-rocky9-x86_64_v4`; CPU-specific builds use targets such as
+`linux-rocky9-zen5`.
 
 The store or configured install tree is shared and package prefixes include
 hashes. Module trees are release-specific until `publish-modules` or `promote`
