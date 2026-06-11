@@ -19,7 +19,7 @@ variable "docker_platform" {
 
 variable "archive_path" {
   type    = string
-  default = "../../../out/hpcsim-rocky9-base.tar"
+  default = "../../../../out/hpcsim-rocky9-base.tar"
 }
 
 variable "image_repository" {
@@ -39,9 +39,10 @@ source "docker" "rocky9" {
   platform = var.docker_platform
 
   changes = [
-    "ENV CHAPAR_HPCSIM_ROOT=/resources/chapar/hpcsim",
-    "ENV CHAPAR_HPCSIM_OS=rocky9",
-    "ENTRYPOINT [\"/usr/local/bin/chapar-hpcsim-entrypoint\"]",
+    "ENV CHAPAR_ENV_NAME=hpcsim",
+    "ENV CHAPAR_ENV_ROOT=/resources/chapar/hpcsim",
+    "ENV CHAPAR_ENV_OS=rocky9",
+    "ENTRYPOINT [\"/usr/local/bin/chapar-env-entrypoint\"]",
     "CMD [\"bash\", \"--login\"]"
   ]
 }
@@ -56,18 +57,19 @@ build {
   }
 
   provisioner "file" {
-    source      = "../../common/bin/chapar-hpcsim-entrypoint"
-    destination = "/usr/local/bin/chapar-hpcsim-entrypoint"
+    source      = "../../../../common/bin/chapar-env-entrypoint"
+    destination = "/usr/local/bin/chapar-env-entrypoint"
   }
 
   provisioner "file" {
-    source      = "../../../../etc/profile.d/zz-chapar-hpcsim.sh"
+    source      = "../../../../../etc/profile.d/zz-chapar-hpcsim.sh"
     destination = "/etc/profile.d/zz-chapar-hpcsim.sh"
   }
 
   provisioner "shell" {
     environment_vars = [
-      "CHAPAR_PACKAGE_LIST=/tmp/chapar-rocky9-packages.txt"
+      "CHAPAR_PACKAGE_LIST=/tmp/chapar-rocky9-packages.txt",
+      "CHAPAR_ENV_NAME=hpcsim"
     ]
     script = "../provision-rocky9.sh"
   }

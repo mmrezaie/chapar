@@ -10,7 +10,9 @@ set -euo pipefail
 SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 : "${CHAPAR_HPCSIM_IMAGE:=${SUBMIT_DIR}/containers/out/hpcsim-rocky9.sif}"
-: "${CHAPAR_HPCSIM_ROOT:=/resources/chapar/hpcsim}"
+: "${CHAPAR_ENV_NAME:=hpcsim}"
+: "${CHAPAR_ENV_ROOT:=${CHAPAR_HPCSIM_ROOT:-/resources/chapar/hpcsim}}"
+: "${CHAPAR_ENV_OS:=rocky9}"
 : "${CHAPAR_HPCSIM_COMMAND:=module avail}"
 : "${CHAPAR_RESOURCES_BIND:=/resources:/resources}"
 : "${CHAPAR_APPTAINER_NV:=auto}"
@@ -63,8 +65,11 @@ srun apptainer exec \
     "${gpu_args[@]}" \
     --bind "${CHAPAR_RESOURCES_BIND}" \
     --bind "${SUBMIT_DIR}:${SUBMIT_DIR}" \
-    --env "CHAPAR_HPCSIM_ROOT=${CHAPAR_HPCSIM_ROOT}" \
-    --env CHAPAR_HPCSIM_OS=rocky9 \
+    --env "CHAPAR_ENV_NAME=${CHAPAR_ENV_NAME}" \
+    --env "CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}" \
+    --env "CHAPAR_ENV_OS=${CHAPAR_ENV_OS}" \
+    --env "CHAPAR_HPCSIM_ROOT=${CHAPAR_ENV_ROOT}" \
+    --env "CHAPAR_HPCSIM_OS=${CHAPAR_ENV_OS}" \
     --pwd "${SUBMIT_DIR}" \
     "${CHAPAR_HPCSIM_IMAGE}" \
     bash --login -c "${CHAPAR_HPCSIM_COMMAND}"

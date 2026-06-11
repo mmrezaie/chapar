@@ -1,21 +1,21 @@
-# hpcsim Containers
+# Chapar Environment Containers
 
-This directory contains the initial Apptainer workflow for running the Chapar
-`hpcsim` environment on Rocky Linux 9.
+This directory contains Apptainer/Packer workflows for running Chapar
+environments. Recipes are organized by environment and OS so future environments
+and operating systems can be added without overloading hpcsim-specific paths.
 
 The image is intentionally a runtime wrapper around the existing Chapar release
 layout. It does not embed the Spack install tree. At runtime, bind the site
-resources tree so the container sees the promoted release at
-`/resources/chapar/hpcsim/rocky9/current` or the root selected by
-`CHAPAR_HPCSIM_ROOT`.
+resources tree so the container sees the promoted release at the configured
+environment root.
 
 ## Layout
 
-- `rocky9/packages.txt`: Rocky 9 RPMs needed by the hpcsim runtime/build base.
-- `rocky9/provision-rocky9.sh`: Rocky 9 package and repository bootstrap.
-- `rocky9/packer/`: Packer recipe for the reusable Rocky 9 base image.
-- `rocky9/apptainer/`: Apptainer definition that converts the Packer base to a SIF.
-- `rocky9/slurm/`: Slurm launch examples.
+- `envs/hpcsim/rocky9/packages.txt`: Rocky 9 RPMs needed by the hpcsim runtime/build base.
+- `envs/hpcsim/rocky9/provision-rocky9.sh`: Rocky 9 package and repository bootstrap.
+- `envs/hpcsim/rocky9/packer/`: Packer recipe for the reusable Rocky 9 base image.
+- `envs/hpcsim/rocky9/apptainer/`: Apptainer definition that converts the Packer base to a SIF.
+- `envs/hpcsim/rocky9/slurm/`: Slurm launch examples.
 - `common/bin/`: Runtime helper shared by image recipes.
 
 ## Build
@@ -25,16 +25,16 @@ macOS checkout can edit these recipes, but it cannot validate Apptainer builds
 without Apptainer installed.
 
 ```bash
-containers/hpcsim/rocky9/build.sh
+containers/envs/hpcsim/rocky9/build.sh
 ```
 
 The script runs:
 
 ```bash
-packer init containers/hpcsim/rocky9/packer
-packer -chdir=containers/hpcsim/rocky9/packer build .
+packer init containers/envs/hpcsim/rocky9/packer
+packer -chdir=containers/envs/hpcsim/rocky9/packer build .
 apptainer build containers/out/hpcsim-rocky9.sif \
-  containers/hpcsim/rocky9/apptainer/hpcsim-rocky9.def
+  containers/envs/hpcsim/rocky9/apptainer/hpcsim-rocky9.def
 ```
 
 The Packer image is tagged in the local Docker daemon as
@@ -48,15 +48,15 @@ Useful build overrides:
 ```bash
 CHAPAR_APPTAINER_BUILD_ARGS='--fakeroot --force' \
 CHAPAR_CONTAINER_OUT_DIR=/scratch/chapar-containers \
-containers/hpcsim/rocky9/build.sh
+containers/envs/hpcsim/rocky9/build.sh
 ```
 
 ## Runtime
 
 Before running the image, build and promote a Rocky 9 hpcsim release with the
 existing Chapar release workflow. The default CI runtime root is
-`/resources/chapar/hpcsim`; set `CHAPAR_HPCSIM_ROOT` if you are using another
-site root.
+`/resources/chapar/hpcsim`; set `CHAPAR_ENV_ROOT` or the legacy
+`CHAPAR_HPCSIM_ROOT` if you are using another site root.
 
 The SIF expects the hpcsim release tree to be visible at the same absolute path
 used by Chapar modules:
@@ -88,16 +88,16 @@ apptainer exec --nv \
 Submit the example batch job from the repository root:
 
 ```bash
-sbatch containers/hpcsim/rocky9/slurm/hpcsim.sbatch
+sbatch containers/envs/hpcsim/rocky9/slurm/hpcsim.sbatch
 ```
 
 Useful overrides:
 
 ```bash
 CHAPAR_HPCSIM_IMAGE=/path/to/hpcsim-rocky9.sif \
-CHAPAR_HPCSIM_ROOT=/resources/chapar/hpcsim \
+CHAPAR_ENV_ROOT=/resources/chapar/hpcsim \
 CHAPAR_HPCSIM_COMMAND='module avail' \
-sbatch containers/hpcsim/rocky9/slurm/hpcsim.sbatch
+sbatch containers/envs/hpcsim/rocky9/slurm/hpcsim.sbatch
 ```
 
 The example uses Slurm to launch Apptainer and is intended as a module/runtime

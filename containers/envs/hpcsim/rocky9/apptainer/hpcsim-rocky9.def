@@ -22,16 +22,19 @@ From: {{ base_archive }}
       /resources/chapar/hpcsim/rocky9/current/modulefiles
 
 %environment
-    export CHAPAR_HPCSIM_ROOT="${CHAPAR_HPCSIM_ROOT:-/resources/chapar/hpcsim}"
-    export CHAPAR_HPCSIM_OS="${CHAPAR_HPCSIM_OS:-rocky9}"
+    export CHAPAR_ENV_NAME="${CHAPAR_ENV_NAME:-hpcsim}"
+    export CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT:-${CHAPAR_HPCSIM_ROOT:-/resources/chapar/hpcsim}}"
+    export CHAPAR_ENV_OS="${CHAPAR_ENV_OS:-${CHAPAR_HPCSIM_OS:-rocky9}}"
+    export CHAPAR_HPCSIM_ROOT="${CHAPAR_ENV_ROOT}"
+    export CHAPAR_HPCSIM_OS="${CHAPAR_ENV_OS}"
 
 %post
     set -e
     mkdir -p /resources/chapar/hpcsim /resources/chapar/cache
-    chmod 0755 /usr/local/bin/chapar-hpcsim-entrypoint
+    chmod 0755 /usr/local/bin/chapar-env-entrypoint
 
 %runscript
-    exec /usr/local/bin/chapar-hpcsim-entrypoint "$@"
+    exec /usr/local/bin/chapar-env-entrypoint "$@"
 
 %test
     test -r /etc/os-release

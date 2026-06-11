@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINERS_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+CONTAINERS_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 OUT_DIR="${CHAPAR_CONTAINER_OUT_DIR:-${CONTAINERS_DIR}/out}"
 SIF_PATH="${CHAPAR_HPCSIM_SIF:-${OUT_DIR}/hpcsim-rocky9.sif}"
 BASE_ARCHIVE="${CHAPAR_HPCSIM_BASE_ARCHIVE:-${OUT_DIR}/hpcsim-rocky9-base.tar}"

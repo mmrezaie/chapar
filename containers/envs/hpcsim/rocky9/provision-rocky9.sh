@@ -2,6 +2,7 @@
 set -euo pipefail
 
 : "${CHAPAR_PACKAGE_LIST:=/tmp/chapar-rocky9-packages.txt}"
+: "${CHAPAR_ENV_NAME:=hpcsim}"
 
 as_root() {
     if [ "$(id -u)" -eq 0 ]; then
@@ -40,8 +41,8 @@ as_root dnf config-manager --set-enabled crb
 as_root dnf -y install epel-release
 as_root dnf -y install "${packages[@]}"
 
-as_root install -d -m 0755 /resources/chapar/hpcsim /resources/chapar/cache/buildcache /resources/chapar/cache/ccache
-as_root chmod 0755 /usr/local/bin/chapar-hpcsim-entrypoint
+as_root install -d -m 0755 "/resources/chapar/${CHAPAR_ENV_NAME}" /resources/chapar/cache/buildcache /resources/chapar/cache/ccache
+as_root chmod 0755 /usr/local/bin/chapar-env-entrypoint
 if [ -r /etc/profile.d/zz-chapar-hpcsim.sh ]; then
     as_root chmod 0644 /etc/profile.d/zz-chapar-hpcsim.sh
 fi
