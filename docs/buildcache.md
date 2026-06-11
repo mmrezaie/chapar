@@ -134,15 +134,24 @@ directories manually so future runs cannot accidentally reuse stale artifacts.
 
 ## Admin Setup
 
-Prepare the shared cache roots with trusted group ownership and setgid
-permissions before enabling broad user autopush:
+Prepare the shared cache roots, and any optional shared install/module roots,
+with trusted group ownership and setgid permissions before enabling broad user
+autopush:
 
 ```bash
 mkdir -p "${CHAPAR_BUILDCACHE_ROOT}/rocky9" "${CHAPAR_BUILDCACHE_ROOT}/rocky10"
 mkdir -p "${CHAPAR_CCACHE_ROOT}/rocky9" "${CHAPAR_CCACHE_ROOT}/rocky10"
+[ -n "${CHAPAR_INSTALL_TREE_ROOT:-}" ] && mkdir -p "${CHAPAR_INSTALL_TREE_ROOT}"
+[ -n "${CHAPAR_MODULE_ROOT:-}" ] && mkdir -p "${CHAPAR_MODULE_ROOT}"
 chgrp -R <trusted-chapar-group> "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}"
 chmod -R g+rwX "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}"
 find "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}" -type d -exec chmod 2775 {} +
+[ -n "${CHAPAR_INSTALL_TREE_ROOT:-}" ] && chgrp -R <trusted-chapar-group> "${CHAPAR_INSTALL_TREE_ROOT}"
+[ -n "${CHAPAR_INSTALL_TREE_ROOT:-}" ] && chmod -R g+rwX "${CHAPAR_INSTALL_TREE_ROOT}"
+[ -n "${CHAPAR_INSTALL_TREE_ROOT:-}" ] && find "${CHAPAR_INSTALL_TREE_ROOT}" -type d -exec chmod 2775 {} +
+[ -n "${CHAPAR_MODULE_ROOT:-}" ] && chgrp -R <trusted-chapar-group> "${CHAPAR_MODULE_ROOT}"
+[ -n "${CHAPAR_MODULE_ROOT:-}" ] && chmod -R g+rwX "${CHAPAR_MODULE_ROOT}"
+[ -n "${CHAPAR_MODULE_ROOT:-}" ] && find "${CHAPAR_MODULE_ROOT}" -type d -exec chmod 2775 {} +
 ```
 
 Use the group that represents users and builders allowed to publish shared binary

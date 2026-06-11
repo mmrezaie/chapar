@@ -51,9 +51,10 @@ Current hpcsim layouts are examples, not hard-coded policy:
 <env-root>/<os>/runs/<run-id>/spack-commit.txt
 <env-root>/<os>/runs/<run-id>/release-id.txt
 <env-root>/<os>/runs/<run-id>/concrete-envs/
-<env-root>/<os>/store/
+<env-root>/<os>/store/ or <install-tree-root>/
 <env-root>/<os>/releases/<release-id>/modulefiles/
 <env-root>/<os>/current
+<module-root>/<arch> -> <env-root>/<os>/releases/<release-id>/modulefiles/<arch>
 <buildcache-root>/<os>/
 <ccache-root>/<os>/
 ```

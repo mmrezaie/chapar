@@ -94,8 +94,8 @@ from every `spack find -c -H` result; that includes dependency-only specs and
 can collide with hpcsim's hashless `{name}/{version}` module names.
 
 For home testing or public deployment, use the release helper or Slurm submit
-helper. They build packages into a per-OS store and write modules into a
-release-specific staging tree:
+helper. They build packages into the configured install tree and write modules
+into a release-specific staging tree:
 
 ```bash
 bash envs/hpcsim/release.sh build rocky9-20260610
@@ -131,6 +131,22 @@ $CHAPAR_BUILDCACHE_ROOT/<os>
 $CHAPAR_CCACHE_ROOT/<os>
 ```
 
+Public sites can keep release metadata under `$HPCSIM_PUBLIC_ROOT/<os>` while
+placing package prefixes and promoted module symlinks in shared top-level roots:
+
+```bash
+CHAPAR_INSTALL_MODE=public
+HPCSIM_PUBLIC_ROOT=/share/base
+CHAPAR_INSTALL_TREE_ROOT=/share/base/bin
+CHAPAR_INSTALL_TREE_PROJECTION='{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
+CHAPAR_MODULE_ROOT=/share/base/modulefiles
+```
+
+That produces package prefixes such as
+`/share/base/bin/linux-rocky9-x86_64_v4/<compiler-name>-<compiler-version>/<package>-<version>-<hash>`
+and promotes `/share/base/modulefiles/linux-rocky9-x86_64_v4` as a symlink to
+the selected release's module tree.
+
 Supported OS names are `rocky9` and `rocky10`. The helper auto-detects the OS,
 or you can set `OS_NAME` explicitly:
 
@@ -144,9 +160,10 @@ day needs an explicit release ID such as `rocky9-20260610-rerun1`.
 
 ## Loading Modules
 
-After `etc/init.sh`, the current hpcsim module tree is added automatically when
-`${HPCSIM_ROOT}/<os>/current` exists. To print the exact command for a specific
-release:
+After `etc/init.sh`, the promoted shared module path is added automatically when
+`CHAPAR_MODULE_ROOT` points at a matching `linux-<os>-*` symlink. Otherwise, the
+current hpcsim module tree is added when `${HPCSIM_ROOT}/<os>/current` exists. To
+print the exact command for a specific release:
 
 ```bash
 bash envs/hpcsim/release.sh module-use rocky9-20260610
@@ -168,9 +185,10 @@ New builds must not overwrite active module trees. The release helper builds in
 `releases/.<release-id>.staging.<pid>`, then renames that staging tree to
 `releases/<release-id>` only after install and module generation succeed.
 
-Promotion only updates the per-OS `current` symlink. Do not run `spack uninstall`,
-`spack gc`, or manual cleanup against `${HPCSIM_ROOT}/<os>/store` while
-users may still have jobs running from older releases.
+Promotion updates the per-OS `current` symlink and, when `CHAPAR_MODULE_ROOT` is
+set, the matching architecture symlink below that module root. Do not run
+`spack uninstall`, `spack gc`, or manual cleanup against the configured install
+tree while users may still have jobs running from older releases.
 
 Rollback is switching `current` back to an older release:
 

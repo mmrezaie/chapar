@@ -128,7 +128,7 @@ Promote only after validation succeeds:
 bash envs/hpcsim/release.sh promote 2026-05-02
 ```
 
-Release layout:
+Default release layout:
 
 - Install store: `${HPCSIM_ROOT}/<os>/store`
 - Modules: `${HPCSIM_ROOT}/<os>/releases/<release-id>/modulefiles`
@@ -136,9 +136,17 @@ Release layout:
 - Buildcache: `${CHAPAR_BUILDCACHE_ROOT}/<os>`
 - ccache: `${CHAPAR_CCACHE_ROOT}/<os>`
 
-The store is shared per OS and package prefixes include hashes. Module trees are
-release-specific. This allows new modules and packages to be added without
-rewriting the module tree used by already-running jobs.
+Public deployments can set `CHAPAR_INSTALL_TREE_ROOT=/share/base/bin` and
+`CHAPAR_MODULE_ROOT=/share/base/modulefiles` in the ignored site env file. With
+the default shared-root projection, package prefixes include architecture,
+compiler, package, version, and hash. Promotion updates
+`${CHAPAR_MODULE_ROOT}/<arch>` as a symlink to the promoted release-local module
+tree.
+
+The store or configured install tree is shared and package prefixes include
+hashes. Module trees are release-specific until promotion. This allows new
+modules and packages to be added without rewriting the module tree used by
+already-running jobs.
 
 hpcsim module names are user-facing and must stay `{name}/{version}` with no
 hash suffixes. Release module generation is limited to explicit environment
@@ -190,5 +198,8 @@ spack arch --platform
 | `CHAPAR_SHARED_CACHE_ROOT` | `~/resources/chapar/cache` | Parent namespace for shared buildcache and ccache roots |
 | `CHAPAR_BUILDCACHE_ROOT` | `$CHAPAR_SHARED_CACHE_ROOT/buildcache` | Shared Spack binary buildcache root |
 | `CHAPAR_CCACHE_ROOT` | `$CHAPAR_SHARED_CACHE_ROOT/ccache` | Shared compiler ccache root |
+| `CHAPAR_INSTALL_TREE_ROOT` | empty | Optional shared Spack install tree root; empty uses `${HPCSIM_ROOT}/<os>/store` |
+| `CHAPAR_INSTALL_TREE_PROJECTION` | mode-dependent | Install-tree projection; shared roots default to architecture/compiler/package/version/hash |
+| `CHAPAR_MODULE_ROOT` | empty | Optional promoted module root containing `<arch>` symlinks to release-local modulefiles |
 | `OS_NAME` | auto-detected | `rocky9` or `rocky10` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |

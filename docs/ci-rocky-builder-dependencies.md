@@ -118,7 +118,7 @@ dnf -y install ccache
 - Link-time dependency libraries such as OpenSSL, zlib, libpng, and curl are intentionally not declared as generic Rocky externals; Spack should build those unless a site-specific external is explicitly modeled with development metadata available.
 - `gh` is not required by the build itself and is intentionally not installed in the builder baseline.
 - `nfs-utils` supports resource/NAS access and diagnostics.
-- `${CHAPAR_BUILDCACHE_ROOT}/<os>` and `${CHAPAR_CCACHE_ROOT}/<os>` must be writable by trusted Chapar builders and users because Rocky scopes use `autopush: true` for the shared binary buildcache and Chapar exports shared ccache settings.
+- `${CHAPAR_BUILDCACHE_ROOT}/<os>` and `${CHAPAR_CCACHE_ROOT}/<os>` must be writable by trusted Chapar builders and users because Rocky scopes use `autopush: true` for the shared binary buildcache and Chapar exports shared ccache settings. If configured, `CHAPAR_INSTALL_TREE_ROOT` and `CHAPAR_MODULE_ROOT` must be writable by the release builders too.
 
 ## XPMEM Policy
 

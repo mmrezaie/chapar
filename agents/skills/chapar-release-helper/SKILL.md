@@ -15,9 +15,12 @@ that apply but inspect that helper's own paths and variables first.
 - Build into a staging directory: `releases/.<release-id>.staging.<pid>`.
 - Publish a release only by atomically moving staging to `releases/<release-id>`
   after install, module generation, and manifest writing succeed.
-- Promotion only updates the per-OS `current` symlink atomically.
+- Promotion updates the per-OS `current` symlink atomically and may also update
+  configured shared module-root symlinks per architecture.
 - Never rewrite active module trees used by running jobs.
-- The shared Spack store is per OS; module trees are release-local.
+- The Spack install tree defaults to a per-OS store, but sites may configure a
+  shared root with architecture/compiler projections; module trees are
+  release-local until promotion.
 - Release command-line Spack scope must be temporary and cleaned up.
 - hpcsim user-facing module names are hashless `{name}/{version}`.
 - Refresh modules only for explicit concrete environment roots, not dependencies.
@@ -27,7 +30,7 @@ that apply but inspect that helper's own paths and variables first.
 
 `make_scope` controls release-only:
 
-- install tree root and padded length
+- install tree root, projection, and padded length
 - module roots under staging release directory
 - buildcache mirror and autopush
 - cache/stage directories
