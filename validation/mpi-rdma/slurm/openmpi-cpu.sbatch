@@ -8,7 +8,8 @@
 
 set -euo pipefail
 
-: "${MPI_RDMA_TEST_DIR:=${SLURM_SUBMIT_DIR:-$PWD}/validation/mpi-rdma}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+: "${MPI_RDMA_TEST_DIR:=$(cd "${SCRIPT_DIR}/.." && pwd)}"
 : "${MPI_RDMA_BYTES:=8388608}"
 : "${MPI_RDMA_ITERS:=100}"
 : "${MPI_RANKS:=${SLURM_NTASKS:-${SLURM_NNODES:-2}}}"

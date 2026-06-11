@@ -73,7 +73,9 @@ using the real NVIDIA driver library.
 
 Runtime knobs:
 
-- `MPI_RDMA_TEST_DIR`: path to this directory. Defaults to the submission working directory.
+- `MPI_RDMA_TEST_DIR`: path to this directory. Defaults to the directory that
+  contains the selected Slurm wrapper, so the wrappers work from any submission
+  directory.
 - `MPI_RDMA_BYTES`: message size in bytes. Defaults to `8388608`.
 - `MPI_RDMA_ITERS`: ring iterations. Defaults to `100`.
 - `MPI_RANKS`: total rank count. Defaults to `SLURM_NTASKS` or `SLURM_NNODES`.
