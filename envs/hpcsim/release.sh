@@ -328,11 +328,15 @@ set_paths() {
 prepare_shared_directory() {
     local path="$1"
     local label="$2"
+    local current_group
 
     mkdir -p "${path}" || die "could not create ${label}: ${path}"
 
     if [ -n "${CHAPAR_SHARED_GROUP}" ]; then
-        chgrp "${CHAPAR_SHARED_GROUP}" "${path}" || die "could not set group ${CHAPAR_SHARED_GROUP} on ${label}: ${path}"
+        current_group="$(stat -c '%G' "${path}" 2>/dev/null || stat -f '%Sg' "${path}" 2>/dev/null || true)"
+        if [ "${current_group}" != "${CHAPAR_SHARED_GROUP}" ]; then
+            chgrp "${CHAPAR_SHARED_GROUP}" "${path}" || die "could not set group ${CHAPAR_SHARED_GROUP} on ${label}: ${path}"
+        fi
     fi
 
     chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" || die "could not set mode ${CHAPAR_SHARED_DIR_MODE} on ${label}: ${path}"
