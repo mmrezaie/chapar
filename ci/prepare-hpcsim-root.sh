@@ -106,14 +106,18 @@ run_as_root() {
 ensure_dir() {
     local path="$1"
     local label="$2"
+    local current_group
 
     if ! mkdir -p "${path}" 2>/dev/null; then
         run_as_root mkdir -p "${path}"
     fi
 
     if [ -n "${CHAPAR_SHARED_GROUP}" ]; then
-        if ! chgrp "${CHAPAR_SHARED_GROUP}" "${path}" 2>/dev/null; then
-            run_as_root chgrp "${CHAPAR_SHARED_GROUP}" "${path}"
+        current_group="$(stat -c '%G' "${path}" 2>/dev/null || stat -f '%Sg' "${path}" 2>/dev/null || true)"
+        if [ "${current_group}" != "${CHAPAR_SHARED_GROUP}" ]; then
+            if ! chgrp "${CHAPAR_SHARED_GROUP}" "${path}" 2>/dev/null; then
+                run_as_root chgrp "${CHAPAR_SHARED_GROUP}" "${path}"
+            fi
         fi
     fi
 
