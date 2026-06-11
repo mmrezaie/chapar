@@ -1003,10 +1003,12 @@ find_prted_for_openmpi_prefix() {
 
 ensure_release_cuda_driver_stub_dir() {
     local release_dir="$1"
+    local policy_release_dir="${2:-$1}"
     local cuda_module
     local cuda_prefix
     local stub_source
     local stub_dir
+    local policy_stub_dir
     local libcuda_stub=""
     local nvml_stub=""
 
@@ -1029,12 +1031,13 @@ ensure_release_cuda_driver_stub_dir() {
 
         if [ -n "${libcuda_stub}" ] && [ -n "${nvml_stub}" ]; then
             stub_dir="${release_dir}/support/cuda-driver-stubs"
+            policy_stub_dir="${policy_release_dir}/support/cuda-driver-stubs"
             mkdir -p "${stub_dir}"
             ln -sf "${libcuda_stub}" "${stub_dir}/libcuda.so"
             ln -sf "${libcuda_stub}" "${stub_dir}/libcuda.so.1"
             ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so"
             ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so.1"
-            printf '%s\n' "${stub_dir}"
+            printf '%s\n' "${policy_stub_dir}"
             return 0
         elif [ -n "${libcuda_stub}" ]; then
             echo "==> WARNING: CUDA module has libcuda stub but no libnvidia-ml stub" >&2
@@ -1043,6 +1046,24 @@ ensure_release_cuda_driver_stub_dir() {
     done
 
     return 1
+}
+
+remove_cuda_stub_module_policy() {
+    local module_file="$1"
+    local marker="# Chapar CUDA driver-stub runtime policy"
+    local tmp_file
+
+    modulefile_has_marker "${module_file}" "${marker}" || return 0
+
+    tmp_file="${module_file}.chapar.$$"
+    awk -v marker="${marker}" '
+        $0 == marker { skip = 1; next }
+        skip && $0 == "}" { skip = 0; next }
+        skip { next }
+        { print }
+    ' "${module_file}" > "${tmp_file}" || die "could not rewrite modulefile: ${module_file}"
+    cat "${tmp_file}" > "${module_file}" || die "could not update modulefile: ${module_file}"
+    rm -f "${tmp_file}"
 }
 
 append_openmpi_module_policy() {
@@ -1096,7 +1117,7 @@ append_cuda_stub_module_policy() {
     local marker="# Chapar CUDA driver-stub runtime policy"
 
     [ -n "${stub_dir}" ] || return 0
-    modulefile_has_marker "${module_file}" "${marker}" && return 0
+    remove_cuda_stub_module_policy "${module_file}"
 
     cat >> "${module_file}" <<EOF
 
@@ -1135,13 +1156,14 @@ EOF
 
 apply_release_module_runtime_policy() {
     local release_dir="$1"
+    local policy_release_dir="${2:-$1}"
     local cuda_stub_dir=""
     local module_file
     local needs_cuda_stub="false"
 
     [ -d "${release_dir}/modulefiles" ] || return 0
 
-    cuda_stub_dir="$(ensure_release_cuda_driver_stub_dir "${release_dir}" || true)"
+    cuda_stub_dir="$(ensure_release_cuda_driver_stub_dir "${release_dir}" "${policy_release_dir}" || true)"
 
     for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/* "${release_dir}/modulefiles"/*/libfabric/*; do
         [ -f "${module_file}" ] || continue
@@ -1412,7 +1434,7 @@ cmd_build() {
     spack -e "${ENV_PATH}" -C "${scope_dir}" install --only-concrete "${install_args[@]}"
     echo "==> Refreshing hpcsim root modules"
     refresh_root_modules
-    apply_release_module_runtime_policy "${staging_dir}"
+    apply_release_module_runtime_policy "${staging_dir}" "${final_dir}"
 
     arch_triplet="$(release_arch_triplet "${staging_dir}")"
     copy_manifest "${staging_dir}" "${arch_triplet}"
