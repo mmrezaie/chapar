@@ -160,9 +160,10 @@ publishing the release.
 
 Release module generation also adds runtime policy for CUDA-aware MPI modules.
 Open MPI suppresses CUDA plugin load warnings only on non-GPU nodes.
-Intel MPI/libfabric expose a release-local CUDA driver stub only on non-GPU nodes
-so CPU-only commands can load CUDA-enabled libfabric without requiring the real
-NVIDIA driver library. GPU nodes continue to use the real driver.
+Intel MPI/libfabric expose a release-local CUDA driver-stub directory only on
+non-GPU nodes so CPU-only commands can load CUDA-enabled libfabric without
+requiring the real NVIDIA driver libraries. GPU nodes continue to use the real
+driver.
 
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are

@@ -1001,23 +1001,43 @@ ensure_release_cuda_driver_stub_dir() {
     local release_dir="$1"
     local cuda_module
     local cuda_prefix
-    local candidate
+    local stub_source
     local stub_dir
+    local libcuda_stub=""
+    local nvml_stub=""
 
     for cuda_module in "${release_dir}/modulefiles"/*/cuda/*; do
         [ -f "${cuda_module}" ] || continue
         cuda_prefix="$(modulefile_prefix_for_exe "${cuda_module}" nvcc || true)"
         [ -n "${cuda_prefix}" ] || continue
 
-        for candidate in "${cuda_prefix}"/targets/*-linux/lib/stubs/libcuda.so "${cuda_prefix}"/lib64/stubs/libcuda.so; do
-            [ -r "${candidate}" ] || continue
+        libcuda_stub=""
+        nvml_stub=""
+        for stub_source in "${cuda_prefix}"/targets/*-linux/lib/stubs "${cuda_prefix}"/lib64/stubs; do
+            [ -d "${stub_source}" ] || continue
+            if [ -z "${libcuda_stub}" ] && [ -r "${stub_source}/libcuda.so" ]; then
+                libcuda_stub="${stub_source}/libcuda.so"
+            fi
+            if [ -z "${nvml_stub}" ] && [ -r "${stub_source}/libnvidia-ml.so" ]; then
+                nvml_stub="${stub_source}/libnvidia-ml.so"
+            fi
+        done
+
+        if [ -n "${libcuda_stub}" ]; then
             stub_dir="${release_dir}/support/cuda-driver-stubs"
             mkdir -p "${stub_dir}"
-            ln -sf "${candidate}" "${stub_dir}/libcuda.so"
-            ln -sf "${candidate}" "${stub_dir}/libcuda.so.1"
+            ln -sf "${libcuda_stub}" "${stub_dir}/libcuda.so"
+            ln -sf "${libcuda_stub}" "${stub_dir}/libcuda.so.1"
+            if [ -n "${nvml_stub}" ]; then
+                ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so"
+                ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so.1"
+            else
+                echo "==> WARNING: CUDA module has libcuda stub but no libnvidia-ml stub" >&2
+                echo "    cuda: ${cuda_prefix}" >&2
+            fi
             printf '%s\n' "${stub_dir}"
             return 0
-        done
+        fi
     done
 
     return 1
@@ -1079,9 +1099,9 @@ append_cuda_stub_module_policy() {
     cat >> "${module_file}" <<EOF
 
 ${marker}
-# CUDA-aware libfabric has a libcuda.so.1 dependency. On non-GPU nodes, expose
-# CUDA's driver stub so CPU-only MPI/libfabric commands can start. GPU nodes keep
-# using the real NVIDIA driver library.
+# CUDA-aware libfabric has NVIDIA driver-library dependencies. On non-GPU nodes,
+# expose CUDA's driver stubs so CPU-only MPI/libfabric commands can start. GPU
+# nodes keep using the real NVIDIA driver libraries.
 if {![file exists "/dev/nvidiactl"] && ![file exists "/proc/driver/nvidia/version"]} {
     prepend-path LD_LIBRARY_PATH {${stub_dir}}
 }

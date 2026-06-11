@@ -192,9 +192,9 @@ generation.
 Release-generated MPI modules adapt to CPU and GPU nodes without changing the
 CUDA-aware build. On non-GPU nodes, `openmpi` suppresses harmless CUDA plugin
 load warnings, while `intel-oneapi-mpi` and `libfabric` expose a release-local
-CUDA driver stub so CPU-only commands can start when the real NVIDIA driver
-library is absent. On GPU nodes, the modules leave the real NVIDIA driver path in
-control.
+CUDA driver-stub directory so CPU-only commands can start when the real NVIDIA
+driver libraries are absent. On GPU nodes, the modules leave the real NVIDIA
+driver path in control.
 
 ## Safe Deployment Model
 
