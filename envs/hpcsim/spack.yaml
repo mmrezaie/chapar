@@ -81,7 +81,9 @@ spack:
     - hpctoolkit@2025.0.1+cuda+mpi+python+papi+viewer~docs~opencl~level_zero~rocm~auditor_default build_system=meson ^python@3.12:3.12+tkinter
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - likwid
-    - nvtx~python %gcc@15
+    # Disabled for the current cluster build: nvtx~python still enters the
+    # recipe's pip path, while nvtx+python fails on generated char8_t headers.
+    # - nvtx~python %gcc@15
     - papi+infiniband+cuda
     - scalasca
     - scorep+mpi+papi+cuda
