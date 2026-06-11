@@ -22,4 +22,6 @@ $(GPU_EXE): mpi_rdma_cuda.cpp
 	$(MPICXX) $(CXXFLAGS) $(CUDA_CPPFLAGS) $< -o $@ $(CUDA_LDFLAGS)
 
 clean:
-	$(RM) mpi_rdma_cpu mpi_rdma_cuda mpi_rdma_cpu.* mpi_rdma_cuda.*
+	$(RM) mpi_rdma_cpu mpi_rdma_cuda \
+		mpi_rdma_cpu.openmpi mpi_rdma_cuda.openmpi \
+		mpi_rdma_cpu.intelmpi mpi_rdma_cuda.intelmpi
