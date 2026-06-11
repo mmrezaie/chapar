@@ -57,14 +57,34 @@ sbatch --export=ALL,HPCSIM_OPENMPI_MODULE=openmpi/5.0.8 validation/mpi-rdma/slur
 sbatch --export=ALL,HPCSIM_INTELMPI_MODULE=intel-oneapi-mpi/2021.17.0 validation/mpi-rdma/slurm/intelmpi-gpu.sbatch
 ```
 
+The Open MPI Slurm examples default to `mpirun` because some Slurm/PMIx
+integrations launch singleton Open MPI ranks with bare `srun` or hang with
+`srun --mpi=pmix`. The wrappers locate Open MPI 5's `prted` daemon from the
+loaded release tree, add its directory to `PATH`, and pass `--cpu-bind=none` to
+PRRTE's Slurm daemon launch.
+
 Runtime knobs:
 
 - `MPI_RDMA_TEST_DIR`: path to this directory. Defaults to the submission working directory.
 - `MPI_RDMA_BYTES`: message size in bytes. Defaults to `8388608`.
 - `MPI_RDMA_ITERS`: ring iterations. Defaults to `100`.
 - `MPI_RANKS`: total rank count. Defaults to `SLURM_NTASKS` or `SLURM_NNODES`.
-- `MPI_LAUNCHER`: launcher command. Defaults to `srun`.
-- `MPI_LAUNCHER_ARGS`: launcher arguments. Defaults to `-n ${MPI_RANKS}`.
+- `MPI_LAUNCHER`: launcher command. Defaults to `mpirun` for Open MPI wrappers
+  and `srun` for Intel MPI wrappers.
+- `MPI_LAUNCHER_ARGS`: launcher arguments. Open MPI wrappers default to
+  `-np ${MPI_RANKS} --bind-to none --map-by ppr:1:node --prtemca prte_launch_agent ${HPCSIM_PRTED}`.
+  Intel MPI wrappers default to `-n ${MPI_RANKS} --cpu-bind=none`.
+- `HPCSIM_PRTED`: Open MPI 5 `prted` path. Open MPI wrappers auto-detect it
+  from the loaded Open MPI prefix or a sibling `prrte-*` install.
+- `HPCSIM_PRTE_SLURM_ARGS`: Slurm arguments for PRRTE daemon launch. Defaults to
+  `--cpu-bind=none --export=ALL`.
+
+The GPU Open MPI example keeps `gdr_copy` in `UCX_TLS` to validate the intended
+CUDA/GDR-capable stack. UCX only exposes the `gdr_copy` transport when the
+GDRCopy user library is available and the host kernel driver is loaded on the GPU
+node. Check for `/dev/gdrdrv` or `/sys/module/gdrdrv` if UCX warns that
+`gdr_copy` is unavailable. CUDA-buffer MPI can still pass via `cuda_copy`,
+`cuda_ipc`, and IB/RC transports when the GDRCopy driver is missing.
 
 Use provider-specific counters or cluster telemetry alongside these tests when
 you need proof that traffic used the expected HCA and GPUDirect path.

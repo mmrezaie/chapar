@@ -13,7 +13,7 @@ set -euo pipefail
 : "${MPI_RDMA_ITERS:=100}"
 : "${MPI_RANKS:=${SLURM_NTASKS:-${SLURM_NNODES:-2}}}"
 : "${MPI_LAUNCHER:=srun}"
-: "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS}}"
+: "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS} --cpu-bind=none}"
 : "${HPCSIM_INTELMPI_MODULE:=intel-oneapi-mpi}"
 
 module purge
