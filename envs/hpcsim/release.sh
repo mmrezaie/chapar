@@ -39,6 +39,7 @@ SPACK_INSTALL_ARGS="${SPACK_INSTALL_ARGS:-}"
 PUBLISH_BUILDCACHE="${PUBLISH_BUILDCACHE:-}"
 CHAPAR_CONCRETIZE_TIMEOUT="${CHAPAR_CONCRETIZE_TIMEOUT:-}"
 BUILD_SCOPE_DIR=""
+BUILD_STAGING_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
 PROMOTE_MODULE_LINK=""
 PROMOTE_MODULE_TMP_LINK=""
@@ -842,6 +843,18 @@ cleanup_build() {
 
     release_buildcache_migration_lock
 
+    if [ "${status}" -ne 0 ] && [ -n "${BUILD_STAGING_DIR}" ] && [ -d "${BUILD_STAGING_DIR}" ]; then
+        case "${BUILD_STAGING_DIR##*/}" in
+            .*.staging.*)
+                echo "==> Removing failed release staging: ${BUILD_STAGING_DIR}" >&2
+                rm -rf "${BUILD_STAGING_DIR}"
+                ;;
+            *)
+                echo "==> Refusing to remove unexpected staging path: ${BUILD_STAGING_DIR}" >&2
+                ;;
+        esac
+    fi
+
     if [ -n "${BUILD_SCOPE_DIR}" ] && [ -d "${BUILD_SCOPE_DIR}" ]; then
         rm -rf "${BUILD_SCOPE_DIR}"
     fi
@@ -1115,6 +1128,7 @@ cmd_build() {
 
     final_dir="${RELEASES_ROOT}/${RELEASE_ID}"
     staging_dir="${RELEASES_ROOT}/.${RELEASE_ID}.staging.$$"
+    BUILD_STAGING_DIR="${staging_dir}"
     [ ! -e "${final_dir}" ] || die "release already exists: ${final_dir}"
     [ ! -e "${staging_dir}" ] || die "staging path already exists: ${staging_dir}"
 
@@ -1171,6 +1185,7 @@ cmd_build() {
     # The final rename is the publication point. Anything before this can fail
     # without creating a partially visible release directory.
     mv "${staging_dir}" "${final_dir}"
+    BUILD_STAGING_DIR=""
     echo "==> Release build complete"
     echo "    release: ${final_dir}"
     echo "    module:  ${final_dir}/modulefiles/${arch_triplet}"
