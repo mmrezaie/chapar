@@ -9,8 +9,21 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-: "${MPI_RDMA_TEST_DIR:=$(cd "${SCRIPT_DIR}/.." && pwd)}"
+resolve_mpi_rdma_test_dir() {
+    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
+    local candidate
+
+    for candidate in "${submit_dir}/validation/mpi-rdma" "${submit_dir}/mpi-rdma"; do
+        [ -f "${candidate}/Makefile" ] || continue
+        [ -f "${candidate}/mpi_rdma_cuda.cpp" ] || continue
+        printf '%s\n' "${candidate}"
+        return 0
+    done
+
+    echo "could not locate validation/mpi-rdma; set MPI_RDMA_TEST_DIR" >&2
+    return 1
+}
+: "${MPI_RDMA_TEST_DIR:=$(resolve_mpi_rdma_test_dir)}"
 : "${MPI_RDMA_BYTES:=8388608}"
 : "${MPI_RDMA_ITERS:=100}"
 : "${MPI_RANKS:=${SLURM_NTASKS:-${SLURM_NNODES:-2}}}"
