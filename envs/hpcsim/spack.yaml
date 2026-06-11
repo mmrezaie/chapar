@@ -81,7 +81,7 @@ spack:
     - hpctoolkit@2025.0.1+cuda+mpi+python+papi+viewer~docs~opencl~level_zero~rocm~auditor_default build_system=meson ^python@3.12:3.12+tkinter
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - likwid
-    - nvtx+python ^python@3.12:3.12+tkinter
+    - nvtx~python %gcc@15
     - papi+infiniband+cuda
     - scalasca
     - scorep+mpi+papi+cuda
@@ -106,7 +106,7 @@ spack:
     - cgns+mpi+hdf5+fortran %gcc ^openmpi@5
     - exodusii+mpi+fortran %gcc ^openmpi@5
     # - seacas@2024-06-27+mpi+adios2+libcatalyst+cgns+applications~legacy~x11 %gcc ^openmpi@5
-    - seacas@2024-06-27+mpi+adios2~libcatalyst+cgns+applications~legacy~x11 %gcc ^openmpi@5
+    - seacas@2024-06-27+mpi+adios2~fortran~libcatalyst+cgns+applications~legacy~x11 %gcc@15 ^openmpi@5
     - silo+mpi+hdf5+fortran~python %gcc ^openmpi@5
   - postprocessing_cli_specs:
     - cdo+netcdf+hdf5+openmp grib2=eccodes %gcc
