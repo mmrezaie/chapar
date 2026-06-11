@@ -136,17 +136,18 @@ Default release layout:
 - Buildcache: `${CHAPAR_BUILDCACHE_ROOT}/<os>`
 - ccache: `${CHAPAR_CCACHE_ROOT}/<os>`
 
-Public deployments can set `CHAPAR_INSTALL_TREE_ROOT=/share/base/bin` and
-`CHAPAR_MODULE_ROOT=/share/base/modulefiles` in the ignored site env file. With
-the default shared-root projection, package prefixes include architecture,
-compiler, package, version, and hash. Promotion updates
-`${CHAPAR_MODULE_ROOT}/<arch>` as a symlink to the promoted release-local module
-tree.
+Public deployments can set `CHAPAR_INSTALL_TREE_ROOT` and `CHAPAR_MODULE_ROOT`
+in the ignored site env file. With the default shared-root projection, package
+prefixes include architecture, compiler, package, version, and hash.
+`release.sh publish-modules <release-id>` updates `${CHAPAR_MODULE_ROOT}/<arch>`
+as a symlink to the selected release-local module tree without changing
+`${HPCSIM_ROOT}/<os>/current`. `release.sh promote <release-id>` updates both
+`current` and the shared module symlink when `CHAPAR_MODULE_ROOT` is set.
 
 The store or configured install tree is shared and package prefixes include
-hashes. Module trees are release-specific until promotion. This allows new
-modules and packages to be added without rewriting the module tree used by
-already-running jobs.
+hashes. Module trees are release-specific until `publish-modules` or `promote`
+updates a public pointer. This allows new modules and packages to be added
+without rewriting the module tree used by already-running jobs.
 
 hpcsim module names are user-facing and must stay `{name}/{version}` with no
 hash suffixes. Release module generation is limited to explicit environment

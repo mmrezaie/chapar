@@ -142,16 +142,17 @@ placing package prefixes and promoted module symlinks in shared top-level roots:
 
 ```bash
 CHAPAR_INSTALL_MODE=public
-HPCSIM_PUBLIC_ROOT=/share/base
-CHAPAR_INSTALL_TREE_ROOT=/share/base/bin
+HPCSIM_PUBLIC_ROOT=/path/to/shared/hpcsim
+CHAPAR_INSTALL_TREE_ROOT=/path/to/shared/hpcsim/bin
 CHAPAR_INSTALL_TREE_PROJECTION='{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
-CHAPAR_MODULE_ROOT=/share/base/modulefiles
+CHAPAR_MODULE_ROOT=/path/to/shared/modulefiles
 ```
 
 That produces package prefixes such as
-`/share/base/bin/linux-rocky9-x86_64_v4/<compiler-name>-<compiler-version>/<package>-<version>-<hash>`
-and promotes `/share/base/modulefiles/linux-rocky9-x86_64_v4` as a symlink to
-the selected release's module tree.
+`/path/to/shared/hpcsim/bin/linux-rocky9-x86_64_v4/<compiler-name>-<compiler-version>/<package>-<version>-<hash>`.
+Run `publish-modules` to update
+`/path/to/shared/modulefiles/linux-rocky9-x86_64_v4` as a symlink to the
+selected release's module tree without changing `${HPCSIM_ROOT}/<os>/current`.
 
 Supported OS names are `rocky9` and `rocky10`. The helper auto-detects the OS,
 or you can set `OS_NAME` explicitly:
@@ -191,14 +192,23 @@ New builds must not overwrite active module trees. The release helper builds in
 `releases/.<release-id>.staging.<pid>`, then renames that staging tree to
 `releases/<release-id>` only after install and module generation succeed.
 
-Promotion updates the per-OS `current` symlink and, when `CHAPAR_MODULE_ROOT` is
-set, the matching architecture symlink below that module root. Do not run
-`spack uninstall`, `spack gc`, or manual cleanup against the configured install
-tree while users may still have jobs running from older releases.
+`publish-modules` updates only the matching architecture symlink below
+`CHAPAR_MODULE_ROOT`; use it when users should load modules from a stable shared
+module root instead of `${HPCSIM_ROOT}/<os>/current`. `promote` updates the
+per-OS `current` symlink and, when `CHAPAR_MODULE_ROOT` is set, the shared module
+symlink too. Do not run `spack uninstall`, `spack gc`, or manual cleanup against
+the configured install tree while users may still have jobs running from older
+releases.
 
-Rollback is switching `current` back to an older release:
+Rollback is switching the public pointer back to an older release. For shared
+module roots, republish the module symlink; for `current`-based deployments,
+promote the older release:
 
 ```bash
+# Shared module-root deployments:
+bash envs/hpcsim/release.sh publish-modules <previous-release-id>
+
+# current symlink deployments:
 bash envs/hpcsim/release.sh promote <previous-release-id>
 ```
 

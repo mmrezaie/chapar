@@ -113,6 +113,7 @@ Usage:
   release.sh build <release-id> [--promote]
   release.sh migrate-buildcache [--force]
   release.sh promote <release-id>
+  release.sh publish-modules <release-id>
   release.sh module-use [release-id]
   release.sh status
 
@@ -135,8 +136,8 @@ Environment:
                         Spack install-tree projection. Defaults to package-hash
                         directories, or architecture/compiler directories when
                         CHAPAR_INSTALL_TREE_ROOT is set.
-  CHAPAR_MODULE_ROOT   Optional promoted module root. Promotion atomically updates
-                        <arch> symlinks below this root.
+  CHAPAR_MODULE_ROOT   Optional shared module root. Promotion and publish-modules
+                        atomically update <arch> symlinks below this root.
   OS_NAME              rocky9 or rocky10. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
   CHAPAR_CONCRETIZE_TIMEOUT
@@ -150,7 +151,8 @@ Release layout:
   ${CHAPAR_INSTALL_TREE_ROOT:-${HPCSIM_ROOT}/<os>/store}
   ${HPCSIM_ROOT}/<os>/releases/<release-id>
   ${HPCSIM_ROOT}/<os>/current -> releases/<release-id>
-  ${CHAPAR_MODULE_ROOT}/<arch> -> release modulefiles, when configured
+  ${CHAPAR_MODULE_ROOT}/<arch> -> release modulefiles, when publish-modules or
+                                   promote is used with CHAPAR_MODULE_ROOT set
   ${CHAPAR_BUILDCACHE_ROOT}/<os>
   ${CHAPAR_CCACHE_ROOT}/<os>
 
@@ -1268,6 +1270,27 @@ cmd_promote() {
     commit_prepared_shared_module_link
 }
 
+# Publish only shared module-root symlinks. This is for sites that expose a
+# stable module root such as ${CHAPAR_MODULE_ROOT}/<arch> without using the
+# per-OS current symlink.
+cmd_publish_modules() {
+    local release_id="${1:-}"
+    local release_dir
+
+    [ -n "${release_id}" ] || die "release-id is required for publish-modules"
+    validate_release_id "${release_id}"
+    set_paths
+    [ -n "${CHAPAR_MODULE_ROOT}" ] || die "CHAPAR_MODULE_ROOT is required for publish-modules"
+    release_dir="${RELEASES_ROOT}/${release_id}"
+    [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
+    ensure_cmd perl
+
+    prepare_shared_module_link "${release_dir}"
+    echo "==> Published hpcsim modules"
+    echo "    os:      ${OS_NAME}"
+    commit_prepared_shared_module_link
+}
+
 # Print shell commands rather than mutating the caller's environment. Operators
 # can inspect the resolved module path before evaluating it in their shell.
 cmd_module_use() {
@@ -1351,6 +1374,10 @@ main() {
         promote)
             shift
             cmd_promote "$@"
+            ;;
+        publish-modules)
+            shift
+            cmd_publish_modules "$@"
             ;;
         module-use)
             shift
