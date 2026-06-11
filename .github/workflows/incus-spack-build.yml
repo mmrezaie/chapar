@@ -1,4 +1,4 @@
-name: Incus hpcsim Build
+name: Incus Chapar Environment Build
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - .github/incus-spack-build.trigger
       - .github/workflows/incus-spack-build.yml
       - ci/**
-      - envs/hpcsim/**
+      - envs/**
       - etc/**
       - spack_repo/**
       - Makefile
@@ -23,8 +23,35 @@ on:
           - all
           - rocky9
           - rocky10
+      env_name:
+        description: Chapar environment name
+        required: true
+        type: string
+        default: hpcsim
+      env_path:
+        description: Spack environment path; empty means envs/<env_name>
+        required: false
+        type: string
+        default: ""
+      build_action:
+        description: Whether to only concretize or concretize and build
+        required: true
+        type: choice
+        default: build
+        options:
+          - concretize
+          - build
+      build_mode:
+        description: Build mode; auto uses release.sh when the environment has one
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - release
+          - spack
       release_id:
-        description: Optional hpcsim release ID; defaults to the workflow run ID
+        description: Optional release/run ID; defaults to the workflow run ID
         required: false
         type: string
         default: ""
@@ -58,8 +85,13 @@ on:
         required: true
         type: string
         default: chapar
+      env_root:
+        description: Shared environment output root inside containers; empty means /resources/chapar/<env_name>
+        required: false
+        type: string
+        default: ""
       hpcsim_root:
-        description: Shared hpcsim output root inside containers
+        description: Legacy hpcsim output root alias used when env_root is empty
         required: true
         type: string
         default: /resources/chapar/hpcsim
@@ -79,7 +111,7 @@ permissions:
 
 jobs:
   build:
-    name: Build hpcsim on ${{ matrix.os_name }}
+    name: Build ${{ inputs.env_name || 'hpcsim' }} on ${{ matrix.os_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -87,7 +119,7 @@ jobs:
     runs-on: ${{ fromJSON(format('["self-hosted","{0}","{1}"]', inputs.runner_label || 'chapar', matrix.os_name)) }}
     timeout-minutes: 1440
     concurrency:
-      group: chapar-incus-builders-${{ matrix.os_name }}
+      group: chapar-incus-builders-${{ inputs.env_name || 'hpcsim' }}-${{ matrix.os_name }}
       cancel-in-progress: false
 
     steps:
@@ -97,9 +129,11 @@ jobs:
       - name: Bootstrap Rocky dependencies
         run: bash ci/bootstrap-rocky.sh
 
-      - name: Verify hpcsim resources mount
+      - name: Verify environment resources mount
         env:
-          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
+          ENV_NAME: ${{ inputs.env_name || 'hpcsim' }}
+          ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name || 'hpcsim') }}
+          CHAPAR_ENV_ROOT: ${{ inputs.env_root || ((inputs.env_name || 'hpcsim') == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name || 'hpcsim') }}
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           OS_NAME: ${{ matrix.os_name }}
@@ -107,23 +141,30 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > envs/hpcsim/hpcsim-site.env <<EOF
+          if [ "${ENV_NAME}" = hpcsim ]; then
+            cat > envs/hpcsim/hpcsim-site.env <<EOF
           CHAPAR_INSTALL_MODE=public
-          HPCSIM_PUBLIC_ROOT=${HPCSIM_ROOT}
+          HPCSIM_PUBLIC_ROOT=${CHAPAR_ENV_ROOT}
+          CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
           CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
           CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
           PUBLISH_BUILDCACHE=${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
           PUBLISH_CURRENT=${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
           EOF
+            CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT}" bash ci/prepare-hpcsim-root.sh
+          else
+            mkdir -p "${CHAPAR_ENV_ROOT}/${OS_NAME}/runs" "${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}" "${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
+          fi
 
-          bash ci/prepare-hpcsim-root.sh
-          fs_type="$(findmnt -n -T "${HPCSIM_ROOT}" -o FSTYPE)"
-          source="$(findmnt -n -T "${HPCSIM_ROOT}" -o SOURCE)"
+          fs_type="$(findmnt -n -T "${CHAPAR_ENV_ROOT}" -o FSTYPE)"
+          source="$(findmnt -n -T "${CHAPAR_ENV_ROOT}" -o SOURCE)"
           cache_fs_type="$(findmnt -n -T "${CHAPAR_BUILDCACHE_ROOT}" -o FSTYPE)"
           cache_source="$(findmnt -n -T "${CHAPAR_BUILDCACHE_ROOT}" -o SOURCE)"
           ccache_fs_type="$(findmnt -n -T "${CHAPAR_CCACHE_ROOT}" -o FSTYPE)"
           ccache_source="$(findmnt -n -T "${CHAPAR_CCACHE_ROOT}" -o SOURCE)"
-          echo "hpcsim root: ${HPCSIM_ROOT}"
+          echo "env name: ${ENV_NAME}"
+          echo "env path: ${ENV_PATH}"
+          echo "env root: ${CHAPAR_ENV_ROOT}"
           echo "mount source: ${source}"
           echo "mount type:   ${fs_type}"
           echo "buildcache root: ${CHAPAR_BUILDCACHE_ROOT}"
@@ -135,7 +176,7 @@ jobs:
 
           case "${fs_type}" in
             nfs|nfs4) ;;
-            *) echo "ERROR: ${HPCSIM_ROOT} must be on the resources NFS mount, got ${fs_type}" >&2; exit 1 ;;
+            *) echo "ERROR: ${CHAPAR_ENV_ROOT} must be on the resources NFS mount, got ${fs_type}" >&2; exit 1 ;;
           esac
           case "${cache_fs_type}" in
             nfs|nfs4) ;;
@@ -146,7 +187,7 @@ jobs:
             *) echo "ERROR: ${CHAPAR_CCACHE_ROOT} must be on the resources NFS mount, got ${ccache_fs_type}" >&2; exit 1 ;;
           esac
 
-          test_dir="${HPCSIM_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
+          test_dir="${CHAPAR_ENV_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
           mkdir -p "${test_dir}"
           rmdir "${test_dir}"
           cache_test_dir="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}/.ci-write-test-${RUN_ID}"
@@ -156,7 +197,7 @@ jobs:
           mkdir -p "${ccache_test_dir}"
           rmdir "${ccache_test_dir}"
 
-      - name: Run hpcsim build
+      - name: Run environment build
         env:
           INPUT_GIT_REF: ${{ inputs.git_ref || '' }}
           DEFAULT_GIT_REF: ${{ github.sha }}
@@ -165,7 +206,12 @@ jobs:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REPO_DIR: ${{ github.workspace }}
           OS_NAME: ${{ matrix.os_name }}
-          HPCSIM_ROOT: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
+          ENV_NAME: ${{ inputs.env_name || 'hpcsim' }}
+          ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name || 'hpcsim') }}
+          CHAPAR_ENV_ROOT: ${{ inputs.env_root || ((inputs.env_name || 'hpcsim') == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name || 'hpcsim') }}
+          CHAPAR_ENV_ACTION: ${{ inputs.build_action || 'build' }}
+          CHAPAR_ENV_BUILD_MODE: ${{ inputs.build_mode || 'auto' }}
+          HPCSIM_ROOT: ${{ ((inputs.env_name || 'hpcsim') == 'hpcsim' && (inputs.env_root || inputs.hpcsim_root)) || '' }}
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}

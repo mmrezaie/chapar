@@ -1,7 +1,8 @@
 # Chapar
 
-Chapar is a reproducible Spack setup for building one HPC simulation software
-environment, `hpcsim`, on Rocky Linux 9 and Rocky Linux 10.
+Chapar is a reproducible Spack setup for building site-managed HPC software
+environments. The current production environment is `hpcsim` on Rocky Linux 9
+and Rocky Linux 10.
 
 Each user keeps upstream Spack in `~/.local/opt/spack`, following Spack's
 standard source-checkout workflow. Chapar keeps site policy, package choices,
@@ -9,13 +10,13 @@ module layout, and environment definitions outside the Spack repository.
 
 ## Goals
 
-- Keep one hpcsim environment policy file that humans can review without jumping
-  across package-section directories.
+- Keep each environment policy under `envs/<name>` with a clear `spack.yaml`
+  entry point that humans can review without jumping across generated state.
 - Prefer Spack-built dependencies over OS-provided libraries and tools.
 - Keep only necessary externals for compilers, libc, ccache, and unavoidable
   platform runtime pieces.
-- Default release installs to a user's home directory, and require explicit site
-  configuration for public roots.
+- Default local outputs to `~/.spack/chapar`, and require explicit site
+  configuration for public roots such as `/resources` or `/shared`.
 - Share one configured Spack buildcache and one compiler ccache across home test
   builds and public release builds.
 
@@ -31,6 +32,8 @@ module layout, and environment definitions outside the Spack repository.
 |   `-- README.md       # Detailed config-scope documentation
 |-- envs/
 |   `-- hpcsim/         # hpcsim spack.yaml, release helper, and site template
+|-- containers/         # Packer/Apptainer recipes by env and OS
+|-- validation/         # Runtime validation programs and Slurm examples
 `-- docs/               # CI and runner documentation
 ```
 
@@ -76,11 +79,12 @@ spack config blame packages
 
 ## Building hpcsim
 
-`envs/hpcsim` is the only supported Chapar environment. Stale local
-`envs/skipper*` directories from older workflows are ignored and can be removed;
-they are not referenced by the current CI, release helper, or Spack scopes.
-The top-level `envs/hpcsim/spack.yaml` contains the hpcsim root specs, package
-requirements, and module policy for Rocky 9 and Rocky 10.
+`envs/hpcsim` is the current production Chapar environment. Future environments
+should follow the same `envs/<name>/spack.yaml` entry-point convention. Stale
+local `envs/skipper*` directories from older workflows are ignored and can be
+removed; they are not referenced by the current CI, release helper, or Spack
+scopes. The top-level `envs/hpcsim/spack.yaml` contains the hpcsim root specs,
+package requirements, and module policy for Rocky 9 and Rocky 10.
 
 For local validation with the active Spack scopes:
 
@@ -103,18 +107,20 @@ bash envs/hpcsim/release.sh module-use rocky9-20260610
 bash envs/hpcsim/release.sh promote rocky9-20260610
 ```
 
-On a Slurm cluster, use the interactive submit helper so the partition and usable
-CPU cores are selected before `sbatch` allocates the job:
+On a Slurm cluster, use the generic interactive submit helper so the environment,
+partition, and usable CPU cores are selected before `sbatch` allocates the job:
 
 ```bash
-ci/submit-hpcsim-release.sh
+ci/submit-env-build.sh --env-name hpcsim
 ```
 
 For non-interactive submission, pass the same values explicitly:
 
 ```bash
-ci/submit-hpcsim-release.sh \
+ci/submit-env-build.sh \
+  --env-name hpcsim \
   --os rocky9 \
+  --mode release \
   --partition <partition> \
   --cores <usable-cores> \
   --release-id rocky9-20260610 \
@@ -124,9 +130,9 @@ ci/submit-hpcsim-release.sh \
 Default home release layout:
 
 ```text
-$HPCSIM_HOME_ROOT/<os>/store
-$HPCSIM_HOME_ROOT/<os>/releases/<release-id>
-$HPCSIM_HOME_ROOT/<os>/current -> releases/<release-id>
+~/.spack/chapar/envs/hpcsim/<os>/store
+~/.spack/chapar/envs/hpcsim/<os>/releases/<release-id>
+~/.spack/chapar/envs/hpcsim/<os>/current -> releases/<release-id>
 $CHAPAR_BUILDCACHE_ROOT/<os>
 $CHAPAR_CCACHE_ROOT/<os>
 ```
@@ -278,9 +284,11 @@ Rocky builds use existing self-hosted Incus runners with labels `chapar,rocky9`
 and `chapar,rocky10`. The workflow matrix can build Rocky 9 and Rocky 10 in parallel
 because concurrency is scoped per OS.
 
-Manual workflow inputs include `release_id`, `publish_current`,
-`publish_buildcache`, `spack_ref`, `spack_install_args`, `hpcsim_root`,
-`buildcache_root`, and `ccache_root`.
+Manual workflow inputs include `env_name`, `env_path`, `build_action`,
+`build_mode`, `release_id`, `publish_current`, `publish_buildcache`,
+`spack_ref`, `spack_install_args`, `env_root`, `buildcache_root`, and
+`ccache_root`. The legacy `hpcsim_root` input remains as an alias for hpcsim
+jobs when `env_root` is empty.
 The default `spack_ref` is pinned to keep concretization and buildcache hashes
 stable across rebuilds; override it only when intentionally testing a Spack
 update.
