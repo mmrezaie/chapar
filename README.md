@@ -107,24 +107,29 @@ bash envs/hpcsim/release.sh module-use rocky9-20260610
 bash envs/hpcsim/release.sh promote rocky9-20260610
 ```
 
-On a Slurm cluster, use the generic interactive submit helper so the environment,
-partition, and usable CPU cores are selected before `sbatch` allocates the job:
+On the hpcsim Rocky Slurm builders, use the OS-specific sbatch wrapper directly.
+The Rocky 9 wrapper contains the default partition set, timestamped release ID,
+buildcache publication, module-publication policy, and exclusive-node CPU
+detection. It reserves one exclusive node and uses that node's allocated CPU
+count for `spack install`:
 
 ```bash
-ci/submit-env-build.sh --env-name hpcsim
+sbatch ci/sbatch-hpcsim-release-rocky9.sh
 ```
 
-For non-interactive submission, pass the same values explicitly:
+The wrapper defaults to `PUBLISH_CURRENT=false` and `PUBLISH_MODULES=true`, so a
+successful build updates `${CHAPAR_MODULE_ROOT}/<arch>` without changing
+`${HPCSIM_ROOT}/<os>/current`. Command-line `sbatch` options can still override
+the wrapper's `#SBATCH` defaults when a site needs a different partition or core
+count. The submit helper remains available when you want to choose values on the
+command line:
 
 ```bash
-ci/submit-env-build.sh \
-  --env-name hpcsim \
+ci/submit-hpcsim-release.sh \
   --os rocky9 \
-  --mode release \
   --partition <partition> \
-  --cores <usable-cores> \
-  --release-id rocky9-20260610 \
-  --publish-current false
+  --publish-current false \
+  --publish-modules true
 ```
 
 Default home release layout:
@@ -142,17 +147,16 @@ placing package prefixes and promoted module symlinks in shared top-level roots:
 
 ```bash
 CHAPAR_INSTALL_MODE=public
-HPCSIM_PUBLIC_ROOT=/path/to/shared/hpcsim
-CHAPAR_INSTALL_TREE_ROOT=/path/to/shared/hpcsim/bin
-CHAPAR_INSTALL_TREE_PROJECTION='{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
-CHAPAR_MODULE_ROOT=/path/to/shared/modulefiles
+HPCSIM_PUBLIC_ROOT=/share/base
+CHAPAR_INSTALL_TREE_ROOT=
+CHAPAR_INSTALL_TREE_PROJECTION=
+CHAPAR_MODULE_ROOT=/share/base/modulefiles
 ```
 
-That produces package prefixes such as
-`/path/to/shared/hpcsim/bin/linux-rocky9-x86_64_v4/<compiler-name>-<compiler-version>/<package>-<version>-<hash>`.
-Run `publish-modules` to update
-`/path/to/shared/modulefiles/linux-rocky9-x86_64_v4` as a symlink to the
-selected release's module tree without changing `${HPCSIM_ROOT}/<os>/current`.
+With an empty `CHAPAR_INSTALL_TREE_ROOT`, package prefixes stay under the padded
+per-OS store such as `/share/base/rocky9/store`. Run `publish-modules` to update
+`/share/base/modulefiles/linux-rocky9-x86_64_v4` as a symlink to the selected
+release's module tree without changing `${HPCSIM_ROOT}/<os>/current`.
 The published architecture name comes from the generated release module
 directory. A generic Rocky 9 build publishes `linux-rocky9-x86_64_v4`; a
 CPU-specific build publishes its concrete target such as `linux-rocky9-zen5`.
@@ -164,9 +168,9 @@ or you can set `OS_NAME` explicitly:
 OS_NAME=rocky9 bash envs/hpcsim/release.sh build rocky9-20260610
 ```
 
-When `RELEASE_ID` is not set, the sbatch wrappers default to `<os>-YYYYMMDD`, for
-example `rocky9-20260610`. A second automatic build for the same OS on the same
-day needs an explicit release ID such as `rocky9-20260610-rerun1`.
+When `RELEASE_ID` is not set, the hpcsim-specific sbatch wrappers default to
+`<os>-YYYYMMDDHHMMSS`, for example `rocky9-20260611172030`. The generic
+environment sbatch wrapper defaults to `<env>-<os>-YYYYMMDD`.
 
 ## Loading Modules
 
@@ -194,7 +198,8 @@ CUDA-aware build. On non-GPU nodes, `openmpi` suppresses harmless CUDA plugin
 load warnings, while `intel-oneapi-mpi` and `libfabric` expose a release-local
 CUDA driver-stub directory so CPU-only commands can start when the real NVIDIA
 driver libraries are absent. On GPU nodes, the modules leave the real NVIDIA
-driver path in control.
+driver path in control. Releases fail before publication if Intel MPI/libfabric
+modules are present but the required CUDA driver stubs cannot be generated.
 
 ## Safe Deployment Model
 

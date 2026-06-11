@@ -1027,20 +1027,18 @@ ensure_release_cuda_driver_stub_dir() {
             fi
         done
 
-        if [ -n "${libcuda_stub}" ]; then
+        if [ -n "${libcuda_stub}" ] && [ -n "${nvml_stub}" ]; then
             stub_dir="${release_dir}/support/cuda-driver-stubs"
             mkdir -p "${stub_dir}"
             ln -sf "${libcuda_stub}" "${stub_dir}/libcuda.so"
             ln -sf "${libcuda_stub}" "${stub_dir}/libcuda.so.1"
-            if [ -n "${nvml_stub}" ]; then
-                ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so"
-                ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so.1"
-            else
-                echo "==> WARNING: CUDA module has libcuda stub but no libnvidia-ml stub" >&2
-                echo "    cuda: ${cuda_prefix}" >&2
-            fi
+            ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so"
+            ln -sf "${nvml_stub}" "${stub_dir}/libnvidia-ml.so.1"
             printf '%s\n' "${stub_dir}"
             return 0
+        elif [ -n "${libcuda_stub}" ]; then
+            echo "==> WARNING: CUDA module has libcuda stub but no libnvidia-ml stub" >&2
+            echo "    cuda: ${cuda_prefix}" >&2
         fi
     done
 
@@ -1116,10 +1114,21 @@ apply_release_module_runtime_policy() {
     local release_dir="$1"
     local cuda_stub_dir=""
     local module_file
+    local needs_cuda_stub="false"
 
     [ -d "${release_dir}/modulefiles" ] || return 0
 
     cuda_stub_dir="$(ensure_release_cuda_driver_stub_dir "${release_dir}" || true)"
+
+    for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/* "${release_dir}/modulefiles"/*/libfabric/*; do
+        [ -f "${module_file}" ] || continue
+        needs_cuda_stub="true"
+        break
+    done
+
+    if [ "${needs_cuda_stub}" = "true" ] && [ -z "${cuda_stub_dir}" ]; then
+        die "could not create CUDA driver-stub support directory for Intel MPI/libfabric modules in ${release_dir}"
+    fi
 
     for module_file in "${release_dir}/modulefiles"/*/openmpi/*; do
         [ -f "${module_file}" ] || continue

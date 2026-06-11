@@ -100,9 +100,16 @@ node. Check for `/dev/gdrdrv` or `/sys/module/gdrdrv` if UCX warns that
 `cuda_ipc`, and IB/RC transports when the GDRCopy driver is missing.
 
 The Intel MPI examples default to `FI_PROVIDER=verbs;ofi_rxm` because this
-cluster exposes raw verbs endpoints but not the `mlx` provider. The hpcsim
-libfabric build must include the `rxm` utility provider for these examples to
-start through Intel MPI's OFI path.
+cluster exposes raw verbs endpoints but not the `mlx` provider. They also set
+`I_MPI_FABRICS=shm:ofi`, `I_MPI_OFI_PROVIDER=verbs`, and `I_MPI_OFFLOAD=0` for
+CPU or `1` for GPU. The hpcsim libfabric build must include the `rxm` utility
+provider for these examples to start through Intel MPI's OFI path. Override
+`I_MPI_OFI_PROVIDER` and `FI_PROVIDER` together when testing another provider.
+
+If Intel MPI fails on a non-GPU node because `libcuda.so.1` or
+`libnvidia-ml.so.1` is missing, first verify that the loaded `intel-oneapi-mpi`
+and `libfabric` modules come from the generated hpcsim release. Those modulefiles
+should add the release-local CUDA driver-stub directory on CPU-only nodes.
 
 Use provider-specific counters or cluster telemetry alongside these tests when
 you need proof that traffic used the expected HCA and GPUDirect path.

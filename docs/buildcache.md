@@ -136,15 +136,23 @@ directories manually so future runs cannot accidentally reuse stale artifacts.
 
 ## Admin Setup
 
-Prepare the shared cache roots, and any optional shared install/module roots,
-with trusted group ownership and setgid permissions before enabling broad user
-autopush:
+Prepare the shared release root, cache roots, and any optional shared
+install/module roots with trusted group ownership and setgid permissions before
+enabling broad user autopush. The current public hpcsim layout uses
+`HPCSIM_PUBLIC_ROOT=/share/base`, an empty `CHAPAR_INSTALL_TREE_ROOT`, and
+`CHAPAR_MODULE_ROOT=/share/base/modulefiles`:
 
 ```bash
+mkdir -p "${HPCSIM_PUBLIC_ROOT}"
+mkdir -p "${HPCSIM_PUBLIC_ROOT}/rocky9/releases" "${HPCSIM_PUBLIC_ROOT}/rocky10/releases"
+mkdir -p "${HPCSIM_PUBLIC_ROOT}/rocky9/store" "${HPCSIM_PUBLIC_ROOT}/rocky10/store"
 mkdir -p "${CHAPAR_BUILDCACHE_ROOT}/rocky9" "${CHAPAR_BUILDCACHE_ROOT}/rocky10"
 mkdir -p "${CHAPAR_CCACHE_ROOT}/rocky9" "${CHAPAR_CCACHE_ROOT}/rocky10"
 [ -n "${CHAPAR_INSTALL_TREE_ROOT:-}" ] && mkdir -p "${CHAPAR_INSTALL_TREE_ROOT}"
 [ -n "${CHAPAR_MODULE_ROOT:-}" ] && mkdir -p "${CHAPAR_MODULE_ROOT}"
+chgrp -R <trusted-chapar-group> "${HPCSIM_PUBLIC_ROOT}"
+chmod -R g+rwX "${HPCSIM_PUBLIC_ROOT}"
+find "${HPCSIM_PUBLIC_ROOT}" -type d -exec chmod 2775 {} +
 chgrp -R <trusted-chapar-group> "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}"
 chmod -R g+rwX "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}"
 find "${CHAPAR_BUILDCACHE_ROOT}" "${CHAPAR_CCACHE_ROOT}" -type d -exec chmod 2775 {} +

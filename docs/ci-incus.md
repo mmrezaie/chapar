@@ -94,7 +94,8 @@ Inputs:
 - `build_mode`: `auto`, `release`, or `spack`. `auto` uses `release.sh` when the selected environment has one and the action is `build`; otherwise it uses direct Spack commands.
 - `release_id`: optional release ID. Empty means the workflow run ID.
 - `git_ref`: optional branch, tag, or SHA. Empty means the workflow ref.
-- `publish_current`: update the current symlink after release-mode builds.
+- `publish_current`: promote after release-mode builds, updating the current symlink and any configured shared module symlink.
+- `publish_modules`: update only the configured shared module symlink after release-mode builds.
 - `publish_buildcache`: push to `<buildcache_root>/<os>`.
 - `spack_ref`: Spack branch, tag, or SHA. The default is pinned for cache stability.
 - `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
@@ -207,3 +208,6 @@ Spack source, misc, and concretization caches can persist across runs without
 using the shared NFS store.
 
 If `publish_current` is true, CI promotes the release after the build completes.
+When `publish_current` is false and `publish_modules` is true, CI runs
+`publish-modules` instead so a shared module root can advance without changing
+the per-OS `current` symlink.

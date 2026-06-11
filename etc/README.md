@@ -139,6 +139,11 @@ Default release layout:
 Public deployments can set `CHAPAR_INSTALL_TREE_ROOT` and `CHAPAR_MODULE_ROOT`
 in the ignored site env file. With the default shared-root projection, package
 prefixes include architecture, compiler, package, version, and hash.
+For the current public hpcsim layout, keep `CHAPAR_INSTALL_TREE_ROOT` empty and
+set `HPCSIM_PUBLIC_ROOT=/share/base` plus
+`CHAPAR_MODULE_ROOT=/share/base/modulefiles`; package prefixes then stay under
+`${HPCSIM_ROOT}/<os>/store` and public modules are exposed as
+`/share/base/modulefiles/<arch>`.
 `release.sh publish-modules <release-id>` updates `${CHAPAR_MODULE_ROOT}/<arch>`
 as a symlink to the selected release-local module tree without changing
 `${HPCSIM_ROOT}/<os>/current`. `release.sh promote <release-id>` updates both
@@ -163,7 +168,8 @@ Open MPI suppresses CUDA plugin load warnings only on non-GPU nodes.
 Intel MPI/libfabric expose a release-local CUDA driver-stub directory only on
 non-GPU nodes so CPU-only commands can load CUDA-enabled libfabric without
 requiring the real NVIDIA driver libraries. GPU nodes continue to use the real
-driver.
+driver. Releases fail before publication if Intel MPI/libfabric modules are
+present but the required CUDA driver stubs cannot be generated.
 
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are
@@ -215,3 +221,5 @@ spack arch --platform
 | `CHAPAR_MODULE_ROOT` | empty | Optional promoted module root containing `<arch>` symlinks to release-local modulefiles |
 | `OS_NAME` | auto-detected | `rocky9` or `rocky10` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |
+| `PUBLISH_CURRENT` | `false` in sbatch helpers | Promote `${HPCSIM_ROOT}/<os>/current` after a successful release build |
+| `PUBLISH_MODULES` | `true` in hpcsim sbatch wrappers | Publish `${CHAPAR_MODULE_ROOT}/<arch>` after a successful release build without changing `current` |

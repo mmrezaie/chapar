@@ -22,6 +22,7 @@ chapar_home_root_was_set=""
 : "${RUN_ID:=manual}"
 : "${RELEASE_ID:=${RUN_ID}}"
 : "${PUBLISH_CURRENT:=false}"
+: "${PUBLISH_MODULES:=false}"
 : "${PUBLISH_BUILDCACHE:=true}"
 : "${PUSH_BUILDCACHE_SCRIPT:=./ci/push-buildcache.sh}"
 : "${PREPARE_HPCSIM_ROOT_SCRIPT:=./ci/prepare-hpcsim-root.sh}"
@@ -101,6 +102,11 @@ case "${PUBLISH_CURRENT}" in
     *) echo "ERROR: PUBLISH_CURRENT must be true or false" >&2; exit 1 ;;
 esac
 
+case "${PUBLISH_MODULES}" in
+    true|false) ;;
+    *) echo "ERROR: PUBLISH_MODULES must be true or false" >&2; exit 1 ;;
+esac
+
 case "${PUBLISH_BUILDCACHE}" in
     true|false) ;;
     *) echo "ERROR: PUBLISH_BUILDCACHE must be true or false" >&2; exit 1 ;;
@@ -129,6 +135,7 @@ echo "    mode:              ${CHAPAR_ENV_BUILD_MODE}"
 echo "    os:                ${OS_NAME}"
 echo "    release:           ${RELEASE_ID}"
 echo "    publish current:   ${PUBLISH_CURRENT}"
+echo "    publish modules:   ${PUBLISH_MODULES}"
 echo "    publish buildcache: ${PUBLISH_BUILDCACHE}"
 echo "    ref:               ${GIT_REF}"
 echo "    repo dir:          ${REPO_DIR}"
@@ -197,6 +204,8 @@ case "${build_mode}" in
         bash "${release_script}" build "${RELEASE_ID}"
         if [ "${PUBLISH_CURRENT}" = "true" ]; then
             bash "${release_script}" promote "${RELEASE_ID}"
+        elif [ "${PUBLISH_MODULES}" = "true" ]; then
+            bash "${release_script}" publish-modules "${RELEASE_ID}"
         fi
         ;;
     spack)

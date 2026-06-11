@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH --exclusive
-#SBATCH --cpus-per-task=128
 #SBATCH --hint=nomultithread
 #SBATCH -J hpcsim-release
 #SBATCH -o slogs/%x_%j.out
@@ -16,10 +15,33 @@ if [ -r "${site_config}" ]; then
     . "${site_config}"
 fi
 
+detect_build_jobs() {
+    local cpus="${SLURM_CPUS_ON_NODE:-}"
+
+    if [ -z "${cpus}" ] && [ -n "${SLURM_JOB_CPUS_PER_NODE:-}" ]; then
+        cpus="${SLURM_JOB_CPUS_PER_NODE%%,*}"
+        cpus="${cpus%%(*}"
+    fi
+    if [ -z "${cpus}" ]; then
+        cpus="${SLURM_CPUS_PER_TASK:-}"
+    fi
+    if [ -z "${cpus}" ] && command -v nproc >/dev/null 2>&1; then
+        cpus="$(nproc)"
+    fi
+    case "${cpus}" in
+        ''|*[!0-9]*|0) cpus=1 ;;
+    esac
+
+    printf '%s\n' "${cpus}"
+}
+
+build_jobs="$(detect_build_jobs)"
+
 : "${OS_NAME:?set OS_NAME=rocky9 or OS_NAME=rocky10}"
 : "${PUBLISH_CURRENT:=false}"
+: "${PUBLISH_MODULES:=false}"
 : "${PUBLISH_BUILDCACHE:=true}"
-: "${SPACK_INSTALL_ARGS:=-j ${SLURM_CPUS_PER_TASK:-128}}"
+: "${SPACK_INSTALL_ARGS:=-j ${build_jobs}}"
 : "${CHAPAR_CONCRETIZE_TIMEOUT:=}"
 
 case "${OS_NAME}" in
@@ -32,14 +54,19 @@ case "${PUBLISH_CURRENT}" in
     *) echo "ERROR: PUBLISH_CURRENT must be true or false, got ${PUBLISH_CURRENT}" >&2; exit 2 ;;
 esac
 
+case "${PUBLISH_MODULES}" in
+    true|false) ;;
+    *) echo "ERROR: PUBLISH_MODULES must be true or false, got ${PUBLISH_MODULES}" >&2; exit 2 ;;
+esac
+
 case "${PUBLISH_BUILDCACHE}" in
     true|false) ;;
     *) echo "ERROR: PUBLISH_BUILDCACHE must be true or false, got ${PUBLISH_BUILDCACHE}" >&2; exit 2 ;;
 esac
 
-mkdir -p "$HOME/slogs" "$HOME/chapar-diagnostics"
+mkdir -p "${CHAPAR_ROOT}/slogs" "$HOME/chapar-diagnostics"
 job_id="${SLURM_JOB_ID:-manual}"
-release_date="$(date -u +%Y%m%d)"
+release_date="$(date +%Y%m%d%H%M%S)"
 : "${RELEASE_ID:=${OS_NAME}-${release_date}}"
 
 diag_dir="$HOME/chapar-diagnostics/${SLURM_JOB_NAME:-hpcsim-release}_${job_id}_${OS_NAME}"
@@ -87,6 +114,8 @@ echo "os name: $OS_NAME"
 echo "release id: $RELEASE_ID"
 echo "publish buildcache: $PUBLISH_BUILDCACHE"
 echo "publish current: $PUBLISH_CURRENT"
+echo "publish modules: $PUBLISH_MODULES"
+echo "build jobs: $build_jobs"
 echo "spack install args: $SPACK_INSTALL_ARGS"
 echo "spack user cache: $SPACK_USER_CACHE_PATH"
 echo "ccache dir: ${CCACHE_DIR:-unset}"
@@ -112,6 +141,10 @@ if [ "$PUBLISH_CURRENT" = true ]; then
     echo
     echo "==> Promoting ${OS_NAME} hpcsim release"
     OS_NAME="$OS_NAME" bash envs/hpcsim/release.sh promote "$RELEASE_ID"
+elif [ "$PUBLISH_MODULES" = true ]; then
+    echo
+    echo "==> Publishing ${OS_NAME} hpcsim modules"
+    OS_NAME="$OS_NAME" bash envs/hpcsim/release.sh publish-modules "$RELEASE_ID"
 fi
 
 echo

@@ -39,7 +39,7 @@ if [ ! -e /dev/nvidiactl ] && [ ! -e /proc/driver/nvidia/version ] && command -v
         case "${fi_info_output}" in
             *libcuda.so.1*)
                 echo "CUDA-enabled libfabric cannot load on this non-GPU node because libcuda.so.1 is unavailable." >&2
-                echo "Run Intel MPI validation on GPU-driver nodes or provide a site-supported CUDA driver compatibility library." >&2
+                echo "Verify the release was built with CUDA driver-stub module policy and that intel-oneapi-mpi/libfabric modules came from that release." >&2
                 exit 2
                 ;;
         esac

@@ -8,9 +8,10 @@ Usage: ci/submit-hpcsim-release.sh [options]
 Options:
   --os rocky9|rocky10             Target release OS
   --partition NAME                Slurm partition to submit to
-  --cores N                       Slurm CPUs per task for the build node
-  --release-id ID                 Release ID (default: <os>-YYYYMMDD)
+  --cores N                       Optional Slurm CPUs per task; omit to use the full exclusive node
+  --release-id ID                 Release ID (default: <os>-YYYYMMDDHHMMSS)
   --publish-current true|false    Promote current after a successful build (default: false)
+  --publish-modules true|false    Publish shared module-root symlink without promoting current (default: true)
   --dry-run                       Print the sbatch command without submitting
   -h, --help                      Show this help
 
@@ -26,6 +27,7 @@ PARTITION=""
 CORES=""
 RELEASE_ID="${RELEASE_ID:-}"
 PUBLISH_CURRENT="${PUBLISH_CURRENT:-}"
+PUBLISH_MODULES="${PUBLISH_MODULES:-}"
 DRY_RUN="false"
 
 while [ "$#" -gt 0 ]; do
@@ -35,6 +37,7 @@ while [ "$#" -gt 0 ]; do
         --cores) CORES="$2"; shift 2 ;;
         --release-id) RELEASE_ID="$2"; shift 2 ;;
         --publish-current) PUBLISH_CURRENT="$2"; shift 2 ;;
+        --publish-modules) PUBLISH_MODULES="$2"; shift 2 ;;
         --dry-run) DRY_RUN="true"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "ERROR: unknown option $1" >&2; usage >&2; exit 1 ;;
@@ -95,16 +98,15 @@ case "${PARTITION}" in
         ;;
 esac
 
-if [ -z "${CORES}" ]; then
-    CORES="$(prompt_value CORES 'Usable CPU cores on the build node' "${SLURM_CPUS_PER_TASK:-128}")"
+if [ -n "${CORES}" ]; then
+    case "${CORES}" in
+        *[!0-9]*) echo "ERROR: --cores must be a positive integer, got ${CORES}" >&2; exit 1 ;;
+        0) echo "ERROR: --cores must be greater than zero" >&2; exit 1 ;;
+    esac
 fi
-case "${CORES}" in
-    ""|*[!0-9]*) echo "ERROR: --cores must be a positive integer, got ${CORES}" >&2; exit 1 ;;
-    0) echo "ERROR: --cores must be greater than zero" >&2; exit 1 ;;
-esac
 
 if [ -z "${RELEASE_ID}" ]; then
-    default_release_id="${OS_NAME}-$(date -u +%Y%m%d)"
+    default_release_id="${OS_NAME}-$(date +%Y%m%d%H%M%S)"
     if is_interactive; then
         RELEASE_ID="$(prompt_value RELEASE_ID 'Release ID' "${default_release_id}")"
     else
@@ -125,6 +127,18 @@ case "${PUBLISH_CURRENT}" in
     *) echo "ERROR: --publish-current must be true or false, got ${PUBLISH_CURRENT}" >&2; exit 1 ;;
 esac
 
+if [ -z "${PUBLISH_MODULES}" ]; then
+    if is_interactive; then
+        PUBLISH_MODULES="$(prompt_value PUBLISH_MODULES 'Publish shared module root after success? true or false' true)"
+    else
+        PUBLISH_MODULES="true"
+    fi
+fi
+case "${PUBLISH_MODULES}" in
+    true|false) ;;
+    *) echo "ERROR: --publish-modules must be true or false, got ${PUBLISH_MODULES}" >&2; exit 1 ;;
+esac
+
 wrapper="${CHAPAR_ROOT}/ci/sbatch-hpcsim-release-${OS_NAME}.sh"
 [ -r "${wrapper}" ] || { echo "ERROR: missing sbatch wrapper: ${wrapper}" >&2; exit 1; }
 
@@ -133,17 +147,20 @@ mkdir -p "${CHAPAR_ROOT}/slogs"
 sbatch_args=(
     --chdir "${CHAPAR_ROOT}"
     --partition "${PARTITION}"
-    --cpus-per-task "${CORES}"
-    --export "ALL,CHAPAR_ROOT=${CHAPAR_ROOT},RELEASE_ID=${RELEASE_ID},PUBLISH_CURRENT=${PUBLISH_CURRENT}"
+    --export "ALL,CHAPAR_ROOT=${CHAPAR_ROOT},RELEASE_ID=${RELEASE_ID},PUBLISH_CURRENT=${PUBLISH_CURRENT},PUBLISH_MODULES=${PUBLISH_MODULES}"
     "${wrapper}"
 )
+if [ -n "${CORES}" ]; then
+    sbatch_args=(--cpus-per-task "${CORES}" "${sbatch_args[@]}")
+fi
 
 echo "Submitting hpcsim release build"
 echo "  os:              ${OS_NAME}"
 echo "  partition:       ${PARTITION}"
-echo "  cpus per task:   ${CORES}"
+echo "  cpus per task:   ${CORES:-full exclusive node}"
 echo "  release id:      ${RELEASE_ID}"
 echo "  publish current: ${PUBLISH_CURRENT}"
+echo "  publish modules: ${PUBLISH_MODULES}"
 echo "  chapar root:     ${CHAPAR_ROOT}"
 
 if [ "${DRY_RUN}" = "true" ]; then
