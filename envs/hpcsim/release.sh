@@ -422,6 +422,10 @@ modules:
       lmod: ${module_root}/lmods
     tcl:
       exclude_implicits: false
+      # Release modules are generated only for root specs. Do not emit module-load
+      # statements for dependencies such as external glibc that have no modulefile.
+      all:
+        autoload: none
 EOF
 
     printf '%s\n' "${scope_dir}"
