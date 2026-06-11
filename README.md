@@ -200,6 +200,9 @@ CUDA driver-stub directory so CPU-only commands can start when the real NVIDIA
 driver libraries are absent. On GPU nodes, the modules leave the real NVIDIA
 driver path in control. Releases fail before publication if Intel MPI/libfabric
 modules are present but the required CUDA driver stubs cannot be generated.
+The generated `intel-oneapi-mpi` module also sets default provider variables
+when users have not already set them: `I_MPI_FABRICS=shm:ofi`,
+`I_MPI_OFI_PROVIDER=verbs`, and `FI_PROVIDER=verbs;ofi_rxm`.
 
 ## Safe Deployment Model
 

@@ -1110,6 +1110,29 @@ if {![file exists "/dev/nvidiactl"] && ![file exists "/proc/driver/nvidia/versio
 EOF
 }
 
+append_intelmpi_module_policy() {
+    local module_file="$1"
+    local marker="# Chapar Intel MPI runtime policy"
+
+    modulefile_has_marker "${module_file}" "${marker}" && return 0
+
+    cat >> "${module_file}" <<'EOF'
+
+# Chapar Intel MPI runtime policy
+# Default to the OFI provider path validated for hpcsim. Users can override
+# these before loading the module when testing another provider or fabric.
+if {![info exists env(I_MPI_FABRICS)]} {
+    setenv I_MPI_FABRICS {shm:ofi}
+}
+if {![info exists env(I_MPI_OFI_PROVIDER)]} {
+    setenv I_MPI_OFI_PROVIDER {verbs}
+}
+if {![info exists env(FI_PROVIDER)]} {
+    setenv FI_PROVIDER {verbs;ofi_rxm}
+}
+EOF
+}
+
 apply_release_module_runtime_policy() {
     local release_dir="$1"
     local cuda_stub_dir=""
@@ -1133,6 +1156,11 @@ apply_release_module_runtime_policy() {
     for module_file in "${release_dir}/modulefiles"/*/openmpi/*; do
         [ -f "${module_file}" ] || continue
         append_openmpi_module_policy "${module_file}"
+    done
+
+    for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/*; do
+        [ -f "${module_file}" ] || continue
+        append_intelmpi_module_policy "${module_file}"
     done
 
     for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/* "${release_dir}/modulefiles"/*/libfabric/*; do

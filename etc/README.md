@@ -170,6 +170,9 @@ non-GPU nodes so CPU-only commands can load CUDA-enabled libfabric without
 requiring the real NVIDIA driver libraries. GPU nodes continue to use the real
 driver. Releases fail before publication if Intel MPI/libfabric modules are
 present but the required CUDA driver stubs cannot be generated.
+The generated `intel-oneapi-mpi` module sets default OFI provider variables when
+users have not already set them: `I_MPI_FABRICS=shm:ofi`,
+`I_MPI_OFI_PROVIDER=verbs`, and `FI_PROVIDER=verbs;ofi_rxm`.
 
 Release builds attach the matching per-OS buildcache as an unsigned binary
 mirror in their generated Spack scope, so previously pushed binaries are

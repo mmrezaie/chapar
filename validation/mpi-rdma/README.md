@@ -80,10 +80,11 @@ Runtime knobs:
 - `MPI_RDMA_ITERS`: ring iterations. Defaults to `100`.
 - `MPI_RANKS`: total rank count. Defaults to `SLURM_NTASKS` or `SLURM_NNODES`.
 - `MPI_LAUNCHER`: launcher command. Defaults to `mpirun` for Open MPI and Intel
-  MPI wrappers.
+  MPI wrappers. Intel MPI wrappers also support `MPI_LAUNCHER=srun`.
 - `MPI_LAUNCHER_ARGS`: launcher arguments. Open MPI wrappers default to
   `-np ${MPI_RANKS} --bind-to none --map-by ppr:1:node --prtemca prte_launch_agent ${HPCSIM_PRTED}`.
-  Intel MPI wrappers default to `-bootstrap slurm -np ${MPI_RANKS} -ppn 1`.
+  Intel MPI wrappers default to `-bootstrap slurm -np ${MPI_RANKS} -ppn 1` with
+  `mpirun`, or `-n ${MPI_RANKS} --cpu-bind=none` with `srun`.
 - `HPCSIM_PRTED`: Open MPI 5 `prted` path. Open MPI wrappers auto-detect it
   from the loaded Open MPI prefix or a sibling `prrte-*` install.
 - `HPCSIM_PRTE_SLURM_ARGS`: Slurm arguments for PRRTE daemon launch. Defaults to
@@ -105,6 +106,13 @@ cluster exposes raw verbs endpoints but not the `mlx` provider. They also set
 CPU or `1` for GPU. The hpcsim libfabric build must include the `rxm` utility
 provider for these examples to start through Intel MPI's OFI path. Override
 `I_MPI_OFI_PROVIDER` and `FI_PROVIDER` together when testing another provider.
+Generated hpcsim `intel-oneapi-mpi` modules set the same provider defaults when
+the variables are not already set.
+
+When `MPI_LAUNCHER=srun`, the Intel MPI wrappers try to auto-detect a Slurm PMI
+library and export `I_MPI_PMI_LIBRARY`. If auto-detection fails and Intel MPI
+reports `PMI server not found`, use the default `mpirun -bootstrap slurm` launch
+path or set `I_MPI_PMI_LIBRARY` to the site's `libpmi2.so` or `libpmi.so`.
 
 If Intel MPI fails on a non-GPU node because `libcuda.so.1` or
 `libnvidia-ml.so.1` is missing, first verify that the loaded `intel-oneapi-mpi`
