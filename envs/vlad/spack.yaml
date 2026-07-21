@@ -14,7 +14,7 @@ spack:
     # vlad overrides AGENTS.md major-only rule per owner instruction;
     # uses HPC-recommended profiled bootstrap with full HPC language set;
     # bootstrap via OS gcc %gcc
-    - gcc@15: +profiled +fortran +lto +graphite +binutils +zstd ~ada ~go ~d ~modula2 ~objc ~obj-c++ ~sanitizer %gcc
+    - "gcc@15: +binutils languages=c,c++,fortran"
     - cuda@13
   - mpi_specs:
     - openmpi@5+cuda+fortran~internal-pmix fabrics=verbs,ucx schedulers=slurm cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^pmix@6 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
@@ -35,7 +35,7 @@ spack:
     - h5bench+exerciser+metadata
     - hpcg+openmp
     - hpl+openmp
-    - hpl-ai+openmp
+    #- hpl-ai+openmp
     - intel-mpi-benchmarks@2021.7
     - ior+hdf5+ncmpi
     - mdtest
@@ -46,10 +46,10 @@ spack:
   - profiling_specs:
     - caliper+mpi+papi+cuda+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - darshan-runtime+mpi+hdf5+parallel-netcdf
-    - extrae+mpi+papi+cuda
+    - extrae+papi+cuda
     - hpctoolkit@2025.0.1+cuda+mpi+python+papi+viewer~docs~opencl~level_zero~rocm~auditor_default build_system=meson ^python@3.12:3.12+tkinter
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - ipm+mpi+papi+infiniband
+    - ipm+papi
     - likwid
     - mpip
     - papi+infiniband+cuda
@@ -58,7 +58,7 @@ spack:
     - scorep+mpi+papi+cuda
     - tau+mpi+papi+openmp~cuda
   - framework_specs:
-    - py-mpi4py+mpi
+    - py-mpi4py
     - py-torch+cuda+mpi+nccl cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   - devtools_specs:
     - autoconf
@@ -88,9 +88,9 @@ spack:
         scalapack: [netlib-scalapack]
     c:
       require:
-      - spec: gcc@15:
+      - spec: gcc@15
         when: os=rocky9
-      - spec: gcc@15:
+      - spec: gcc@15
         when: os=rocky10
     ccache:
       buildable: true
@@ -100,9 +100,9 @@ spack:
       - ~qtgui
     cxx:
       require:
-      - spec: gcc@15:
+      - spec: gcc@15
         when: os=rocky9
-      - spec: gcc@15:
+      - spec: gcc@15
         when: os=rocky10
     dyninst:
       require:
@@ -117,9 +117,9 @@ spack:
         when: platform=linux
     fortran:
       require:
-      - spec: gcc@15:
+      - spec: gcc@15
         when: os=rocky9
-      - spec: gcc@15:
+      - spec: gcc@15
         when: os=rocky10
     gcc:
       require:
@@ -243,8 +243,8 @@ spack:
       - ^openmpi
     seacas:
       require:
-      - spec: ^libcatalyst~conduit
-        when: '+libcatalyst platform=linux'
+      #- spec: ^libcatalyst~conduit
+      #  when: '+libcatalyst platform=linux'
       - spec: ldflags="-Wl,--allow-shlib-undefined"
         when: '+adios2 platform=linux'
     scorep:
