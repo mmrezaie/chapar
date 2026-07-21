@@ -199,9 +199,6 @@ spack:
       require:
       - spec: '%gcc@15'
         when: platform=linux
-    netcdf-fortran:
-      require:
-      - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     nvtop:
       require:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
@@ -231,10 +228,6 @@ spack:
     scalasca:
       require:
       - ^openmpi
-    scalasca:
-      require:
-      - +fortran
-      - ~gcc-plugin
     sz:
       require:
       - +fortran+hdf5+netcdf+openmp
