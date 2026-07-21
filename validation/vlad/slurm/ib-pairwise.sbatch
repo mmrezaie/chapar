@@ -13,7 +13,7 @@ resolve_vlad_test_dir() {
     local candidate
 
     for candidate in "${submit_dir}/validation/vlad" "${submit_dir}/vlad"; do
-        [ -f "${candidate}/Makefile" ] || continue
+        [ -d "${candidate}" ] || continue
         printf '%s\n' "${candidate}"
         return 0
     done
