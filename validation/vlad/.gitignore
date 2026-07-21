@@ -1,0 +1,6 @@
+/results/
+/external/perftest/
+/external/ucx-perftest/
+/external/gpu-burn/
+*.openmpi
+*.intelmpi
