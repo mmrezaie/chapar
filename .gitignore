@@ -24,6 +24,9 @@ envs/*/.spack-env/
 # Site/datacenter-local hpcsim roots, cache roots, groups, and policy.
 /envs/hpcsim/hpcsim-site.env
 
+# Site/datacenter-local vlad roots, cache roots, groups, and policy.
+/envs/vlad/vlad-site.env
+
 # Agent working artifacts (OpenCode planning workspace, link-scopes backups)
 .omo/
 /etc/*.bak.*/
