@@ -21,6 +21,12 @@ envs/*/.spack-env/
 /etc/user/compilers.yaml
 /etc/user/packages.yaml
 
+# Machine-local Spack runtime artifacts (cache, repo clone, lock) populated
+# via the link-scopes.sh symlink ~/.spack -> etc/user/.
+/etc/user/cache/
+/etc/user/package-repository.lock
+/etc/user/package_repos/
+
 # Site/datacenter-local hpcsim roots, cache roots, groups, and policy.
 /envs/hpcsim/hpcsim-site.env
 
