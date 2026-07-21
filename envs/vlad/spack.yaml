@@ -12,9 +12,10 @@ spack:
   definitions:
   - toolchain_specs:
     # vlad overrides AGENTS.md major-only rule per owner instruction;
-    # uses HPC-recommended profiled bootstrap with full HPC language set;
+    # uses HPC-recommended profiled bootstrap (same as hpcsim's gcc@15+profiled %gcc).
+    # +profiled works on Rocky x86_64; the aarch64 conflict is macOS-specific.
     # bootstrap via OS gcc %gcc
-    - "gcc@15: +binutils languages=c,c++,fortran"
+    - gcc@15+profiled %gcc
     - cuda@13
   - mpi_specs:
     - openmpi@5+cuda+fortran~internal-pmix fabrics=verbs,ucx schedulers=slurm cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^pmix@6 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
@@ -35,7 +36,7 @@ spack:
     - h5bench+exerciser+metadata
     - hpcg+openmp
     - hpl+openmp
-    #- hpl-ai+openmp
+    #- hpl-ai+openmp   # may not exist in older Spack; verify on Rocky builder
     - intel-mpi-benchmarks@2021.7
     - ior+hdf5+ncmpi
     - mdtest
