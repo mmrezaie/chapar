@@ -6,7 +6,7 @@ validation. This directory contains Slurm sbatch wrappers for each validation
 suite, plus an outlier analyzer.
 
 All suites are designed for real multi-node Slurm allocations after a release
-has been built and the hpcsim modules are visible. Each suite writes per-GPU or
+has been built and the vlad modules are visible. Each suite writes per-GPU or
 per-node output files so the analyzer can pinpoint the exact deviant component.
 
 ## Test Suites

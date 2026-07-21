@@ -24,9 +24,10 @@ resolve_vlad_test_dir() {
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${PROFILER:=caliper}"
-: "${VLAD_RESULTS_DIR:=${SLURM_SUBMIT_DIR:-$PWD}/vlad_results/profiling_${SLURM_JOB_ID:-$$}}"
+: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
 
-mkdir -p "${VLAD_RESULTS_DIR}"
+RESULTS_DIR="${VLAD_TEST_DIR}/results/profiling/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Profiler enum validation ───────────────────────────────────
 case "${PROFILER}" in
@@ -49,45 +50,45 @@ echo "=== Profiling osu_latency with ${PROFILER} ===" >&2
 case "${PROFILER}" in
     caliper)
         LD_PRELOAD="$(spack location -i caliper)/lib/libcaliper.so" \
-            srun -n 2 osu_latency > "${VLAD_RESULTS_DIR}/caliper.log"
+            srun -n 2 osu_latency > "${RESULTS_DIR}/caliper.log"
         ;;
     darshan)
         LD_PRELOAD="$(spack location -i darshan-runtime)/lib/libdarshan.so" \
-            srun -n 2 osu_latency > "${VLAD_RESULTS_DIR}/darshan.log"
+            srun -n 2 osu_latency > "${RESULTS_DIR}/darshan.log"
         ;;
     mpip)
         LD_PRELOAD="$(spack location -i mpip)/lib/libmpiP.so" \
-            srun -n 2 osu_latency > "${VLAD_RESULTS_DIR}/mpip.log"
+            srun -n 2 osu_latency > "${RESULTS_DIR}/mpip.log"
         ;;
     ipm)
         LD_PRELOAD="$(spack location -i ipm)/lib/libipm.so" \
-            srun -n 2 osu_latency > "${VLAD_RESULTS_DIR}/ipm.log"
+            srun -n 2 osu_latency > "${RESULTS_DIR}/ipm.log"
         ;;
     extrae)
         LD_PRELOAD="$(spack location -i extrae)/lib/libmpitrace.so" \
-            srun -n 2 osu_latency > "${VLAD_RESULTS_DIR}/extrae.log"
+            srun -n 2 osu_latency > "${RESULTS_DIR}/extrae.log"
         ;;
     hpctoolkit)
-        srun -n 2 hpcrun -o "${VLAD_RESULTS_DIR}/hpcrun-db" \
-            osu_latency > "${VLAD_RESULTS_DIR}/hpctoolkit.log" 2>&1
+        srun -n 2 hpcrun -o "${RESULTS_DIR}/hpcrun-db" \
+            osu_latency > "${RESULTS_DIR}/hpctoolkit.log" 2>&1
         ;;
     tau)
         srun -n 2 tau_exec -T mpi,cupti \
-            osu_latency > "${VLAD_RESULTS_DIR}/tau.log" 2>&1
+            osu_latency > "${RESULTS_DIR}/tau.log" 2>&1
         ;;
     scorep)
         srun -n 2 scorep-run --sampling --mca=mpi -- \
-            osu_latency > "${VLAD_RESULTS_DIR}/scorep.log" 2>&1
+            osu_latency > "${RESULTS_DIR}/scorep.log" 2>&1
         ;;
     scalasca)
         srun -n 2 scorep-run --sampling --mca=mpi -- osu_latency \
             && scalasca -analyze osu_latency \
-            > "${VLAD_RESULTS_DIR}/scalasca.log" 2>&1
+            > "${RESULTS_DIR}/scalasca.log" 2>&1
         ;;
     likwid)
         srun -n 2 likwid-perfctr -C 0 -g MEM_DP -O \
-            osu_latency > "${VLAD_RESULTS_DIR}/likwid.log"
+            osu_latency > "${RESULTS_DIR}/likwid.log"
         ;;
 esac
 
-echo "Profiling results written to ${VLAD_RESULTS_DIR}" >&2
+echo "Profiling results written to ${RESULTS_DIR}" >&2

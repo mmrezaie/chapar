@@ -29,14 +29,15 @@ resolve_vlad_test_dir() {
 : "${MDTEST_FILES:=100000}"
 H5BENCH_CFG="${H5BENCH_CFG:-}"
 FIO_CFG="${FIO_CFG:-}"
-: "${VLAD_RESULTS_DIR:=${SLURM_SUBMIT_DIR:-$PWD}/vlad_results/io_${SLURM_JOB_ID:-$$}}"
+: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
 
 if [ -z "${IO_TEST_DIR}" ]; then
     echo "ERROR: IO_TEST_DIR is empty and \$SCRATCH is not set" >&2
     exit 1
 fi
 
-mkdir -p "${VLAD_RESULTS_DIR}"
+RESULTS_DIR="${VLAD_TEST_DIR}/results/io/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Environment ────────────────────────────────────────────────
 module purge
@@ -47,25 +48,25 @@ echo "=== IOR POSIX ===" >&2
 mpirun ior -a POSIX -w -r \
     -t "${IOR_XFER}" \
     -b "${IOR_BLOCK}" \
-    -o "${VLAD_RESULTS_DIR}/ior_posix.log"
+    -o "${RESULTS_DIR}/ior_posix.log"
 
 # ── IOR MPI-IO ─────────────────────────────────────────────────
 echo "=== IOR MPI-IO ===" >&2
 mpirun ior -a MPIIO -w -r \
     -t "${IOR_XFER}" \
     -b "${IOR_BLOCK}" \
-    -o "${VLAD_RESULTS_DIR}/ior_mpiio.log"
+    -o "${RESULTS_DIR}/ior_mpiio.log"
 
 # ── mdtest ─────────────────────────────────────────────────────
 echo "=== mdtest ===" >&2
 mpirun mdtest -n "${MDTEST_FILES}" -i 3 \
     -d "${IO_TEST_DIR}/mdtest_run" \
-    > "${VLAD_RESULTS_DIR}/mdtest.log"
+    > "${RESULTS_DIR}/mdtest.log"
 
 # ── h5bench (optional) ─────────────────────────────────────────
 if [ -n "${H5BENCH_CFG:-}" ]; then
     echo "=== h5bench ===" >&2
-    h5bench "${H5BENCH_CFG}" > "${VLAD_RESULTS_DIR}/h5bench.log" 2>&1
+    h5bench "${H5BENCH_CFG}" > "${RESULTS_DIR}/h5bench.log" 2>&1
 else
     echo "H5BENCH_CFG not set — skipping h5bench" >&2
 fi
@@ -80,6 +81,6 @@ fio --direct=1 \
     --size=1G \
     --loop=3 \
     --directory="${IO_TEST_DIR}" \
-    > "${VLAD_RESULTS_DIR}/fio.log" 2>&1
+    > "${RESULTS_DIR}/fio.log" 2>&1
 
-echo "I/O results written to ${VLAD_RESULTS_DIR}" >&2
+echo "I/O results written to ${RESULTS_DIR}" >&2

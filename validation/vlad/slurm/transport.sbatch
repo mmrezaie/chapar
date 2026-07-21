@@ -5,7 +5,7 @@
 #SBATCH --nodes=2
 #SBATCH --ntasks=2
 #SBATCH --time=00:30:00
-#SBATCH --gres=gpu:N
+#SBATCH --gres=gpu:1
 #SBATCH -J vlad-transport
 #SBATCH -o %x_%j.out
 #SBATCH -e %x_%j.err

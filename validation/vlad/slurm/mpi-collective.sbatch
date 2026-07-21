@@ -2,7 +2,7 @@
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
-#SBATCH --gres=gpu:N
+#SBATCH --gres=gpu:1
 #SBATCH -J vlad-mpi-collective
 #SBATCH -o %x_%j.out
 #SBATCH -e %x_%j.err

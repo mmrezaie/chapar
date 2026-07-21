@@ -36,7 +36,7 @@ spack:
     - h5bench+exerciser+metadata
     - hpcg+openmp
     - hpl+openmp
-    #- hpl-ai+openmp   # may not exist in older Spack; verify on Rocky builder
+    - hpl-ai+openmp
     - intel-mpi-benchmarks@2021.7
     - ior+hdf5+ncmpi
     - mdtest
@@ -190,10 +190,6 @@ spack:
     nccl-tests:
       require:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    ncview:
-      require:
-      - spec: 'cflags="-std=gnu17"'
-        when: 'platform=linux %gcc@15:'
     netcdf-c:
       require:
       - +mpi+parallel-netcdf
@@ -203,14 +199,7 @@ spack:
       require:
       - spec: '%gcc@15'
         when: platform=linux
-    node-js:
-      require:
-      - '@24.2.0'
-      - '~debug~doc~icu4c+openssl+zlib'
-    npm:
-      require:
-      - '@11.2.0'
-    nvbandwidth:
+    netcdf-fortran:
       require:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     nvtop:
@@ -242,13 +231,7 @@ spack:
     scalasca:
       require:
       - ^openmpi
-    seacas:
-      require:
-      #- spec: ^libcatalyst~conduit
-      #  when: '+libcatalyst platform=linux'
-      - spec: ldflags="-Wl,--allow-shlib-undefined"
-        when: '+adios2 platform=linux'
-    scorep:
+    scalasca:
       require:
       - +fortran
       - ~gcc-plugin

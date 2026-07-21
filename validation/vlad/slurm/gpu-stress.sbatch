@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:N
+#SBATCH --gres=gpu:1
 #SBATCH --time=08:00:00
 #SBATCH -J vlad-gpu-stress
 #SBATCH -o %x_%j.out
@@ -25,9 +25,10 @@ resolve_vlad_test_dir() {
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${CUDA_MEMTEST_PASSES:=10}"
-: "${VLAD_RESULTS_DIR:=${SLURM_SUBMIT_DIR:-$PWD}/vlad_results/gpu-stress_${SLURM_JOB_ID:-$$}}"
+: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
 
-mkdir -p "${VLAD_RESULTS_DIR}"
+RESULTS_DIR="${VLAD_TEST_DIR}/results/gpu-stress/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Environment ────────────────────────────────────────────────
 module purge
@@ -40,16 +41,16 @@ for g in $(seq 0 $((SLURM_GPUS_ON_NODE - 1))); do
     CUDA_VISIBLE_DEVICES="${g}" \
         cuda-memtest --report-mem-errors \
         --num-passes="${CUDA_MEMTEST_PASSES}" \
-        > "${VLAD_RESULTS_DIR}/cuda_memtest_gpu${g}.log"
+        > "${RESULTS_DIR}/cuda_memtest_gpu${g}.log"
 done
 
 # ── Optional gpu-burn ──────────────────────────────────────────
 if [ -x external/gpu-burn/gpu-burn ]; then
     echo "=== gpu-burn ===" >&2
     ./external/gpu-burn/gpu-burn -d 28800 \
-        > "${VLAD_RESULTS_DIR}/gpu-burn.log" 2>&1
+        > "${RESULTS_DIR}/gpu-burn.log" 2>&1
 else
     echo "WARNING: gpu-burn not found at external/gpu-burn/gpu-burn — skipping" >&2
 fi
 
-echo "GPU stress results written to ${VLAD_RESULTS_DIR}" >&2
+echo "GPU stress results written to ${RESULTS_DIR}" >&2
