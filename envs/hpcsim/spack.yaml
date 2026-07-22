@@ -23,7 +23,7 @@ spack:
     - imagemagick@7.1.1-39 ^python@3.12:3.12+optimizations+tkinter
     - npm@11.2.0
     - numactl
-    - pulseaudio@17.0 %gcc ^fftw~mpi
+    - pulseaudio@13.0 %gcc ^fftw~mpi
   - python_specs:
     - python@3.10:3.10+optimizations+tkinter
     - python@3.11:3.11+optimizations+tkinter
