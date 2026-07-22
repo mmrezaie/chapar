@@ -23,7 +23,7 @@ spack:
     - imagemagick@7.1.1-39 ^python@3.12:3.12+optimizations+tkinter
     - npm@11.2.0
     - numactl
-    - pulseaudio@13.0 %gcc ^fftw~mpi
+    - pulseaudio@17.0 %gcc ^fftw~mpi
   - python_specs:
     - python@3.10:3.10+optimizations+tkinter
     - python@3.11:3.11+optimizations+tkinter
@@ -44,20 +44,20 @@ spack:
     - gcc@15+profiled %gcc
     - cuda@13
   - mpi_specs:
-    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.18.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     # - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     # - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     - libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     - pmix@6
-    - ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
+    - ucx@1.20.1+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
     # Non-Slurm OpenMPI root disabled for the current cluster build.
-    # - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
-    - openmpi@5+cuda+fortran~internal-pmix fabrics=verbs,ucx schedulers=slurm cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^pmix@6 ^ucx@1.19.0+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
+    # - openmpi@5+cuda+fortran fabrics=verbs,ucx schedulers=none cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^ucx@1.20.1+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
+    - openmpi@5+cuda+fortran~internal-pmix fabrics=verbs,ucx schedulers=slurm cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^pmix@6 ^ucx@1.20.1+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^cuda@13
   - gpu_specs:
     - cuda-memtest
-    - nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - nccl@2.29.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - nvbandwidth+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - nvshmem+cuda+mpi+ucx+libfabric+nccl cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - nvshmem+cuda+mpi+ucx+libfabric+nccl cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^nccl@2.29.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - nvtop+cuda support=nvidia cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
   - debug_specs:
     - gdb+python ^python@3.12:3.12+tkinter
@@ -71,14 +71,14 @@ spack:
     - intel-mpi-benchmarks@2021.7
     - ior+hdf5+ncmpi
     - mdtest
-    - nccl-tests+mpi+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^nccl@2.28.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
-    - osu-micro-benchmarks@7.5.1
+    - nccl-tests+mpi+cuda cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121 ^nccl@2.29.7-1 cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
+    - osu-micro-benchmarks@7.5.2
     - qperf+verbs
     - stream+openmp
   - profiling_specs:
     - caliper+mpi+papi+cuda+libunwind+libdw cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - darshan-runtime+mpi+hdf5+parallel-netcdf
-    - hpctoolkit@2025.0.1+cuda+mpi+python+papi+viewer~docs~opencl~level_zero~rocm~auditor_default build_system=meson ^python@3.12:3.12+tkinter
+    - hpctoolkit@2026.0.1+cuda+mpi+python+papi+viewer~docs~opencl~level_zero~rocm~auditor_default build_system=meson ^python@3.12:3.12+tkinter
     - hwloc+cuda+pci~nvml cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     - likwid
     # Disabled for the current cluster build: nvtx~python still enters the
@@ -108,7 +108,7 @@ spack:
     - cgns+mpi+hdf5+fortran %gcc ^openmpi@5
     - exodusii+mpi+fortran %gcc ^openmpi@5
     # - seacas@2024-06-27+mpi+adios2+libcatalyst+cgns+applications~legacy~x11 %gcc ^openmpi@5
-    - seacas@2024-06-27+mpi+adios2~fortran~libcatalyst+cgns+applications~legacy~x11 %gcc@15 ^openmpi@5
+    - seacas@2025-10-14+mpi+adios2~fortran~libcatalyst+cgns+applications~legacy~x11 %gcc@15 ^openmpi@5
     - silo+mpi+hdf5+fortran~python %gcc ^openmpi@5
   - postprocessing_cli_specs:
     - cdo+netcdf+hdf5+openmp grib2=eccodes %gcc
