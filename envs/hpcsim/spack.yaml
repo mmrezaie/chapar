@@ -343,8 +343,6 @@ spack:
       - ^openmpi
     seacas:
       require:
-      - spec: ^libcatalyst~conduit
-        when: '+libcatalyst platform=linux'
       - spec: ldflags="-Wl,--allow-shlib-undefined"
         when: '+adios2 platform=linux'
     scorep:
