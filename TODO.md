@@ -20,3 +20,11 @@
 
 - Remove example packages.
 - Build Slurm through this workflow and make the full stack work end to end.
+
+## Detailed Sweep Findings (2026-07-22)
+
+- **vlad release.sh**: `envs/vlad/release.sh` does not exist. The vlad environment has no release helper; a separate planning exercise is needed to create one following hpcsim's pattern.
+- **Rocky 10 container recipes**: No `containers/envs/hpcsim/rocky10/` directory exists. Only Rocky 9 container recipes are defined. Rocky 10 support needs container build scripts, Packer HCL, Apptainer def, and Slurm wrappers.
+- **vlad CI workflow**: No `.github/workflows/` entry for vlad. The vlad environment can only be built manually or via the generic sbatch-env-build.sh; no automated CI pipeline exists.
+- **chapar_plus overlay**: The `spack_repo/chapar_plus/` namespace contains only skeleton example packages (`chapar_source_example`, `chapar_binary_only_example`). No real overlay packages have been added yet.
+- **Disabled hpcsim specs**: ~15-20 root specs are commented out in `envs/hpcsim/spack.yaml`, including the visualization stack (Paraview, VisIt, VTK, VTK-m), Catalyst, older MPI implementations, and Python 3.13/3.14. These are intentionally parked but should be reviewed periodically.
