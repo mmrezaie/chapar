@@ -44,7 +44,7 @@ spack:
     - gcc@15+profiled %gcc
     - cuda@13
   - mpi_specs:
-    - intel-oneapi-mpi@2021.18.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
+    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     # - intel-oneapi-mpi@2021.14.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     # - intel-oneapi-mpi@2021.10.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     - libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
