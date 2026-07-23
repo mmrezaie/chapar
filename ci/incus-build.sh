@@ -226,7 +226,19 @@ incus file push ci/container-build.sh "${INSTANCE}/tmp/chapar-container-build.sh
 incus file push ci/prepare-hpcsim-root.sh "${INSTANCE}/tmp/chapar-prepare-hpcsim-root.sh"
 incus file push ci/push-buildcache.sh "${INSTANCE}/tmp/chapar-push-buildcache.sh"
 
-incus exec "${INSTANCE}" -- bash -lc "cat > /tmp/chapar-env-site.env <<'EOF'
+if [ "${ENV_NAME}" = "vlad" ]; then
+    incus exec "${INSTANCE}" -- bash -lc "cat > /tmp/chapar-env-site.env <<'EOF'
+CHAPAR_INSTALL_MODE=public
+VLAD_PUBLIC_ROOT=${CHAPAR_ENV_ROOT}
+CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
+CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
+CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
+CHAPAR_MODULE_ROOT=/resources/chapar/vlad/modulefiles
+PUBLISH_BUILDCACHE=true
+PUBLISH_CURRENT=${PUBLISH_CURRENT}
+EOF"
+elif [ "${ENV_NAME}" = "hpcsim" ]; then
+    incus exec "${INSTANCE}" -- bash -lc "cat > /tmp/chapar-env-site.env <<'EOF'
 CHAPAR_INSTALL_MODE=${CHAPAR_INSTALL_MODE}
 HPCSIM_PUBLIC_ROOT=${HPCSIM_ROOT}
 CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
@@ -235,6 +247,17 @@ CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
 PUBLISH_BUILDCACHE=${PUBLISH_BUILDCACHE}
 PUBLISH_CURRENT=${PUBLISH_CURRENT}
 EOF"
+else
+    incus exec "${INSTANCE}" -- bash -lc "cat > /tmp/chapar-env-site.env <<'EOF'
+CHAPAR_INSTALL_MODE=${CHAPAR_INSTALL_MODE}
+HPCSIM_PUBLIC_ROOT=${HPCSIM_ROOT}
+CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
+CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
+CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
+PUBLISH_BUILDCACHE=${PUBLISH_BUILDCACHE}
+PUBLISH_CURRENT=${PUBLISH_CURRENT}
+EOF"
+fi
 
 incus exec "${INSTANCE}" -- bash -lc 'cd /tmp/chapar-bootstrap && bash ci/bootstrap.sh'
 
