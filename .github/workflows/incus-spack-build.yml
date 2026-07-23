@@ -118,6 +118,9 @@ jobs:
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           OS_NAME: ${{ matrix.os_name }}
           RUN_ID: ${{ github.run_id }}
+          PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
+          PUBLISH_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
+          PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
         run: |
           set -euo pipefail
 
