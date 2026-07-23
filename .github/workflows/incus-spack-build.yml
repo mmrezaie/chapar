@@ -6,11 +6,8 @@ on:
       os:
         description: Target Rocky Linux version
         required: true
-        type: choice
+        type: string
         default: rocky10
-        options:
-          - all
-          - rocky10
       env_name:
         description: Chapar environment name
         required: true
@@ -24,20 +21,13 @@ on:
       build_action:
         description: Whether to only concretize or concretize and build
         required: true
-        type: choice
+        type: string
         default: build
-        options:
-          - concretize
-          - build
       build_mode:
         description: Build mode; auto uses release.sh when the environment has one
         required: true
-        type: choice
+        type: string
         default: auto
-        options:
-          - auto
-          - release
-          - spack
       release_id:
         description: Optional release/run ID; defaults to the workflow run ID
         required: false
