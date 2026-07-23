@@ -166,6 +166,16 @@ die() {
     exit 1
 }
 
+run_as_root() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        die "cannot create shared directories; root privileges or passwordless sudo are required for $*"
+    fi
+}
+
 ensure_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "required command '$1' not found"
 }
@@ -339,7 +349,9 @@ prepare_shared_directory() {
         fi
     fi
 
-    chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" || die "could not set mode ${CHAPAR_SHARED_DIR_MODE} on ${label}: ${path}"
+    if ! chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" 2>/dev/null; then
+        run_as_root chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}"
+    fi
 }
 
 configure_ccache() {
