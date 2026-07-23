@@ -75,7 +75,7 @@ on:
         default: ""
       hpcsim_root:
         description: Legacy hpcsim output root alias used when env_root is empty
-        required: true
+        required: false
         type: string
         default: /resources/chapar/hpcsim
       buildcache_root:
