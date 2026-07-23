@@ -1,24 +1,13 @@
 name: Incus Chapar Environment Build
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/incus-spack-build.trigger
-      - .github/workflows/incus-spack-build.yml
-      - ci/**
-      - envs/**
-      - etc/**
-      - spack_repo/**
-      - Makefile
-  workflow_dispatch:
+  workflow_call:
     inputs:
       os:
         description: Target Rocky Linux version
         required: true
         type: choice
-        default: all
+        default: rocky10
         options:
           - all
           - rocky10
@@ -115,16 +104,13 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ inputs.env_name || 'hpcsim' }} on ${{ matrix.os_name }}
+    name: Build ${{ inputs.env_name }} on ${{ matrix.os_name }}
     strategy:
       fail-fast: false
       matrix:
         os_name: ${{ fromJSON((inputs.os || 'all') == 'all' && '["rocky10"]' || format('["{0}"]', inputs.os || 'rocky10')) }}
     runs-on: ${{ fromJSON(format('["self-hosted","{0}","{1}"]', inputs.runner_label || 'chapar', matrix.os_name)) }}
     timeout-minutes: 1440
-    concurrency:
-      group: chapar-incus-builders-${{ inputs.env_name || 'hpcsim' }}-${{ matrix.os_name }}
-      cancel-in-progress: false
 
     steps:
       - name: Check out workflow scripts
@@ -135,9 +121,9 @@ jobs:
 
       - name: Verify environment resources mount
         env:
-          ENV_NAME: ${{ inputs.env_name || 'hpcsim' }}
-          ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name || 'hpcsim') }}
-          CHAPAR_ENV_ROOT: ${{ inputs.env_root || ((inputs.env_name || 'hpcsim') == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name || 'hpcsim') }}
+          ENV_NAME: ${{ inputs.env_name }}
+          ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name) }}
+          CHAPAR_ENV_ROOT: ${{ inputs.env_root || (inputs.env_name == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name) }}
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           OS_NAME: ${{ matrix.os_name }}
@@ -223,12 +209,12 @@ jobs:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REPO_DIR: ${{ github.workspace }}
           OS_NAME: ${{ matrix.os_name }}
-          ENV_NAME: ${{ inputs.env_name || 'hpcsim' }}
-          ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name || 'hpcsim') }}
-          CHAPAR_ENV_ROOT: ${{ inputs.env_root || ((inputs.env_name || 'hpcsim') == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name || 'hpcsim') }}
+          ENV_NAME: ${{ inputs.env_name }}
+          ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name) }}
+          CHAPAR_ENV_ROOT: ${{ inputs.env_root || (inputs.env_name == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name) }}
           CHAPAR_ENV_ACTION: ${{ inputs.build_action || 'build' }}
           CHAPAR_ENV_BUILD_MODE: ${{ inputs.build_mode || 'auto' }}
-          HPCSIM_ROOT: ${{ ((inputs.env_name || 'hpcsim') == 'hpcsim' && (inputs.env_root || inputs.hpcsim_root)) || '' }}
+          HPCSIM_ROOT: ${{ (inputs.env_name == 'hpcsim' && (inputs.env_root || inputs.hpcsim_root)) || '' }}
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
