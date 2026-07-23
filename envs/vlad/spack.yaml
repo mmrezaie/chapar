@@ -36,7 +36,6 @@ spack:
     - h5bench+exerciser+metadata
     - hpcg+openmp
     - hpl+openmp
-    - hpl-ai+openmp
     - intel-mpi-benchmarks@2021.7
     - ior+hdf5+ncmpi
     - mdtest

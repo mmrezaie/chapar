@@ -59,7 +59,7 @@ mkdir -p "${RESULTS_DIR}"
 # ── modules ──────────────────────────────────────────────────────────────
 
 module purge
-module load openmpi openblas hpl hpcg stream hpl-ai babelstream
+module load openmpi openblas hpl hpcg stream babelstream
 
 # ── HPL: High-Performance LINPACK ────────────────────────────────────────
 
@@ -80,7 +80,7 @@ stream_c.exe > "${RESULTS_DIR}/stream.log" 2>&1
 
 # ── HPL-AI: mixed-precision LINPACK ──────────────────────────────────────
 
-xhpl-ai < "${HPLAI_DAT_FILE:-${HPL_DAT_FILE}}" > "${RESULTS_DIR}/hplai.log" 2>&1
+
 
 # ── BabelStream: multi-language memory bandwidth ─────────────────────────
 
