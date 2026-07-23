@@ -79,6 +79,7 @@ as_root dnf -y install epel-release
 as_root dnf -y install ccache
 
 as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh /etc/profile.d/zz-chapar-hpcsim.sh
+as_root install -m 0644 etc/profile.d/zz-chapar-vlad.sh /etc/profile.d/zz-chapar-vlad.sh
 
 for safe_dir in \
     "${GITHUB_WORKSPACE:-}" \

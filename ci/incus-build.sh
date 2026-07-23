@@ -222,6 +222,7 @@ incus exec "${INSTANCE}" -- mkdir -p /tmp/chapar-bootstrap/ci /tmp/chapar-bootst
 
 incus file push "${BOOTSTRAP_SCRIPT}" "${INSTANCE}/tmp/chapar-bootstrap/ci/bootstrap.sh"
 incus file push etc/profile.d/zz-chapar-hpcsim.sh "${INSTANCE}/tmp/chapar-bootstrap/etc/profile.d/zz-chapar-hpcsim.sh"
+incus file push etc/profile.d/zz-chapar-vlad.sh "${INSTANCE}/tmp/chapar-bootstrap/etc/profile.d/zz-chapar-vlad.sh"
 incus file push ci/container-build.sh "${INSTANCE}/tmp/chapar-container-build.sh"
 incus file push ci/prepare-hpcsim-root.sh "${INSTANCE}/tmp/chapar-prepare-hpcsim-root.sh"
 incus file push ci/push-buildcache.sh "${INSTANCE}/tmp/chapar-push-buildcache.sh"
