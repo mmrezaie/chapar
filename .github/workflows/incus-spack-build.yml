@@ -157,6 +157,18 @@ jobs:
           PUBLISH_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
           EOF
             CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT}" bash ci/prepare-hpcsim-root.sh
+          elif [ "${ENV_NAME}" = "vlad" ]; then
+            cat > envs/vlad/vlad-site.env <<EOF
+          CHAPAR_INSTALL_MODE=public
+          VLAD_PUBLIC_ROOT=${CHAPAR_ENV_ROOT}
+          CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
+          CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
+          CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
+          CHAPAR_MODULE_ROOT=/resources/chapar/vlad/modulefiles
+          PUBLISH_BUILDCACHE=true
+          PUBLISH_CURRENT=${PUBLISH_CURRENT}
+          PUBLISH_MODULES=true
+          EOF
           else
             mkdir -p "${CHAPAR_ENV_ROOT}/${OS_NAME}/runs" "${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}" "${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
           fi
@@ -220,8 +232,8 @@ jobs:
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
-          PUBLISH_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
-          PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
+          PUBLISH_MODULES: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false') }}
+          PUBLISH_BUILDCACHE: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true') }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-p 1' }}
           CHAPAR_CONCRETIZE_TIMEOUT: 3600
           RUN_ID: ${{ github.run_id }}
