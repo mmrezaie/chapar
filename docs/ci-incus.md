@@ -57,6 +57,23 @@ The helper installs the GitHub runner under `/opt/actions-runner`, creates an
 `actions` user with passwordless sudo, registers the runner, and starts it as a
 service.
 
+## Per-Environment Workflow Files
+
+The CI is split into three workflow files:
+
+- **`incus-spack-build.yml`** &mdash; the reusable engine. It declares a
+  `workflow_call` trigger and defines the actual build strategy and steps. No
+  environment-specific logic; callers pass `env_name`, `env_path`, and all
+  inputs.
+- **`incus-spack-build-hpcsim.yml`** &mdash; caller for the `hpcsim`
+  environment. Push-triggered only on `envs/hpcsim/**` and related CI paths.
+- **`incus-spack-build-vlad.yml`** &mdash; caller for the `vlad` environment.
+  Push-triggered only on `envs/vlad/**`.
+
+To run a manual build, open the GitHub Actions tab, select the specific
+environment's workflow (e.g. "Incus Chapar Environment Build (hpcsim)"), and
+click `Run workflow`.
+
 ## Resources Mount
 
 On the Incus host, mount the resources export at `/resources`:
@@ -98,7 +115,10 @@ Inputs:
 - `publish_modules`: update only the configured shared module symlink after release-mode builds.
 - `publish_buildcache`: push to `<buildcache_root>/<os>`.
 - `spack_ref`: Spack branch, tag, or SHA. The default is pinned for cache stability.
-- `spack_install_args`: arguments passed to `spack install`, default `-p 1`.
+- `spack_install_args`: arguments passed to `spack install`, default `-j 8 -p 4`.
+  `-j 8` allows 8 total compile jobs via the POSIX jobserver (shared across
+  concurrently building packages). `-p 4` allows at most 4 packages to build at
+  once. The builder has 28 CPUs, so this is a balanced setting.
 - `runner_label`: common custom runner label, default `chapar`.
 - `env_root`: shared output root. Empty means `/resources/chapar/<env_name>`.
 - `hpcsim_root`: legacy hpcsim output-root alias used only when `env_root` is empty.
@@ -109,9 +129,11 @@ Inputs:
 so test builds and public release builds at the same site share artifact caches
 without coupling them to a mutable release tree.
 
-When `os=all`, GitHub schedules independent Rocky 9 and Rocky 10 matrix jobs. The
-job-level concurrency group includes `matrix.os_name`, so Rocky 9 and Rocky 10 can
-build at the same time while repeated jobs for the same OS remain serialized.
+All per-environment caller workflows share `concurrency.group:
+chapar-incus-builders` with `cancel-in-progress: false`. This means only one
+build runs at a time across all environments on the self-hosted runner. If a
+build is in progress and another workflow is triggered, the new one queues and
+waits for the running build to finish before starting.
 
 ## Local Invocation
 
@@ -176,11 +198,16 @@ bash envs/hpcsim/release.sh build <release-id>
 ```
 
 The hpcsim release helper adds `<buildcache_root>/<os>` as the unsigned
-`chapar-buildcache` binary mirror before concretization and install. Matching
-cached binaries are reused; only missing concrete hashes build from source. When
-`publish_buildcache` is true, newly source-built packages are pushed during the
-install and the buildcache index is refreshed on exit. It also exports
-`CCACHE_DIR=<ccache_root>/<os>` and keeps `CCACHE_TEMPDIR` local to the job.
+`chapar-buildcache` binary mirror before concretization and install. After
+`spack install` completes, each environment's `release.sh` runs an explicit
+`spack buildcache push --unsigned --update-index` against that mirror. This
+guarantees all newly built binaries are pushed to the shared cache and the
+index is refreshed. A subsequent run automatically reuses them through Spack's
+default `--use-buildcache package:auto,dependencies:auto`. This was verified by
+a real two-run proof: the first run populated the binary cache, and the second
+extracted those cached binaries instead of rebuilding from source. The release
+helper also exports `CCACHE_DIR=<ccache_root>/<os>` and keeps `CCACHE_TEMPDIR`
+local to the job.
 
 If a previous run populated the cache but exited before writing an index, the
 release helper refreshes the index before concretization. CI also sets
