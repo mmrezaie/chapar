@@ -183,6 +183,10 @@ spack:
       require:
       - '@21'
       - +clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
+    mpip:
+      require:
+      - spec: '+setjmp~libunwind'
+        when: 'platform=linux'
     nccl:
       require:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
@@ -227,6 +231,12 @@ spack:
     scalasca:
       require:
       - ^openmpi
+    scorep:
+      require:
+      - spec: '@9.4:'
+        when: platform=linux
+      - spec: '^binutils libs=shared'
+        when: '+binutils platform=linux'
     sz:
       require:
       - +fortran+hdf5+netcdf+openmp
