@@ -27,6 +27,8 @@ policy is project-wide and should remain usable by future environments.
   unless the user explicitly designs a separate cache namespace.
 - Site-specific cache paths, groups, and publication policy belong in ignored
   `envs/hpcsim/hpcsim-site.env`, not tracked YAML.
+- **PUBLISH_BUILDCACHE=true is the default for all environments.** Every build must push binaries to the shared buildcache so subsequent builds of any environment can reuse them. Override to false only for debugging or testing.
+- The buildcache mirror config must always include `signed: false` and `autopush: true`. Omitting `signed: false` causes Spack to silently skip all cached binaries because the unsigned manifests fail GPG verification.
 
 ## Key Files
 

@@ -14,6 +14,8 @@
 - **Rocky builders:** Do not install or rely on OS CUDA Toolkit, OS Intel oneAPI compiler/MPI, or GitHub CLI RPMs for hpcsim builds. CUDA, Intel MPI, and any future Intel compiler dependency must come from Spack unless the user explicitly changes this policy.
 - **LLVM:** Always use the latest available major version. For LLVM 15+, do not add `+cuda`; Spack marks that variant obsolete. Use NVPTX targets/offload variants as needed, and prefer latest LLVM over downgrading only to satisfy LLVM `+cuda`.
 - **Build cache:** Prefer binary caching (`spack mirror`) over building from source.
+- **Versioned releases only — NEVER run `spack install` directly.** Every environment build must go through `envs/<name>/release.sh build <id> [--promote]`. Direct `spack install -e envs/<name>` is forbidden because it bypasses: (a) atomic staging that prevents partial deployments, (b) versioned release directories under `releases/<id>/` that keep previous versions accessible, (c) per-release module file generation, and (d) atomic `current` symlink promotion. A release build stages in `releases/.<id>.staging.<pid>`, then atomically moves to `releases/<id>` on success. Promotion symlink-swaps `releases/<id>` to `current`. Previous releases remain under `releases/` for rollback. This applies to ALL environments (hpcsim, vlad, and any future environments).
+- **PUBLISH_BUILDCACHE defaults to true.** Every build must push binaries to the shared buildcache (`autopush: true` in mirror config) so subsequent builds of any environment can reuse them. Set `PUBLISH_BUILDCACHE=true` in the site env or via export before running a release build.
 - **Commits:** Before pushing commits, split changes by purpose and future review context. Do not mix documentation/comment-only changes with behavior, config, or CI changes unless they are inseparable; if inseparable, explain why in the commit body.
 - **Commit messages:** Explain the root cause, why the approach was chosen, important constraints preserved, and validation performed. Avoid messages that only restate the diff. Use `[skip ci]` only when intentionally avoiding push-triggered workflows.
 - **hpcsim buildcache migration:** Do not make hpcsim release builds auto-import legacy buildcaches. Use an explicit one-time migration only for caches marked with the current padded install-tree layout, then retire stale cache directories after validation.
@@ -42,7 +44,12 @@
 
 **Add an OS:** Create `etc/system/{os}/packages.yaml` (externals: compiler, glibc, system libs). Register in `etc/system/include.yaml` and `etc/user/include.yaml`.
 
-**Release:** Copy `envs/hpcsim/hpcsim-site.env.example` to ignored `envs/hpcsim/hpcsim-site.env`, fill the local roots/cache/group policy, then run `envs/hpcsim/release.sh` or the Rocky 9/Rocky 10 sbatch wrappers. Release builds into a staging tree, refresh root-only modules, and promote via atomic symlink swap.
+**Release (all environments):** Every environment at `envs/<name>/` follows the same workflow:
+1. Copy `<env>-site.env.example` to `<env>-site.env` and fill local roots/cache/group policy.
+2. Run `envs/<name>/release.sh build <release-id> [--promote]` — atomic staging, per-release module generation, symlink promotion.
+3. NEVER run `spack install -e envs/<name>` directly — this bypasses versioning and can corrupt the active deployment.
+4. Previous releases remain under `releases/<id>/` and are accessible via `module use releases/<id>/modulefiles/<arch>`.
+5. The `current` symlink always points to the production release.
 
 **Deploy config:** Run `etc/link-scopes.sh` or source `etc/init.sh`.
 
@@ -91,7 +98,9 @@ When asked to commit or push:
 | Concretization check | `spack -e envs/hpcsim concretize -f` |
 | Inspect package DAG | `spack spec <pkg>` |
 | Check config layering | `spack config blame <scope>` |
-| Build & promote | `envs/hpcsim/release.sh` |
+| Build & promote (hpcsim) | `envs/hpcsim/release.sh build <id> --promote` |
+| Build & promote (vlad) | `envs/vlad/release.sh build <id> --promote` |
+| Check buildcache publication | `spack buildcache update-index file://${CHAPAR_BUILDCACHE_ROOT}/$(detect_os)` |
 
 ## Conventions
 

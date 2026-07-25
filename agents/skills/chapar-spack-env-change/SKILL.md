@@ -25,6 +25,8 @@ task is specifically about hpcsim.
   that truly need a Tk-enabled Python dependency. Do not add package-wide
   `python+tkinter`; package policy should only constrain allowed Python minor
   versions.
+- After editing an environment's specs, installation must go through `envs/<env-name>/release.sh build <id> [--promote]`. Do NOT run `spack install -e envs/<env-name>` directly.
+- If the environment doesn't have a `release.sh`, one must be created (copy from `envs/hpcsim/release.sh` as a template).
 
 ## Identify the Environment First
 

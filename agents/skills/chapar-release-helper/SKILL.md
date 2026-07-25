@@ -1,6 +1,6 @@
 ---
 name: chapar-release-helper
-description: Modify or debug Chapar's current hpcsim release helper envs/hpcsim/release.sh. Use for hpcsim release builds, staging/promote logic, module refresh, generated Spack scopes, and release metadata. For generic package/env edits, use chapar-spack-env-change.
+description: Modify or debug release helpers for any Chapar environment (hpcsim, vlad, or future) under envs/<name>/release.sh. Use for release builds, staging/promote logic, module refresh, generated Spack scopes, and release metadata. For generic package/env edits, use chapar-spack-env-change.
 ---
 
 # Chapar hpcsim Release Helper
@@ -23,6 +23,7 @@ that apply but inspect that helper's own paths and variables first.
   release-local until promotion.
 - Release command-line Spack scope must be temporary and cleaned up.
 - hpcsim user-facing module names are hashless `{name}/{version}`.
+- **NEVER run `spack install -e envs/<name>` directly.** Always use `envs/<name>/release.sh build <id> [--promote]`. This rule applies to ALL environments, not just hpcsim.
 - Refresh modules only for explicit concrete environment roots, not dependencies.
 - Fail on duplicate root module names instead of adding hash suffixes.
 
@@ -54,6 +55,11 @@ OS_NAME=rocky9 bash envs/hpcsim/release.sh status
 ```
 
 Do not run build/promote commands unless explicitly asked.
+
+```bash
+# Verify no rogue spack install processes
+pgrep -f "spack.*install" 2>/dev/null && echo "WARNING: rogue spack install detected!" || echo "OK: no direct spack install running"
+```
 
 ## Buildcache Interactions
 
