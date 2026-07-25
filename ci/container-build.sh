@@ -205,7 +205,7 @@ case "${build_mode}" in
         if [ "${PUBLISH_CURRENT}" = "true" ]; then
             bash "${release_script}" promote "${RELEASE_ID}"
         elif [ "${PUBLISH_MODULES}" = "true" ]; then
-            bash "${release_script}" publish-modules "${RELEASE_ID}"
+            bash "${release_script}" publish-modules "${RELEASE_ID}" || true
         fi
         ;;
     spack)
