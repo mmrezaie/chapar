@@ -1497,7 +1497,7 @@ cmd_build() {
     echo "==> Pushing buildcache"
     spack -e "${ENV_PATH}" -C "${scope_dir}" buildcache push --unsigned --update-index "file://${BUILDCACHE_ROOT}" || echo "WARNING: buildcache push had errors (non-vlad bootstrapping packages may not be installed)"
     echo "==> Refreshing vlad root modules"
-    refresh_root_modules
+    refresh_root_modules || echo "WARNING: root module refresh had errors (Spack API may have changed)"
     apply_release_module_runtime_policy "${staging_dir}" "${final_dir}"
 
     arch_triplet="$(release_arch_triplet "${staging_dir}")"
