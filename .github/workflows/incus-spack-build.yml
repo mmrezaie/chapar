@@ -236,4 +236,6 @@ jobs:
         run: |
           set -euo pipefail
           source ./etc/init.sh
+          # Export module function so the smoke-test subprocess can use it
+          export -f module 2>/dev/null || true
           bash validation/tests/module-smoke.sbatch
