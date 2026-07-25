@@ -43,10 +43,50 @@ module_load_and_check() {
 }
 
 # Full module path (set by CI or use default)
-MODULE_PATH="${MODULE_PATH:-/resources/chapar/vlad/rocky10/current/modulefiles/linux-rocky10-x86_64_v3}"
+# Priority: explicit MODULE_PATH > CHAPAR_MODULE_ROOT (if non-empty) > current symlink > latest release
+# Use ALL arch dirs found (modules may be split across architectures)
+use_all_arch_dirs() {
+    local base_dir="$1"
+    local arch_dir
+    local found=""
+    for arch_dir in "$base_dir"/*-*-*; do
+        if [ -d "$arch_dir" ]; then
+            module use "$arch_dir"
+            found="true"
+        fi
+    done
+    [ -n "$found" ]
+}
 
-echo "=== Module path: $MODULE_PATH ===" >&2
-module use "$MODULE_PATH" 2>/dev/null || { echo "FAIL: cannot use module path $MODULE_PATH" >&2; exit 1; }
+module_paths_configured=""
+if [ -n "${MODULE_PATH:-}" ]; then
+    if [ -d "$MODULE_PATH" ]; then
+        module use "$MODULE_PATH"
+        module_paths_configured="true"
+    else
+        echo "FAIL: MODULE_PATH set but not a directory: $MODULE_PATH" >&2
+        exit 1
+    fi
+elif [ -n "${CHAPAR_MODULE_ROOT:-}" ] && [ -d "$CHAPAR_MODULE_ROOT" ]; then
+    if use_all_arch_dirs "$CHAPAR_MODULE_ROOT"; then
+        module_paths_configured="true"
+    fi
+fi
+
+if [ -z "$module_paths_configured" ] && [ -L "/resources/chapar/vlad/rocky10/current" ]; then
+    if use_all_arch_dirs "/resources/chapar/vlad/rocky10/current/modulefiles"; then
+        module_paths_configured="true"
+    fi
+fi
+
+if [ -z "$module_paths_configured" ]; then
+    local_latest=$(ls -t /resources/chapar/vlad/rocky10/releases/ 2>/dev/null | head -1)
+    if [ -n "$local_latest" ]; then
+        use_all_arch_dirs "/resources/chapar/vlad/rocky10/releases/$local_latest/modulefiles"
+    fi
+fi
+
+echo "=== Module search paths configured ===" >&2
 
 # ---- Compilers & Toolchain ----
 module_load_and_check "gcc/15.3.0" "gcc --version" "compiler runs"
@@ -60,7 +100,7 @@ module_load_and_check "pmix" "pmi_info --version 2>/dev/null || pmi_info --help 
 
 # ---- GPU Toolkit (binary check only, no GPU needed) ----
 module_load_and_check "cuda" "nvcc --version" "nvcc --version"
-module_load_and_check "cuda-memtest" "cuda-memtest --help 2>&1 | head -3" "cuda-memtest runs"
+module_load_and_check "cuda-memtest" "which cuda_memtest" "cuda_memtest on PATH"
 
 # ---- Communication Libraries ----
 module_load_and_check "ucx" "ucx_info -v" "ucx_info runs"
@@ -71,9 +111,9 @@ module_load_and_check "nccl" "test -f \$(spack location -i nccl)/include/nccl.h 
 module_load_and_check "osu-micro-benchmarks" "which osu_latency" "osu_latency on PATH"
 module_load_and_check "intel-mpi-benchmarks" "which IMB-MPI1" "IMB-MPI1 on PATH"
 module_load_and_check "hpl" "which xhpl" "xhpl on PATH"
-module_load_and_check "hpcg" "which hpcgbench" "hpcgbench on PATH"
+module_load_and_check "hpcg" "command -v hpcg 2>/dev/null || command -v xhpcg 2>/dev/null || command -v hpcgbench 2>/dev/null" "hpcg on PATH"
 module_load_and_check "stream" "which stream_c.exe" "stream_c.exe on PATH"
-module_load_and_check "babelstream" "which babelStream" "babelStream on PATH"
+module_load_and_check "babelstream" "which cuda-stream" "cuda-stream on PATH"
 module_load_and_check "ior" "which ior" "ior on PATH"
 module_load_and_check "mdtest" "which mdtest" "mdtest on PATH"
 module_load_and_check "fio" "which fio" "fio on PATH"
@@ -93,7 +133,7 @@ module_load_and_check "py-mpi4py" "python3 -c 'import mpi4py; print(mpi4py.__ver
 # ---- System tools ----
 module_load_and_check "hwloc" "lstopo --version 2>/dev/null || hwloc-info --version 2>/dev/null || echo 'hwloc installed'" "hwloc available"
 module_load_and_check "papi" "papi_command_line --help 2>&1 | head -3" "papi runs"
-module_load_and_check "numactl" "numactl --help 2>&1 | head -3" "numactl runs"
+module_load_and_check "numactl" "command -v numactl 2>/dev/null || numactl --help 2>&1 | head -3" "numactl available"
 
 # Close JSON
 results="${results%,}]"

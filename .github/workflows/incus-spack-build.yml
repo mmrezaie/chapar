@@ -118,7 +118,7 @@ jobs:
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           OS_NAME: ${{ matrix.os_name }}
           RUN_ID: ${{ github.run_id }}
-          PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
+          PUBLISH_CURRENT: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true') || 'false' }}
           PUBLISH_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
           PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
         run: |
@@ -211,7 +211,7 @@ jobs:
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           CHAPAR_MODULE_ROOT: ${{ inputs.env_name == 'vlad' && '/resources/chapar/vlad/modulefiles' || '' }}
-          PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
+          PUBLISH_CURRENT: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true') || 'false' }}
           PUBLISH_MODULES: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false') }}
           PUBLISH_BUILDCACHE: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true') }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-j 8 -p 4' }}
