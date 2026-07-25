@@ -1535,6 +1535,9 @@ cmd_build() {
     echo "==> Refreshing vlad root modules"
     refresh_root_modules || echo "WARNING: root module refresh had errors (Spack API may have changed)"
     apply_release_module_runtime_policy "${staging_dir}" "${final_dir}" || echo "WARNING: module runtime policy application had errors (modules may not exist)"
+    if [ -d "${staging_dir}/modulefiles/linux-rocky10-x86_64" ]; then
+        rm -rf "${staging_dir}/modulefiles/linux-rocky10-x86_64"
+    fi
 
     arch_triplet="$(release_arch_triplet "${staging_dir}")" || arch_triplet=""
     copy_manifest "${staging_dir}" "${arch_triplet}" || echo "WARNING: manifest copy had errors"
