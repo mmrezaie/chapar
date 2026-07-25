@@ -236,19 +236,4 @@ jobs:
         run: |
           set -euo pipefail
           source ./etc/init.sh
-          if [ -n "${CHAPAR_MODULE_ROOT:-}" ]; then
-            module_path="${CHAPAR_MODULE_ROOT}"
-          else
-            module_path="${CHAPAR_ENV_ROOT}/${OS_NAME}/current/modulefiles"
-          fi
-          if [ -d "$module_path" ]; then
-            arch_dir="$(find "$module_path" -maxdepth 1 -type d -name '*-*-*' | head -1)"
-            if [ -n "$arch_dir" ]; then
-              export MODULE_PATH="$arch_dir"
-              bash validation/tests/module-smoke.sbatch
-            else
-              echo "No architecture module directory found under $module_path — skipping smoke test"
-            fi
-          else
-            echo "No module path found at $module_path — skipping smoke test"
-          fi
+          bash validation/tests/module-smoke.sbatch
