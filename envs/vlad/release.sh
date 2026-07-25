@@ -1503,8 +1503,8 @@ cmd_build() {
     refresh_root_modules || echo "WARNING: root module refresh had errors (Spack API may have changed)"
     apply_release_module_runtime_policy "${staging_dir}" "${final_dir}" || echo "WARNING: module runtime policy application had errors (modules may not exist)"
 
-    arch_triplet="$(release_arch_triplet "${staging_dir}")"
-    copy_manifest "${staging_dir}" "${arch_triplet}"
+    arch_triplet="$(release_arch_triplet "${staging_dir}")" || arch_triplet=""
+    copy_manifest "${staging_dir}" "${arch_triplet}" || echo "WARNING: manifest copy had errors"
 
     # The final rename is the publication point. Anything before this can fail
     # without creating a partially visible release directory.
