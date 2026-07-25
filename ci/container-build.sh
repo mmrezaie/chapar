@@ -200,11 +200,13 @@ case "${build_mode}" in
         [ "${CHAPAR_ENV_ACTION}" = "build" ] || { echo "ERROR: release mode only supports CHAPAR_ENV_ACTION=build" >&2; exit 1; }
         release_script="${CHAPAR_RELEASE_SCRIPT:-./${ENV_PATH}/release.sh}"
         [ -x "${release_script}" ] || { echo "ERROR: missing executable release helper: ${release_script}" >&2; exit 1; }
-        export HPCSIM_ROOT CHAPAR_BUILDCACHE_ROOT CHAPAR_CCACHE_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE
-        bash "${release_script}" build "${RELEASE_ID}"
+        export HPCSIM_ROOT CHAPAR_BUILDCACHE_ROOT CHAPAR_CCACHE_ROOT OS_NAME SPACK_INSTALL_ARGS PUBLISH_BUILDCACHE CHAPAR_MODULE_ROOT PUBLISH_MODULES
+        promote_flag=""
         if [ "${PUBLISH_CURRENT}" = "true" ]; then
-            bash "${release_script}" promote "${RELEASE_ID}"
-        elif [ "${PUBLISH_MODULES}" = "true" ]; then
+            promote_flag="--promote"
+        fi
+        bash "${release_script}" build "${RELEASE_ID}" ${promote_flag}
+        if [ "${PUBLISH_CURRENT}" != "true" ] && [ "${PUBLISH_MODULES}" = "true" ]; then
             bash "${release_script}" publish-modules "${RELEASE_ID}" || true
         fi
         ;;

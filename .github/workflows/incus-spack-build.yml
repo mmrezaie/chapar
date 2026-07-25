@@ -210,6 +210,7 @@ jobs:
           HPCSIM_ROOT: ${{ (inputs.env_name == 'hpcsim' && (inputs.env_root || inputs.hpcsim_root)) || '' }}
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
+          CHAPAR_MODULE_ROOT: ${{ inputs.env_name == 'vlad' && '/resources/chapar/vlad/modulefiles' || '' }}
           PUBLISH_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
           PUBLISH_MODULES: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false') }}
           PUBLISH_BUILDCACHE: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true') }}
@@ -219,6 +220,7 @@ jobs:
           SPACK_REF: ${{ inputs.spack_ref || 'develop' }}
           CHAPAR_UPDATE_SPACK: true
         run: |
+          source ./etc/init.sh
           export SPACK_USER_CACHE_PATH="/var/tmp/chapar-spack-cache/${OS_NAME}"
           mkdir -p "${SPACK_USER_CACHE_PATH}"
           export GIT_REF="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
@@ -229,11 +231,16 @@ jobs:
         if: success() && inputs.env_name == 'vlad'
         env:
           CHAPAR_ENV_ROOT: ${{ inputs.env_root || format('/resources/chapar/{0}', inputs.env_name) }}
+          CHAPAR_MODULE_ROOT: ${{ '/resources/chapar/vlad/modulefiles' }}
           OS_NAME: ${{ matrix.os_name }}
         run: |
           set -euo pipefail
           source ./etc/init.sh
-          module_path="${CHAPAR_ENV_ROOT}/${OS_NAME}/current/modulefiles"
+          if [ -n "${CHAPAR_MODULE_ROOT:-}" ]; then
+            module_path="${CHAPAR_MODULE_ROOT}"
+          else
+            module_path="${CHAPAR_ENV_ROOT}/${OS_NAME}/current/modulefiles"
+          fi
           if [ -d "$module_path" ]; then
             arch_dir="$(find "$module_path" -maxdepth 1 -type d -name '*-*-*' | head -1)"
             if [ -n "$arch_dir" ]; then
