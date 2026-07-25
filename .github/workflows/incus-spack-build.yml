@@ -227,15 +227,14 @@ jobs:
           export RELEASE_ID="${INPUT_RELEASE_ID:-${DEFAULT_RELEASE_ID}}"
           bash ci/container-build.sh
 
-      - name: Run module smoke test
-        if: success() && inputs.env_name == 'vlad'
+      - name: Run integrity validation
+        if: success()
         env:
-          CHAPAR_ENV_ROOT: ${{ inputs.env_root || format('/resources/chapar/{0}', inputs.env_name) }}
-          CHAPAR_MODULE_ROOT: ${{ '/resources/chapar/vlad/modulefiles' }}
+          ENV_NAME: ${{ inputs.env_name }}
           OS_NAME: ${{ matrix.os_name }}
         run: |
           set -euo pipefail
           source ./etc/init.sh
           # Run as login shell to pick up /etc/profile.d/modules.sh which
           # defines the module(1) function not inherited by subprocesses.
-          bash -l validation/tests/module-smoke.sbatch
+          bash -l validation/tests/integrity-test.sbatch

@@ -59,9 +59,24 @@ if type module >/dev/null 2>&1; then
             done
         fi
     fi
+    _chapar_vlad_root="${VLAD_PUBLIC_ROOT:-/resources/chapar/vlad}"
+    _chapar_vlad_current="${_chapar_vlad_root}/${_chapar_hpcsim_os}/current"
+    if [ -n "${_chapar_hpcsim_os}" ] && [ -n "${_chapar_vlad_root}" ] && { [ -L "${_chapar_vlad_current}" ] || [ -d "${_chapar_vlad_current}" ]; }; then
+        _chapar_vlad_release="$(cd -P "${_chapar_vlad_current}" 2>/dev/null && pwd || true)"
+        _chapar_vlad_module_root="${_chapar_vlad_release}/modulefiles"
+        if [ -n "${_chapar_vlad_release}" ] && [ -d "${_chapar_vlad_module_root}" ]; then
+            for _chapar_vlad_module_dir in "${_chapar_vlad_module_root}"/*; do
+                [ -d "${_chapar_vlad_module_dir}" ] || continue
+                case "$(basename "${_chapar_vlad_module_dir}")" in
+                    *-*-*) module use "${_chapar_vlad_module_dir}" >/dev/null 2>&1 || true ;;
+                esac
+            done
+        fi
+    fi
 fi
 
 unset _chapar_hpcsim_os _chapar_site_config _chapar_home_root _chapar_hpcsim_home_root
 unset _chapar_hpcsim_default_root _chapar_hpcsim_root _chapar_hpcsim_current
 unset _chapar_hpcsim_release _chapar_hpcsim_module_root _chapar_hpcsim_module_dir
-unset _chapar_shared_module_added
+unset _chapar_shared_module_added _chapar_vlad_root _chapar_vlad_current
+unset _chapar_vlad_release _chapar_vlad_module_root _chapar_vlad_module_dir

@@ -109,3 +109,33 @@ When asked to commit or push:
 - External packages: `externally_managed: true` + `buildable: False`
 - Targets per-platform (e.g., `target: [x86_64_v4]` for Rocky)
 - Virtual providers in priority order (`mpi: [openmpi, mpich]`)
+
+## Integrity Validation
+
+Every environment must pass integrity validation after every successful build.
+Integrity validation verifies that all modules load and their basic tools
+execute — without requiring GPUs, InfiniBand, or multi-node hardware.
+
+Run via:
+```bash
+ENV_NAME=vlad ./validation/run integrity-test
+ENV_NAME=hpcsim ./validation/run integrity-test
+```
+
+The CI pipeline runs this automatically after every build+promote.
+Failure blocks the release from being considered production-ready.
+
+### What integrity validation checks
+- Module loads successfully
+- Binary/executable is on PATH and runs (--version or equivalent)
+- Shared library dependencies are met (no missing .so at runtime)
+- Key language runtimes work (Python imports, compiler version checks)
+
+### What integrity validation does NOT check
+- GPU device availability or CUDA kernel execution
+- InfiniBand/RDMA connectivity or MPI multi-node communication
+- NCCL all-reduce or GPU-direct transport paths
+- Performance benchmarks or throughput measurements
+- I/O subsystem or filesystem performance
+
+These are separate deeper validation tiers that require specialized hardware.
