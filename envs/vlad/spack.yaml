@@ -55,7 +55,7 @@ spack:
     - papi+infiniband+cuda
     - py-py-spy
     - scalasca
-    - scorep+mpi+papi+cuda
+    - scorep+mpi+papi~cuda
     - tau+mpi+papi+openmp~cuda
   - framework_specs:
     - py-mpi4py
