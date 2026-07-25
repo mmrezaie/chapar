@@ -59,7 +59,8 @@ spack:
     - tau+mpi+papi+openmp~cuda
   - framework_specs:
     - py-mpi4py
-    - py-torch+cuda+mpi+nccl cuda_arch=75,80,86,87,89,90,90a,100,110,120,121
+    # py-torch disabled: pip install hangs at build_wheel with CUDA 13 + GCC 15
+    # - py-torch+cuda+mpi+nccl cuda_arch=75,80,86,87,89,90,90a,100,110,120,121
   - devtools_specs:
     - autoconf
     - ccache
