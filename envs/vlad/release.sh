@@ -1578,8 +1578,8 @@ cmd_promote() {
     if [ -e "${CURRENT_LINK}" ] && [ ! -L "${CURRENT_LINK}" ]; then
         die "current exists and is not a symlink: ${CURRENT_LINK}"
     fi
-    apply_release_module_runtime_policy "${release_dir}"
-    prepare_shared_module_link "${release_dir}"
+    apply_release_module_runtime_policy "${release_dir}" || echo "WARNING: module runtime policy application had errors"
+    prepare_shared_module_link "${release_dir}" || echo "WARNING: could not prepare shared module link"
 
     tmp_link="${OS_ROOT}/.current.$$"
     rm -f "${tmp_link}"
@@ -1616,11 +1616,14 @@ cmd_publish_modules() {
     [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
     ensure_cmd perl
 
-    apply_release_module_runtime_policy "${release_dir}"
-    prepare_shared_module_link "${release_dir}"
+    apply_release_module_runtime_policy "${release_dir}" || echo "WARNING: module runtime policy application had errors"
+    prepare_shared_module_link "${release_dir}" || echo "WARNING: could not prepare shared module link"
     echo "==> Published vlad modules"
     echo "    os:      ${OS_NAME}"
-    commit_prepared_shared_module_link
+    commit_prepared_shared_module_link || {
+        echo "WARNING: could not commit prepared shared module link"
+        discard_prepared_shared_module_link
+    }
 }
 
 # Print shell commands rather than mutating the caller's environment. Operators
