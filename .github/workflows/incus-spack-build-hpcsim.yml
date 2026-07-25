@@ -91,10 +91,10 @@ on:
         type: string
         default: /resources/chapar/hpcsim
       buildcache_root:
-        description: Shared Chapar binary cache root inside containers
+        description: Chapar binary cache root inside containers
         required: true
         type: string
-        default: /resources/chapar/cache/buildcache
+        default: /resources/chapar/cache/buildcache/hpcsim
       ccache_root:
         description: Shared compiler ccache root inside containers
         required: true
