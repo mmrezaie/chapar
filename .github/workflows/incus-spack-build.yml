@@ -224,3 +224,24 @@ jobs:
           export GIT_REF="${INPUT_GIT_REF:-${DEFAULT_GIT_REF}}"
           export RELEASE_ID="${INPUT_RELEASE_ID:-${DEFAULT_RELEASE_ID}}"
           bash ci/container-build.sh
+
+      - name: Run module smoke test
+        if: success() && inputs.env_name == 'vlad'
+        env:
+          CHAPAR_ENV_ROOT: ${{ inputs.env_root || format('/resources/chapar/{0}', inputs.env_name) }}
+          OS_NAME: ${{ matrix.os_name }}
+        run: |
+          set -euo pipefail
+          source ./etc/init.sh
+          module_path="${CHAPAR_ENV_ROOT}/${OS_NAME}/current/modulefiles"
+          if [ -d "$module_path" ]; then
+            arch_dir="$(find "$module_path" -maxdepth 1 -type d -name '*-*-*' | head -1)"
+            if [ -n "$arch_dir" ]; then
+              export MODULE_PATH="$arch_dir"
+              bash validation/tests/module-smoke.sbatch
+            else
+              echo "No architecture module directory found under $module_path — skipping smoke test"
+            fi
+          else
+            echo "No module path found at $module_path — skipping smoke test"
+          fi

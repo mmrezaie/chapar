@@ -1524,6 +1524,12 @@ cmd_build() {
     if [ "${promote}" = "--promote" ]; then
         cmd_promote "${RELEASE_ID}"
     fi
+
+    echo ""
+    echo "=== Release $RELEASE_ID complete ==="
+    echo "To use modules:"
+    echo "  module use ${OS_ROOT}/current/modulefiles/linux-rocky10-x86_64_v3"
+    echo "  module avail"
 }
 
 # Explicit one-time migration command. It shares cache preparation/indexing logic
