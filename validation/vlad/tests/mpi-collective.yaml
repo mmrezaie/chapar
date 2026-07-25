@@ -1,0 +1,33 @@
+suite: mpi-collective
+description: Multi-node MPI collective sweep - IMB-MPI1, OSU collectives, NCCL all_reduce
+severity: error
+module_needs: [openmpi, intel-mpi-benchmarks, osu-micro-benchmarks, nccl-tests, nccl, cuda]
+tool_needs: []
+resources:
+  nodes: 4
+  ntasks_per_node: 1
+  gpus: 1
+  time: "01:00:00"
+user_input:
+  mpi_ranks: 4
+  ngpus_per_rank: 1
+commands:
+  - name: imb_allreduce
+    cmd: mpirun -np "${MPI_RANKS:-4}" IMB-MPI1 -npmin 4 Allreduce > "${RESULTS_DIR}/imb_allreduce.log" 2>&1
+    output: imb_allreduce.log
+  - name: imb_alltoall
+    cmd: mpirun -np "${MPI_RANKS:-4}" IMB-MPI1 -npmin 4 Alltoall > "${RESULTS_DIR}/imb_alltoall.log" 2>&1
+    output: imb_alltoall.log
+  - name: imb_bcast
+    cmd: mpirun -np "${MPI_RANKS:-4}" IMB-MPI1 -npmin 4 Bcast > "${RESULTS_DIR}/imb_bcast.log" 2>&1
+    output: imb_bcast.log
+  - name: osu_allreduce
+    cmd: mpirun -np "${MPI_RANKS:-4}" osu_allreduce > "${RESULTS_DIR}/osu_allreduce.log" 2>&1
+    output: osu_allreduce.log
+  - name: osu_alltoall
+    cmd: mpirun -np "${MPI_RANKS:-4}" osu_alltoall > "${RESULTS_DIR}/osu_alltoall.log" 2>&1
+    output: osu_alltoall.log
+  - name: nccl_allreduce
+    cmd: mpirun -np "${MPI_RANKS:-4}" "$(find "$(spack location -i nccl-tests 2>/dev/null || echo /usr)" -name all_reduce_perf -print -quit)" -b 8 -e 128M -f 2 -g "${NGPUS_PER_RANK:-1}" > "${RESULTS_DIR}/nccl_allreduce.log" || true
+    output: nccl_allreduce.log
+    optional: true

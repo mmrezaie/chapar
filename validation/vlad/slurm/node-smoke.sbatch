@@ -9,20 +9,8 @@
 
 set -euo pipefail
 
-resolve_vlad_test_dir() {
-    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
-    local candidate
-
-    for candidate in "${submit_dir}/validation/vlad" "${submit_dir}/vlad"; do
-        [ -d "${candidate}" ] || continue
-        printf '%s\n' "${candidate}"
-        return 0
-    done
-
-    echo "could not locate validation/vlad; set VLAD_TEST_DIR" >&2
-    return 1
-}
-: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
+source validation/harness/resolve_test_dir.sh
+: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 # SBATCH_PARTITION: set via sbatch --export=ALL,SBATCH_PARTITION=<name>
@@ -33,8 +21,8 @@ RESULTS_DIR="${VLAD_TEST_DIR}/results/node-smoke/$(date -u +%Y%m%dT%H%M%S)/${SLU
 mkdir -p "${RESULTS_DIR}"
 
 # ── Environment ────────────────────────────────────────────────
-module purge
-module load likwid papi cuda nvbandwidth cuda-memtest hwloc
+source validation/harness/load_env.sh
+load_env_from_config validation/config/vlad.yaml --needs likwid papi cuda nvbandwidth cuda-memtest hwloc
 
 # ── likwid memory bandwidth ────────────────────────────────────
 echo "=== likwid MEM_DP ===" >&2

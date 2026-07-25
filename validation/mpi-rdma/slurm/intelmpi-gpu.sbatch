@@ -9,21 +9,8 @@
 
 set -euo pipefail
 
-resolve_mpi_rdma_test_dir() {
-    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
-    local candidate
-
-    for candidate in "${submit_dir}/validation/mpi-rdma" "${submit_dir}/mpi-rdma"; do
-        [ -f "${candidate}/Makefile" ] || continue
-        [ -f "${candidate}/mpi_rdma_cuda.cpp" ] || continue
-        printf '%s\n' "${candidate}"
-        return 0
-    done
-
-    echo "could not locate validation/mpi-rdma; set MPI_RDMA_TEST_DIR" >&2
-    return 1
-}
-: "${MPI_RDMA_TEST_DIR:=$(resolve_mpi_rdma_test_dir)}"
+source validation/harness/resolve_test_dir.sh
+: "${MPI_RDMA_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/mpi-rdma" "mpi-rdma")}"
 : "${MPI_RDMA_BYTES:=8388608}"
 : "${MPI_RDMA_ITERS:=100}"
 : "${MPI_RANKS:=${SLURM_NTASKS:-${SLURM_NNODES:-2}}}"
@@ -76,9 +63,8 @@ configure_intelmpi_srun_pmi() {
     echo "WARNING: If Intel MPI reports 'PMI server not found', use MPI_LAUNCHER=mpirun or set I_MPI_PMI_LIBRARY." >&2
 }
 
-module purge
-module load "${HPCSIM_INTELMPI_MODULE}"
-module load "${HPCSIM_CUDA_MODULE}"
+source validation/harness/load_env.sh
+load_env_from_config validation/config/hpcsim.yaml --needs intel-oneapi-mpi cuda
 
 make -B -C "${MPI_RDMA_TEST_DIR}" GPU_EXE="${MPI_RDMA_GPU_EXE}" gpu
 

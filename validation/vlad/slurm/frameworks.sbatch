@@ -12,20 +12,8 @@
 
 set -euo pipefail
 
-resolve_vlad_test_dir() {
-    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
-    local candidate
-
-    for candidate in "${submit_dir}/validation/vlad" "${submit_dir}/vlad"; do
-        [ -d "${candidate}" ] || continue
-        printf '%s\n' "${candidate}"
-        return 0
-    done
-
-    echo "could not locate validation/vlad; set VLAD_TEST_DIR" >&2
-    return 1
-}
-: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
+source validation/harness/resolve_test_dir.sh
+: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${VLAD_OPENMPI_MODULE:=openmpi/5}"
@@ -34,8 +22,8 @@ RESULTS_DIR="${VLAD_TEST_DIR}/results/frameworks/$(date -u +%Y%m%dT%H%M%S)/${SLU
 mkdir -p "${RESULTS_DIR}"
 
 # ── Environment ────────────────────────────────────────────────
-module purge
-module load cuda "${VLAD_OPENMPI_MODULE}" py-torch py-mpi4py
+source validation/harness/load_env.sh
+load_env_from_config validation/config/vlad.yaml --needs cuda openmpi py-torch py-mpi4py
 
 # ── PyTorch distributed all_reduce validation ──────────────────
 echo "=== torch.distributed all_reduce (MPI backend) ===" >&2

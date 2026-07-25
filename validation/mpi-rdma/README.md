@@ -8,6 +8,26 @@ The tests validate application behavior. The selected InfiniBand, UCX, libfabric
 or CUDA RDMA transport is controlled by the module set and environment variables
 in the Slurm examples.
 
+## Architecture
+
+This validation suite is integrated into the shared validation harness.
+Tests are defined as YAML files under `tests/` and can be run via the
+orchestration layer:
+
+```bash
+# List available tests
+python3 validation/run.py --list-tests
+
+# Run a specific test
+python3 validation/run.py --suite openmpi-cpu --env validation/config/hpcsim.yaml
+
+# Via Makefile
+make -C validation/mpi-rdma run-openmpi-cpu
+make -C validation/mpi-rdma run-openmpi-gpu
+make -C validation/mpi-rdma run-intelmpi-cpu
+make -C validation/mpi-rdma run-intelmpi-gpu
+```
+
 ## Tests
 
 - `mpi_rdma_cpu`: host-buffer MPI `Sendrecv` ring test.

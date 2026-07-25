@@ -1,0 +1,37 @@
+suite: profiling
+description: Single-profiler-at-a-time enum wrapper - validates profiler interposition
+severity: warning
+module_needs: [openmpi, osu-micro-benchmarks]
+tool_needs: []
+user_input:
+  profiler: caliper
+resources:
+  nodes: 2
+  ntasks: 4
+  time: "00:30:00"
+profiler_dispatch:
+  caliper:
+    env: {LD_PRELOAD: "$(spack location -i caliper)/lib/libcaliper.so"}
+  darshan:
+    env: {LD_PRELOAD: "$(spack location -i darshan-runtime)/lib/libdarshan.so"}
+  mpip:
+    env: {LD_PRELOAD: "$(spack location -i mpip)/lib/libmpiP.so"}
+  ipm:
+    env: {LD_PRELOAD: "$(spack location -i ipm)/lib/libipm.so"}
+  extrae:
+    env: {LD_PRELOAD: "$(spack location -i extrae)/lib/libmpitrace.so"}
+  hpctoolkit:
+    cmd_prefix: hpcrun -o "${RESULTS_DIR}/hpcrun-db"
+  tau:
+    cmd_prefix: tau_exec -T mpi,cupti
+  scorep:
+    cmd_prefix: scorep-run --sampling --mca=mpi --
+  scalasca:
+    cmd_prefix: scorep-run --sampling --mca=mpi --
+    cmd_suffix: "&& scalasca -analyze"
+  likwid-prof:
+    cmd_prefix: likwid-perfctr -C 0 -g MEM_DP -O
+commands:
+  - name: profile_osu_latency
+    cmd: srun -n 2 osu_latency > "${RESULTS_DIR}/${PROFILER}.log"
+    output: "${PROFILER}.log"

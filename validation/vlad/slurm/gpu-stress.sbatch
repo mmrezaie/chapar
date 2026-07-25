@@ -9,30 +9,18 @@
 
 set -euo pipefail
 
-resolve_vlad_test_dir() {
-    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
-    local candidate
-
-    for candidate in "${submit_dir}/validation/vlad" "${submit_dir}/vlad"; do
-        [ -d "${candidate}" ] || continue
-        printf '%s\n' "${candidate}"
-        return 0
-    done
-
-    echo "could not locate validation/vlad; set VLAD_TEST_DIR" >&2
-    return 1
-}
+source validation/harness/resolve_test_dir.sh
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${CUDA_MEMTEST_PASSES:=10}"
-: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
+: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 
 RESULTS_DIR="${VLAD_TEST_DIR}/results/gpu-stress/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
 mkdir -p "${RESULTS_DIR}"
 
 # ── Environment ────────────────────────────────────────────────
-module purge
-module load cuda cuda-memtest
+source validation/harness/load_env.sh
+load_env_from_config validation/config/vlad.yaml --needs cuda cuda-memtest
 
 # ── Per-GPU cuda-memtest ───────────────────────────────────────
 echo "=== cuda-memtest (per GPU) ===" >&2

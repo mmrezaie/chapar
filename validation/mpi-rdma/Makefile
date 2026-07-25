@@ -7,7 +7,7 @@ CUDA_PREFIX ?= $(or $(CUDA_HOME),$(CUDA_ROOT),$(CUDA_PATH),/usr/local/cuda)
 CUDA_CPPFLAGS ?= -I$(CUDA_PREFIX)/include
 CUDA_LDFLAGS ?= -L$(CUDA_PREFIX)/lib64 -Wl,-rpath,$(CUDA_PREFIX)/lib64 -lcudart
 
-.PHONY: all cpu gpu clean
+.PHONY: all cpu gpu clean run-openmpi-cpu run-openmpi-gpu run-intelmpi-cpu run-intelmpi-gpu
 
 all: cpu gpu
 
@@ -25,3 +25,18 @@ clean:
 	$(RM) mpi_rdma_cpu mpi_rdma_cuda \
 		mpi_rdma_cpu.openmpi mpi_rdma_cuda.openmpi \
 		mpi_rdma_cpu.intelmpi mpi_rdma_cuda.intelmpi
+
+MPI_RDMA_ENV ?= validation/config/hpcsim.yaml
+RUNNER = python3 validation/run.py
+
+run-openmpi-cpu:
+	$(RUNNER) --suite openmpi-cpu --env $(MPI_RDMA_ENV)
+
+run-openmpi-gpu:
+	$(RUNNER) --suite openmpi-gpu --env $(MPI_RDMA_ENV)
+
+run-intelmpi-cpu:
+	$(RUNNER) --suite intelmpi-cpu --env $(MPI_RDMA_ENV)
+
+run-intelmpi-gpu:
+	$(RUNNER) --suite intelmpi-gpu --env $(MPI_RDMA_ENV)

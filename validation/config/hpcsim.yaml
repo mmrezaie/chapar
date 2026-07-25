@@ -1,0 +1,15 @@
+module_map:
+  openmpi: openmpi
+  cuda: cuda
+  intel-oneapi-mpi: intel-oneapi-mpi
+  libfabric: libfabric
+
+tool_map: {}
+
+scheduler:
+  partition: ""
+  default_time: "00:10:00"
+  default_nodes: 2
+  default_ntasks: 2
+
+expected: {}

@@ -1,0 +1,19 @@
+# Default validation environment config
+# Copy this to validation/config/<env>.yaml and customize
+module_map:
+  # symbolic_name: actual_module_name
+  # e.g., openmpi: openmpi/5
+
+tool_map:
+  # symbolic_name: /path/to/binary
+  # e.g., gpu-burn: /path/to/gpu-burn
+
+scheduler:
+  partition: ""
+  default_time: "01:00:00"
+  default_nodes: 1
+  default_ntasks: 1
+
+expected:
+  # Per-SKU expected performance values (optional)
+  # gpu_bw_gbs: 23.0

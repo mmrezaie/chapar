@@ -12,20 +12,8 @@
 
 set -euo pipefail
 
-resolve_vlad_test_dir() {
-    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
-    local candidate
-
-    for candidate in "${submit_dir}/validation/vlad" "${submit_dir}/vlad"; do
-        [ -d "${candidate}" ] || continue
-        printf '%s\n' "${candidate}"
-        return 0
-    done
-
-    echo "could not locate validation/vlad; set VLAD_TEST_DIR" >&2
-    return 1
-}
-: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
+source validation/harness/resolve_test_dir.sh
+: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${EXTERNAL_UCX_PERFTEST:=external/ucx-perftest/ucx_perftest}"
@@ -37,8 +25,8 @@ RESULTS_DIR="${VLAD_TEST_DIR}/results/transport/$(date -u +%Y%m%dT%H%M%S)/${SLUR
 mkdir -p "${RESULTS_DIR}"
 
 # ── Environment ────────────────────────────────────────────────
-module purge
-module load "${VLAD_OPENMPI_MODULE}" cuda ucx libfabric hwloc nccl-tests nccl
+source validation/harness/load_env.sh
+load_env_from_config validation/config/vlad.yaml --needs openmpi cuda ucx libfabric hwloc nccl-tests nccl
 
 # ── UCX device and transport listing ────────────────────────────
 echo "=== ucx_info devices ===" >&2

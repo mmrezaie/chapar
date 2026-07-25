@@ -1,43 +1,38 @@
 .PHONY: all node-smoke ib-pairwise mpi-collective hpc-challenge io profiling \
         gpu-stress transport frameworks analyze
 
+VLAD_ENV ?= validation/config/vlad.yaml
+RUNNER = python3 validation/run.py
+
 all:
-	sbatch slurm/node-smoke.sbatch || true
-	sbatch slurm/ib-pairwise.sbatch || true
-	sbatch slurm/mpi-collective.sbatch || true
-	sbatch slurm/hpc-challenge.sbatch || true
-	sbatch slurm/io.sbatch || true
-	sbatch slurm/profiling.sbatch || true
-	sbatch slurm/gpu-stress.sbatch || true
-	sbatch slurm/transport.sbatch || true
-	sbatch slurm/frameworks.sbatch || true
+	$(RUNNER) --all --env $(VLAD_ENV)
 
 node-smoke:
-	sbatch slurm/node-smoke.sbatch
+	$(RUNNER) --suite node-smoke --env $(VLAD_ENV)
 
 ib-pairwise:
-	sbatch slurm/ib-pairwise.sbatch
+	$(RUNNER) --suite ib-pairwise --env $(VLAD_ENV)
 
 mpi-collective:
-	sbatch slurm/mpi-collective.sbatch
+	$(RUNNER) --suite mpi-collective --env $(VLAD_ENV)
 
 hpc-challenge:
-	sbatch slurm/hpc-challenge.sbatch
+	$(RUNNER) --suite hpc-challenge --env $(VLAD_ENV)
 
 io:
-	sbatch slurm/io.sbatch
+	$(RUNNER) --suite io --env $(VLAD_ENV)
 
 profiling:
-	sbatch slurm/profiling.sbatch
+	$(RUNNER) --suite profiling --env $(VLAD_ENV)
 
 gpu-stress:
-	sbatch slurm/gpu-stress.sbatch
+	$(RUNNER) --suite gpu-stress --env $(VLAD_ENV)
 
 transport:
-	sbatch slurm/transport.sbatch
+	$(RUNNER) --suite transport --env $(VLAD_ENV)
 
 frameworks:
-	sbatch slurm/frameworks.sbatch
+	$(RUNNER) --suite frameworks --env $(VLAD_ENV)
 
 analyze:
-	python3 analyze/outliers.py --suite $(SUITE)
+	python3 validation/vlad/analyze/outliers.py --suite $(SUITE)

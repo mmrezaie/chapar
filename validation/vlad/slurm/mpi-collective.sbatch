@@ -9,21 +9,8 @@
 
 set -euo pipefail
 
-resolve_vlad_test_dir() {
-    local submit_dir="${SLURM_SUBMIT_DIR:-$PWD}"
-    local candidate
-
-    for candidate in "${submit_dir}/validation/vlad" "${submit_dir}/vlad"; do
-        [ -d "${candidate}" ] || continue
-        printf '%s\n' "${candidate}"
-        return 0
-    done
-
-    echo "could not locate validation/vlad; set VLAD_TEST_DIR" >&2
-    return 1
-}
-
-: "${VLAD_TEST_DIR:=$(resolve_vlad_test_dir)}"
+source validation/harness/resolve_test_dir.sh
+: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 : "${MPI_RANKS:=4}"
 : "${NGPUS_PER_RANK:=1}"
 : "${VLAD_OPENMPI_MODULE:=openmpi/5}"
@@ -31,8 +18,8 @@ resolve_vlad_test_dir() {
 RESULTS_DIR="${VLAD_TEST_DIR}/results/mpi-collective/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
 mkdir -p "${RESULTS_DIR}"
 
-module purge
-module load openmpi intel-mpi-benchmarks osu-micro-benchmarks nccl-tests nccl cuda
+source validation/harness/load_env.sh
+load_env_from_config validation/config/vlad.yaml --needs openmpi intel-mpi-benchmarks osu-micro-benchmarks nccl-tests nccl cuda
 
 # IMB-MPI1 collective benchmarks
 mpirun -np "${MPI_RANKS:-4}" IMB-MPI1 -npmin 4 Allreduce > "${RESULTS_DIR}/imb_allreduce.log" 2>&1

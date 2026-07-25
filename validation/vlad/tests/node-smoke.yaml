@@ -1,0 +1,32 @@
+suite: node-smoke
+description: Per-node hardware smoke test - memory bandwidth, GPU P2P, PAPI counters, cuda-memtest, topology
+severity: error
+module_needs: [likwid, papi, cuda, nvbandwidth, cuda-memtest, hwloc]
+tool_needs: []
+resources:
+  nodes: 1
+  ntasks: 1
+  gpus: 1
+  time: "00:15:00"
+commands:
+  - name: likwid_mem_bw
+    cmd: likwid-perfctr -C 0 -g MEM_DP -O "${RESULTS_DIR}/likwid_mem.csv" likwid-bench
+    output: likwid_mem.csv
+  - name: nvbandwidth
+    cmd: nvbandwidth --test=memcpy --test=p2p --mode=aggregate -o "${RESULTS_DIR}/nvbw.csv"
+    output: nvbw.csv
+  - name: papi_counters
+    cmd: papi_command_line -e PAPI_L2_TCM > "${RESULTS_DIR}/papi_l2.txt"
+    output: papi_l2.txt
+  - name: cuda_memtest_per_gpu
+    cmd: |
+      for g in $(seq 0 $((NUM_GPUS - 1))); do
+        CUDA_VISIBLE_DEVICES="${g}" cuda-memtest --report-mem-errors --num-passes=1 > "${RESULTS_DIR}/cuda_memtest_gpu${g}.log"
+      done
+    output: cuda_memtest_gpu*.log
+  - name: hwloc_topology
+    cmd: hwloc-info --topology > "${RESULTS_DIR}/hwloc_topology.txt"
+    output: hwloc_topology.txt
+  - name: lscpu
+    cmd: lscpu > "${RESULTS_DIR}/lscpu.txt"
+    output: lscpu.txt

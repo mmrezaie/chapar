@@ -9,6 +9,15 @@ All suites are designed for real multi-node Slurm allocations after a release
 has been built and the vlad modules are visible. Each suite writes per-GPU or
 per-node output files so the analyzer can pinpoint the exact deviant component.
 
+## Architecture
+
+The validation system uses a three-layer design:
+
+- **Config layer** (`validation/config/<env>.yaml`): Maps symbolic module/tool names to environment-specific paths
+- **Test definitions** (`validation/<suite>/tests/<name>.yaml`): YAML files declaring module_needs, resources, commands
+- **Execution harness** (`validation/harness/`): Shared scripts for directory resolution, environment loading, results setup, and scheduler-agnostic execution
+- **Orchestrator** (`validation/run.py`): Python CLI for test discovery, dispatch, and results collection
+
 ## Test Suites
 
 ### node-smoke
@@ -228,6 +237,91 @@ sbatch validation/vlad/slurm/frameworks.sbatch
 **Requirements:** `py-torch` and `py-mpi4py` modules must be visible from
 the loaded Spack environment.
 
+Tests can also be run via `python3 validation/run.py --suite <name>` or `make <name>`.
+
+### Running Tests
+
+Tests can be run through the orchestration layer:
+
+```bash
+# List available suites and tests
+python3 validation/run.py --list-suites
+python3 validation/run.py --list-tests
+
+# Run a single test suite (preferred)
+python3 validation/run.py --suite node-smoke
+
+# Run all tests
+python3 validation/run.py --all
+
+# Dry-run (print what would be executed without running)
+python3 validation/run.py --suite node-smoke --dry-run
+
+# Use a specific environment config (default: validation/config/vlad.yaml)
+python3 validation/run.py --suite node-smoke --env validation/config/my-cluster.yaml
+
+# Via Makefile (uses default vlad env)
+make -C validation/vlad node-smoke
+make -C validation/vlad all
+
+# Direct sbatch (backward compatible)
+sbatch validation/vlad/slurm/node-smoke.sbatch
+```
+
+### Environment Configuration
+
+The validation system uses environment config files (YAML) to abstract away
+cluster-specific module names and tool paths. Each environment has a config
+file in `validation/config/`.
+
+```
+validation/config/
+├── vlad.yaml    # Vlad environment (default)
+└── hpcsim.yaml  # HPCsim environment
+```
+
+To create a config for a new cluster:
+1. Copy an existing config as a template
+2. Update `module_map` with the actual module names from your Spack environment
+3. Update `tool_map` with paths to external tools
+4. Set scheduler defaults (partition, time limits)
+
+```yaml
+module_map:
+  openmpi: openmpi/5          # map "openmpi" need to "openmpi/5" module
+  cuda: cuda/13               # map "cuda" need to "cuda/13" module
+  ...
+```
+
+### Adding a New Test
+
+Tests are defined as YAML files in `validation/<suite>/tests/`. Each test
+YAML declares what it needs and what commands to run:
+
+```yaml
+suite: my-new-test
+description: What this test validates
+severity: error                    # error|warning|info
+module_needs: [openmpi, cuda]     # symbolic module names
+tool_needs: []                     # external tool names from tool_map
+resources:
+  nodes: 2
+  ntasks: 2
+  gpus: 1
+  time: "00:30:00"
+commands:
+  - name: my_command
+    cmd: srun -n 2 my-benchmark > "${RESULTS_DIR}/output.log"
+    output: output.log
+```
+
+Key rules:
+- Use `NUM_GPUS` not `SLURM_GPUS_ON_NODE` (harness substitutes at runtime)
+- Use `NODELIST` not `SLURM_NODELIST`
+- Use `RESULTS_DIR` for output paths
+- Use `${TOOL_<name>}` for tool paths from the config
+- Mark optional commands with `optional: true` and `optional_check: ...`
+
 ## External Tools
 
 The following tools are NOT built by Spack and must be installed separately.
@@ -286,6 +380,8 @@ The `profiling` suite is excluded from automated outlier analysis because
 profiler overhead and trace sizes are not hardware-deviation signals.
 
 ## Future Work
+
+The local execution backend (running tests without Slurm) is planned for a follow-up phase.
 
 - Horovod, DeepSpeed, and NeMo communication profilers for distributed
   training validation
