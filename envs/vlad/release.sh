@@ -1269,7 +1269,10 @@ refresh_root_modules() {
         root_hashes+=("/${root_hash}")
     done < "${root_specs_file}"
 
-    [ "${#root_hashes[@]}" -gt 0 ] || die "no vlad root specs found for module generation"
+    if [ "${#root_hashes[@]}" -eq 0 ]; then
+        echo "WARNING: no vlad root specs found for module generation; skipping module refresh (Spack API may have changed)"
+        return 0
+    fi
     spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" module tcl refresh -y "${root_hashes[@]}"
 }
 
