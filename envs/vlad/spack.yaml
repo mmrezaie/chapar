@@ -111,6 +111,10 @@ spack:
     elfutils:
       require:
       - ~debuginfod~nls
+    extrae:
+      require:
+      - spec: 'cflags="-std=gnu17 -Wno-error=implicit-int -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"'
+        when: 'platform=linux %gcc@15:'
     fontconfig:
       require:
       - spec: '@2.15:'
@@ -185,7 +189,7 @@ spack:
       - +clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx
     mpip:
       require:
-      - spec: '+setjmp~libunwind'
+      - spec: '+setjmp~libunwind cflags="-Wno-error=implicit-int -Wno-error=implicit-function-declaration"'
         when: 'platform=linux'
     nccl:
       require:
@@ -237,6 +241,13 @@ spack:
         when: platform=linux
       - spec: '^binutils libs=shared'
         when: '+binutils platform=linux'
+      - spec: 'cflags="-Wno-error=implicit-int -Wno-error=implicit-function-declaration"'
+        when: 'platform=linux %gcc@15:'
+      # ~cuda avoids Spack's scorep recipe bug: --with-libcuda-lib given
+      # without --with-libcuda-include. Score-P 10.0 configure now requires
+      # both when one is specified. This is tracked as a Spack recipe issue.
+      - spec: '~cuda'
+        when: 'platform=linux'
     sz:
       require:
       - +fortran+hdf5+netcdf+openmp
