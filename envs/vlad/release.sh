@@ -1233,7 +1233,8 @@ apply_release_module_runtime_policy() {
     done
 
     if [ "${needs_cuda_stub}" = "true" ] && [ -z "${cuda_stub_dir}" ]; then
-        die "could not create CUDA driver-stub support directory for Intel MPI/libfabric modules in ${release_dir}"
+        echo "WARNING: could not create CUDA driver-stub support directory for Intel MPI/libfabric modules in ${release_dir}"
+        return 1
     fi
 
     for module_file in "${release_dir}/modulefiles"/*/openmpi/*; do
