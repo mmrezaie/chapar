@@ -1,7 +1,5 @@
 #!/bin/bash
-# This wrapper VALIDATES that the configured CUDA-aware transports actually
-# engage on this node-pair. It REPORTS, not decides, what paths the MPI+NCCL+
-# PyTorch stack uses.
+# DESCRIPTION: Transport path validation (UCX, Open MPI, libfabric, NCCL debug)
 #SBATCH --nodes=2
 #SBATCH --ntasks=2
 #SBATCH --time=00:30:00
@@ -12,23 +10,31 @@
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
-: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/transport/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${EXTERNAL_UCX_PERFTEST:=external/ucx-perftest/ucx_perftest}"
 : "${EXTERNAL_PERFTEST:=external/perftest/ib_write_bw}"
-: "${VLAD_OPENMPI_MODULE:=openmpi/5}"
 : "${NCCL_DEBUG:=INFO}"
 
-RESULTS_DIR="${VLAD_TEST_DIR}/results/transport/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
-mkdir -p "${RESULTS_DIR}"
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
+fi
+module load \
+    "${CHAPAR_MODULE_OPENMPI:-openmpi/5}" \
+    "${CHAPAR_MODULE_CUDA:-cuda/13}" \
+    "${CHAPAR_MODULE_UCX:-ucx}" \
+    "${CHAPAR_MODULE_LIBFABRIC:-libfabric}" \
+    "${CHAPAR_MODULE_HWLOC:-hwloc}" \
+    "${CHAPAR_MODULE_NCCL_TESTS:-nccl-tests}" \
+    "${CHAPAR_MODULE_NCCL:-nccl}"
 
-# ── Environment ────────────────────────────────────────────────
-source validation/harness/load_env.sh
-load_env_from_config validation/config/vlad.yaml --needs openmpi cuda ucx libfabric hwloc nccl-tests nccl
-
-# ── UCX device and transport listing ────────────────────────────
+# ── UCX device and transport listing ───────────────────────────
 echo "=== ucx_info devices ===" >&2
 ucx_info -d > "${RESULTS_DIR}/ucx_devices.txt" 2>&1
 
@@ -44,10 +50,10 @@ echo "=== fi_info ===" >&2
 fi_info -d > "${RESULTS_DIR}/libfabric_providers.txt" 2>&1
 
 # ── External UCX perftest — validates CUDA transport selection ─
-if [ -x "${VLAD_TEST_DIR}/${EXTERNAL_UCX_PERFTEST}" ]; then
+if [ -x "${VALIDATION_DIR}/${EXTERNAL_UCX_PERFTEST}" ]; then
     echo "=== ucx_perftest CUDA tag_lat ===" >&2
     srun -n 2 --ntasks-per-node=1 \
-        "${VLAD_TEST_DIR}/${EXTERNAL_UCX_PERFTEST}" \
+        "${VALIDATION_DIR}/${EXTERNAL_UCX_PERFTEST}" \
         -c 0 -t tag_lat -n 10000 -b cuda \
         > "${RESULTS_DIR}/ucx_perftest.log" 2>&1 || true
 else
@@ -55,10 +61,10 @@ else
 fi
 
 # ── External perftest — raw verbs bandwidth ────────────────────
-if [ -x "${VLAD_TEST_DIR}/${EXTERNAL_PERFTEST}" ]; then
+if [ -x "${VALIDATION_DIR}/${EXTERNAL_PERFTEST}" ]; then
     echo "=== ib_write_bw ===" >&2
     srun -n 2 --ntasks-per-node=1 \
-        "${VLAD_TEST_DIR}/${EXTERNAL_PERFTEST}" \
+        "${VALIDATION_DIR}/${EXTERNAL_PERFTEST}" \
         -d mlx5_0 --report_gbits \
         > "${RESULTS_DIR}/ib_write_bw.log" 2>&1 || true
 else

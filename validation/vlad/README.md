@@ -1,5 +1,8 @@
 # vlad — HPC/AI Cluster Validation
 
+> **Tests have moved to `validation/tests/`.** Use `./validation/run <test>` to run them.
+> The `analyze/` directory is now at `validation/analyze/` (accessible via symlink).
+
 vlad is a self-contained HPC/AI cluster validation environment. It contains
 benchmarks, profilers, GPU transport probes, and PyTorch+mpi4py framework-comm
 validation. This directory contains Slurm sbatch wrappers for each validation
@@ -11,12 +14,11 @@ per-node output files so the analyzer can pinpoint the exact deviant component.
 
 ## Architecture
 
-The validation system uses a three-layer design:
+The validation system uses a flat structure:
 
-- **Config layer** (`validation/config/<env>.yaml`): Maps symbolic module/tool names to environment-specific paths
-- **Test definitions** (`validation/<suite>/tests/<name>.yaml`): YAML files declaring module_needs, resources, commands
-- **Execution harness** (`validation/harness/`): Shared scripts for directory resolution, environment loading, results setup, and scheduler-agnostic execution
-- **Orchestrator** (`validation/run.py`): Python CLI for test discovery, dispatch, and results collection
+- **Entry point** (`validation/run`): Bash script that discovers and runs tests
+- **Test scripts** (`validation/tests/<name>.sbatch`): Self-contained Slurm batch scripts with module loading and environment variable overrides
+- **Results** (`validation/results/`): Per-test, per-run output directories
 
 ## Test Suites
 
@@ -26,7 +28,7 @@ Per-node hardware smoke test. Runs on every allocated node and tags output
 with the node hostname and GPU index.
 
 ```bash
-sbatch validation/vlad/slurm/node-smoke.sbatch
+sbatch validation/tests/node-smoke.sbatch
 ```
 
 Tests executed on each node:
@@ -51,7 +53,7 @@ Tests executed on each node:
 between a node pair.
 
 ```bash
-sbatch validation/vlad/slurm/ib-pairwise.sbatch
+sbatch validation/tests/ib-pairwise.sbatch
 ```
 
 Tests executed:
@@ -75,7 +77,7 @@ Tests executed:
 Multi-node MPI collective sweep. Scales across the full allocation.
 
 ```bash
-sbatch validation/vlad/slurm/mpi-collective.sbatch
+sbatch validation/tests/mpi-collective.sbatch
 ```
 
 Tests executed:
@@ -97,7 +99,7 @@ Full HPC benchmark sweep on the full partition. Validates LINPACK, conjugate
 gradient, STREAM, and mixed-precision AI throughput.
 
 ```bash
-sbatch validation/vlad/slurm/hpc-challenge.sbatch
+sbatch validation/tests/hpc-challenge.sbatch
 ```
 
 Tests executed:
@@ -126,7 +128,7 @@ to Lustre or VAST — targets `${IO_TEST_DIR:-$SCRATCH}` so the user can point
 it at any filesystem.
 
 ```bash
-sbatch validation/vlad/slurm/io.sbatch
+sbatch validation/tests/io.sbatch
 ```
 
 Tests executed:
@@ -154,7 +156,7 @@ interpose on a running binary without recompilation — covering LD_PRELOAD,
 PMPI, CUPTI, and perf_event interpose mechanisms.
 
 ```bash
-sbatch validation/vlad/slurm/profiling.sbatch
+sbatch validation/tests/profiling.sbatch
 ```
 
 The `PROFILER` variable selects exactly one profiler per run. Each profile
@@ -180,7 +182,7 @@ Per-GPU memory and compute stress. Every GPU on every allocated node gets its
 own output file.
 
 ```bash
-sbatch validation/vlad/slurm/gpu-stress.sbatch
+sbatch validation/tests/gpu-stress.sbatch
 ```
 
 Tests executed:
@@ -201,7 +203,7 @@ Validates that the loaded UCX, Open MPI, libfabric, and NCCL stacks use
 the expected GPU-direct transport paths.
 
 ```bash
-sbatch validation/vlad/slurm/transport.sbatch
+sbatch validation/tests/transport.sbatch
 ```
 
 Tests executed:
@@ -231,96 +233,55 @@ over CUDA tensors via Spack-built Open MPI. Confirms the real transport
 PyTorch jobs will use runs end-to-end.
 
 ```bash
-sbatch validation/vlad/slurm/frameworks.sbatch
+sbatch validation/tests/frameworks.sbatch
 ```
 
 **Requirements:** `py-torch` and `py-mpi4py` modules must be visible from
 the loaded Spack environment.
 
-Tests can also be run via `python3 validation/run.py --suite <name>` or `make <name>`.
-
 ### Running Tests
 
-Tests can be run through the orchestration layer:
-
 ```bash
-# List available suites and tests
-python3 validation/run.py --list-suites
-python3 validation/run.py --list-tests
+# List available tests
+./validation/run list
 
-# Run a single test suite (preferred)
-python3 validation/run.py --suite node-smoke
+# Run a single test
+./validation/run node-smoke
 
 # Run all tests
-python3 validation/run.py --all
+./validation/run all
 
 # Dry-run (print what would be executed without running)
-python3 validation/run.py --suite node-smoke --dry-run
+CHAPAR_DRY_RUN=1 ./validation/run node-smoke
 
-# Use a specific environment config (default: validation/config/vlad.yaml)
-python3 validation/run.py --suite node-smoke --env validation/config/my-cluster.yaml
-
-# Via Makefile (uses default vlad env)
-make -C validation/vlad node-smoke
-make -C validation/vlad all
+# Module overrides
+CHAPAR_MODULE_CUDA=cuda/12.8 ./validation/run node-smoke
 
 # Direct sbatch (backward compatible)
-sbatch validation/vlad/slurm/node-smoke.sbatch
+sbatch validation/tests/node-smoke.sbatch
 ```
 
 ### Environment Configuration
 
-The validation system uses environment config files (YAML) to abstract away
-cluster-specific module names and tool paths. Each environment has a config
-file in `validation/config/`.
+Module names and resources are configured through environment variables. Each
+software module has a `CHAPAR_MODULE_<NAME>` variable. Set it to override which
+module version loads:
 
-```
-validation/config/
-├── vlad.yaml    # Vlad environment (default)
-└── hpcsim.yaml  # HPCsim environment
-```
+```bash
+# Use a different CUDA version
+CHAPAR_MODULE_CUDA=cuda/12.8 ./validation/run node-smoke
 
-To create a config for a new cluster:
-1. Copy an existing config as a template
-2. Update `module_map` with the actual module names from your Spack environment
-3. Update `tool_map` with paths to external tools
-4. Set scheduler defaults (partition, time limits)
-
-```yaml
-module_map:
-  openmpi: openmpi/5          # map "openmpi" need to "openmpi/5" module
-  cuda: cuda/13               # map "cuda" need to "cuda/13" module
-  ...
+# Use a different Open MPI
+CHAPAR_MODULE_OPENMPI=openmpi/5.0.7 ./validation/run ib-pairwise
 ```
 
 ### Adding a New Test
 
-Tests are defined as YAML files in `validation/<suite>/tests/`. Each test
-YAML declares what it needs and what commands to run:
-
-```yaml
-suite: my-new-test
-description: What this test validates
-severity: error                    # error|warning|info
-module_needs: [openmpi, cuda]     # symbolic module names
-tool_needs: []                     # external tool names from tool_map
-resources:
-  nodes: 2
-  ntasks: 2
-  gpus: 1
-  time: "00:30:00"
-commands:
-  - name: my_command
-    cmd: srun -n 2 my-benchmark > "${RESULTS_DIR}/output.log"
-    output: output.log
-```
-
-Key rules:
-- Use `NUM_GPUS` not `SLURM_GPUS_ON_NODE` (harness substitutes at runtime)
-- Use `NODELIST` not `SLURM_NODELIST`
-- Use `RESULTS_DIR` for output paths
-- Use `${TOOL_<name>}` for tool paths from the config
-- Mark optional commands with `optional: true` and `optional_check: ...`
+1. Create `validation/tests/<name>.sbatch` using an existing test as a template
+2. Start with `# DESCRIPTION: One-line description of what this validates`
+3. Add `#SBATCH` directives for default resources
+4. Use `CHAPAR_MODULE_<NAME>` variables for module loads (with sensible defaults)
+5. Write output to `$RESULTS_DIR`
 
 ## External Tools
 
@@ -364,10 +325,10 @@ files, builds per-GPU and per-GPU-pair metric matrices, and flags any row with
 absolute deviation (MAD) across rows.
 
 ```bash
-python3 validation/vlad/analyze/outliers.py \
+python3 validation/analyze/outliers.py \
   --suite ib-pairwise \
   --threshold 2.0 \
-  --results-dir validation/vlad/results/ib-pairwise
+  --results-dir validation/results/ib-pairwise
 ```
 
 The analyzer reports **which GPU index on which node** is deviant, so a

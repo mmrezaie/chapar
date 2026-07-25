@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VALIDATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cmd="${1:-help}"
+
+case "$cmd" in
+  list)
+    echo "Available validation tests:"
+    echo ""
+    for f in "$VALIDATION_DIR/tests/"*.sbatch; do
+      name=$(basename "$f" .sbatch)
+      desc=$(sed -n 's/^# DESCRIPTION: //p' "$f" 2>/dev/null || echo "no description")
+      printf "  %-20s  %s\n" "$name" "$desc"
+    done
+    ;;
+  all)
+    failed=0
+    for f in "$VALIDATION_DIR/tests/"*.sbatch; do
+      name=$(basename "$f" .sbatch)
+      printf "\n=== %s ===\n" "$name"
+      if [ "${CHAPAR_DRY_RUN:-0}" = "1" ]; then
+        echo "[dry-run] Would submit: $f"
+      elif [ -n "${SLURM_JOB_ID:-}" ]; then
+        bash "$f" || { echo "FAIL: $name" >&2; failed=1; }
+      else
+        sbatch --wait "$f" || { echo "FAIL: $name" >&2; failed=1; }
+      fi
+    done
+    [ "$failed" = "0" ] || exit 1
+    ;;
+  help|--help|-h)
+    echo "Usage: ./validation/run <test>"
+    echo "       ./validation/run list"
+    echo "       ./validation/run all"
+    echo ""
+    echo "Environment variables:"
+    echo "  CHAPAR_MODULE_<NAME>   Override module for <name> (e.g., CHAPAR_MODULE_CUDA=cuda/12.8)"
+    echo "  CHAPAR_PARTITION       Slurm partition"
+    echo "  CHAPAR_NODES           Override node count for multi-node tests"
+    echo "  CHAPAR_TIME            Override time limit"
+    echo "  CHAPAR_KEEP_MODULES=1  Skip module purge (use pre-loaded environment)"
+    echo "  CHAPAR_DRY_RUN=1       Print what would run without executing"
+    echo "  RESULTS_ROOT           Custom results directory (default: validation/results/)"
+    echo "  MPI_RDMA_BYTES         Message size for MPI RDMA tests (default: 8388608)"
+    echo "  MPI_RDMA_ITERS         Iterations for MPI RDMA tests (default: 100)"
+    ;;
+  *)
+    test_file="$VALIDATION_DIR/tests/${cmd}.sbatch"
+    if [ ! -f "$test_file" ]; then
+      echo "Unknown test: $cmd" >&2
+      echo "Run './validation/run list' to see available tests." >&2
+      exit 2
+    fi
+    if [ "${CHAPAR_DRY_RUN:-0}" = "1" ]; then
+      echo "[dry-run] Would submit: $test_file"
+      exit 0
+    fi
+    if [ -n "${SLURM_JOB_ID:-}" ]; then
+      exec bash "$test_file"
+    else
+      exec sbatch --wait "$test_file"
+    fi
+    ;;
+esac

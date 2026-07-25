@@ -1,4 +1,5 @@
 #!/bin/bash
+# DESCRIPTION: Per-node hardware smoke test (memory bandwidth, GPU P2P, PAPI counters, cuda-memtest, topology)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=00:15:00
@@ -9,20 +10,23 @@
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
-: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
-
-# ── Runtime knobs ──────────────────────────────────────────────
-# SBATCH_PARTITION: set via sbatch --export=ALL,SBATCH_PARTITION=<name>
-#   or in the site sbatch wrapper; not hard-coded here.
-: "${SBATCH_PARTITION:=}"
-
-RESULTS_DIR="${VLAD_TEST_DIR}/results/node-smoke/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/node-smoke/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST:-$(hostname)}"
 mkdir -p "${RESULTS_DIR}"
 
-# ── Environment ────────────────────────────────────────────────
-source validation/harness/load_env.sh
-load_env_from_config validation/config/vlad.yaml --needs likwid papi cuda nvbandwidth cuda-memtest hwloc
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
+fi
+module load \
+    "${CHAPAR_MODULE_LIKWID:-likwid}" \
+    "${CHAPAR_MODULE_PAPI:-papi}" \
+    "${CHAPAR_MODULE_CUDA:-cuda/13}" \
+    "${CHAPAR_MODULE_NVBANDWIDTH:-nvbandwidth}" \
+    "${CHAPAR_MODULE_CUDA_MEMTEST:-cuda-memtest}" \
+    "${CHAPAR_MODULE_HWLOC:-hwloc}"
 
 # ── likwid memory bandwidth ────────────────────────────────────
 echo "=== likwid MEM_DP ===" >&2

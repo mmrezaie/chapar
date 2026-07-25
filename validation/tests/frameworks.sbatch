@@ -1,7 +1,5 @@
 #!/bin/bash
-# This wrapper confirms that PyTorch's distributed backend runs through the
-# Spack-built Open MPI + NCCL stack — validating the actual transport path
-# PyTorch jobs will use.
+# DESCRIPTION: PyTorch+mpi4py framework-comm validation
 #SBATCH --nodes=2
 #SBATCH --ntasks=2
 #SBATCH --time=00:30:00
@@ -12,18 +10,21 @@
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
-: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
-
-# ── Runtime knobs ──────────────────────────────────────────────
-: "${VLAD_OPENMPI_MODULE:=openmpi/5}"
-
-RESULTS_DIR="${VLAD_TEST_DIR}/results/frameworks/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/frameworks/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
 mkdir -p "${RESULTS_DIR}"
 
-# ── Environment ────────────────────────────────────────────────
-source validation/harness/load_env.sh
-load_env_from_config validation/config/vlad.yaml --needs cuda openmpi py-torch py-mpi4py
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
+fi
+module load \
+    "${CHAPAR_MODULE_CUDA:-cuda/13}" \
+    "${CHAPAR_MODULE_OPENMPI:-openmpi/5}" \
+    "${CHAPAR_MODULE_PY_TORCH:-py-torch}" \
+    "${CHAPAR_MODULE_PY_MPI4PY:-py-mpi4py}"
 
 # ── PyTorch distributed all_reduce validation ──────────────────
 echo "=== torch.distributed all_reduce (MPI backend) ===" >&2

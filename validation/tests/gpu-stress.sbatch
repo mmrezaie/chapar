@@ -1,4 +1,5 @@
 #!/bin/bash
+# DESCRIPTION: Per-GPU memory and compute stress test
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
@@ -9,18 +10,22 @@
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/gpu-stress/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${CUDA_MEMTEST_PASSES:=10}"
-: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 
-RESULTS_DIR="${VLAD_TEST_DIR}/results/gpu-stress/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
-mkdir -p "${RESULTS_DIR}"
-
-# ── Environment ────────────────────────────────────────────────
-source validation/harness/load_env.sh
-load_env_from_config validation/config/vlad.yaml --needs cuda cuda-memtest
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
+fi
+module load \
+    "${CHAPAR_MODULE_CUDA:-cuda/13}" \
+    "${CHAPAR_MODULE_CUDA_MEMTEST:-cuda-memtest}"
 
 # ── Per-GPU cuda-memtest ───────────────────────────────────────
 echo "=== cuda-memtest (per GPU) ===" >&2
@@ -33,9 +38,9 @@ for g in $(seq 0 $((SLURM_GPUS_ON_NODE - 1))); do
 done
 
 # ── Optional gpu-burn ──────────────────────────────────────────
-if [ -x external/gpu-burn/gpu-burn ]; then
+if [ -x "${VALIDATION_DIR}/external/gpu-burn/gpu-burn" ]; then
     echo "=== gpu-burn ===" >&2
-    ./external/gpu-burn/gpu-burn -d 28800 \
+    "${VALIDATION_DIR}/external/gpu-burn/gpu-burn" -d 28800 \
         > "${RESULTS_DIR}/gpu-burn.log" 2>&1
 else
     echo "WARNING: gpu-burn not found at external/gpu-burn/gpu-burn — skipping" >&2

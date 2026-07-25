@@ -1,30 +1,38 @@
 #!/bin/bash
+# DESCRIPTION: Open MPI GPU RDMA ring test - CUDA device-buffer MPI Sendrecv
 #SBATCH -N 2
 #SBATCH --ntasks-per-node=1
+#SBATCH --gpus-per-node=1
 #SBATCH --time=00:10:00
-#SBATCH -J hpcsim-ompi-cpu-rdma
+#SBATCH -J hpcsim-ompi-gpu-rdma
 #SBATCH -o %x_%j.out
 #SBATCH -e %x_%j.err
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
-: "${MPI_RDMA_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/mpi-rdma" "mpi-rdma")}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+MPI_RDMA_TEST_DIR="${VALIDATION_DIR}/mpi-rdma"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/openmpi-gpu/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
+
+# ── Runtime knobs ──────────────────────────────────────────────
 : "${MPI_RDMA_BYTES:=8388608}"
 : "${MPI_RDMA_ITERS:=100}"
 : "${MPI_RANKS:=${SLURM_NTASKS:-${SLURM_NNODES:-2}}}"
 : "${MPI_LAUNCHER:=mpirun}"
-: "${HPCSIM_OPENMPI_MODULE:=openmpi}"
 : "${HPCSIM_PRTED:=}"
 : "${HPCSIM_PRTE_SLURM_ARGS:=--cpu-bind=none --export=ALL}"
-: "${MPI_RDMA_CPU_EXE:=mpi_rdma_cpu.openmpi}"
+: "${MPI_RDMA_GPU_EXE:=mpi_rdma_cuda.openmpi}"
 
-source validation/harness/load_env.sh
-load_env_from_config validation/config/hpcsim.yaml --needs openmpi
-
-if [ ! -e /dev/nvidiactl ] && [ ! -e /proc/driver/nvidia/version ]; then
-    export OMPI_MCA_mca_base_component_show_load_errors="${OMPI_MCA_mca_base_component_show_load_errors:-0}"
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
 fi
+module load \
+    "${CHAPAR_MODULE_OPENMPI:-openmpi/5}" \
+    "${CHAPAR_MODULE_CUDA:-cuda/13}"
 
 if [ "${MPI_LAUNCHER}" = "mpirun" ]; then
     if [ -z "${HPCSIM_PRTED}" ]; then
@@ -44,7 +52,7 @@ if [ "${MPI_LAUNCHER}" = "mpirun" ]; then
     fi
 
     if [ -z "${HPCSIM_PRTED}" ] || [ ! -x "${HPCSIM_PRTED}" ]; then
-        echo "could not locate executable prted for ${HPCSIM_OPENMPI_MODULE}; set HPCSIM_PRTED" >&2
+        echo "could not locate executable prted for ${CHAPAR_MODULE_OPENMPI:-openmpi/5}; set HPCSIM_PRTED" >&2
         exit 2
     fi
 
@@ -56,12 +64,12 @@ else
     : "${MPI_LAUNCHER_ARGS:=-n ${MPI_RANKS} --cpu-bind=none}"
 fi
 
-make -B -C "${MPI_RDMA_TEST_DIR}" CPU_EXE="${MPI_RDMA_CPU_EXE}" cpu
+make -B -C "${MPI_RDMA_TEST_DIR}" GPU_EXE="${MPI_RDMA_GPU_EXE}" gpu
 
 export MPI_RDMA_BYTES MPI_RDMA_ITERS
 export OMPI_MCA_pml="${OMPI_MCA_pml:-ucx}"
 export OMPI_MCA_osc="${OMPI_MCA_osc:-ucx}"
-export UCX_TLS="${UCX_TLS:-rc,ud,sm,self}"
-export UCX_MEMTYPE_CACHE="${UCX_MEMTYPE_CACHE:-n}"
+export UCX_TLS="${UCX_TLS:-rc,ud,sm,self,cuda_copy,cuda_ipc,gdr_copy}"
+export UCX_MEMTYPE_CACHE="${UCX_MEMTYPE_CACHE:-y}"
 
-${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_CPU_EXE}"
+${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS} "${MPI_RDMA_TEST_DIR}/${MPI_RDMA_GPU_EXE}"

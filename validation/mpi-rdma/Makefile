@@ -26,17 +26,16 @@ clean:
 		mpi_rdma_cpu.openmpi mpi_rdma_cuda.openmpi \
 		mpi_rdma_cpu.intelmpi mpi_rdma_cuda.intelmpi
 
-MPI_RDMA_ENV ?= validation/config/hpcsim.yaml
-RUNNER = python3 validation/run.py
+RUNNER = ./validation/run
 
 run-openmpi-cpu:
-	$(RUNNER) --suite openmpi-cpu --env $(MPI_RDMA_ENV)
+	$(RUNNER) openmpi-cpu
 
 run-openmpi-gpu:
-	$(RUNNER) --suite openmpi-gpu --env $(MPI_RDMA_ENV)
+	$(RUNNER) openmpi-gpu
 
 run-intelmpi-cpu:
-	$(RUNNER) --suite intelmpi-cpu --env $(MPI_RDMA_ENV)
+	$(RUNNER) intelmpi-cpu
 
 run-intelmpi-gpu:
-	$(RUNNER) --suite intelmpi-gpu --env $(MPI_RDMA_ENV)
+	$(RUNNER) intelmpi-gpu

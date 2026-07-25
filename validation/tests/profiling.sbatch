@@ -1,4 +1,5 @@
 #!/bin/bash
+# DESCRIPTION: Single-profiler-at-a-time enum wrapper (caliper, darshan, mpip, etc.)
 #SBATCH --nodes=2
 #SBATCH --ntasks=4
 #SBATCH --time=00:30:00
@@ -8,14 +9,14 @@
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/profiling/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${PROFILER:=caliper}"
-: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
-
-RESULTS_DIR="${VLAD_TEST_DIR}/results/profiling/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
-mkdir -p "${RESULTS_DIR}"
 
 # ── Profiler enum validation ───────────────────────────────────
 case "${PROFILER}" in
@@ -27,9 +28,13 @@ case "${PROFILER}" in
         ;;
 esac
 
-# ── Environment ────────────────────────────────────────────────
-source validation/harness/load_env.sh
-load_env_from_config validation/config/vlad.yaml --needs openmpi osu-micro-benchmarks
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
+fi
+module load \
+    "${CHAPAR_MODULE_OPENMPI:-openmpi/5}" \
+    "${CHAPAR_MODULE_OSU_MICRO_BENCHMARKS:-osu-micro-benchmarks}"
 module load "${PROFILER}"
 
 # ── Profile osu_latency ────────────────────────────────────────

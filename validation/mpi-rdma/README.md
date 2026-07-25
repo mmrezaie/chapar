@@ -1,31 +1,23 @@
 # hpcsim MPI/RDMA Validation
 
-This directory contains small runtime checks for the hpcsim MPI transport stack.
-They are intended for real multi-node Slurm allocations after a release has been
-built and the hpcsim modules are visible.
+This directory contains the C++ sources and Makefile for the MPI RDMA ring tests.
+The sbatch wrappers live in `validation/tests/` and are run via `./validation/run`.
 
 The tests validate application behavior. The selected InfiniBand, UCX, libfabric,
 or CUDA RDMA transport is controlled by the module set and environment variables
 in the Slurm examples.
 
-## Architecture
-
-This validation suite is integrated into the shared validation harness.
-Tests are defined as YAML files under `tests/` and can be run via the
-orchestration layer:
+## Running
 
 ```bash
-# List available tests
-python3 validation/run.py --list-tests
+# Run via the validation entry point
+./validation/run openmpi-cpu
+./validation/run openmpi-gpu
+./validation/run intelmpi-cpu
+./validation/run intelmpi-gpu
 
-# Run a specific test
-python3 validation/run.py --suite openmpi-cpu --env validation/config/hpcsim.yaml
-
-# Via Makefile
-make -C validation/mpi-rdma run-openmpi-cpu
-make -C validation/mpi-rdma run-openmpi-gpu
-make -C validation/mpi-rdma run-intelmpi-cpu
-make -C validation/mpi-rdma run-intelmpi-gpu
+# List all available tests
+./validation/run list
 ```
 
 ## Tests
@@ -66,17 +58,17 @@ or `CUDA_PATH` before building the GPU test.
 The examples default to two nodes with one rank per node:
 
 ```bash
-sbatch validation/mpi-rdma/slurm/openmpi-cpu.sbatch
-sbatch validation/mpi-rdma/slurm/openmpi-gpu.sbatch
-sbatch validation/mpi-rdma/slurm/intelmpi-cpu.sbatch
-sbatch validation/mpi-rdma/slurm/intelmpi-gpu.sbatch
+sbatch validation/tests/openmpi-cpu.sbatch
+sbatch validation/tests/openmpi-gpu.sbatch
+sbatch validation/tests/intelmpi-cpu.sbatch
+sbatch validation/tests/intelmpi-gpu.sbatch
 ```
 
 Common overrides:
 
 ```bash
-sbatch --export=ALL,HPCSIM_OPENMPI_MODULE=openmpi/5.0.8 validation/mpi-rdma/slurm/openmpi-cpu.sbatch
-sbatch --export=ALL,HPCSIM_INTELMPI_MODULE=intel-oneapi-mpi/2021.17.0 validation/mpi-rdma/slurm/intelmpi-gpu.sbatch
+sbatch --export=ALL,CHAPAR_MODULE_OPENMPI=openmpi/5.0.8 validation/tests/openmpi-cpu.sbatch
+sbatch --export=ALL,CHAPAR_MODULE_INTEL_ONEAPI_MPI=intel-oneapi-mpi/2021.17.0 validation/tests/intelmpi-gpu.sbatch
 ```
 
 The Open MPI Slurm examples default to `mpirun` because some Slurm/PMIx

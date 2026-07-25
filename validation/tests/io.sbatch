@@ -1,4 +1,5 @@
 #!/bin/bash
+# DESCRIPTION: POSIX and MPI-IO I/O validation (IOR, mdtest, h5bench, fio)
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=4
 #SBATCH --time=01:00:00
@@ -8,7 +9,11 @@
 
 set -euo pipefail
 
-source validation/harness/resolve_test_dir.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
+RESULTS_DIR="${RESULTS_ROOT}/io/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
+mkdir -p "${RESULTS_DIR}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${IO_TEST_DIR:=${SCRATCH:-}}"
@@ -17,19 +22,22 @@ source validation/harness/resolve_test_dir.sh
 : "${MDTEST_FILES:=100000}"
 H5BENCH_CFG="${H5BENCH_CFG:-}"
 FIO_CFG="${FIO_CFG:-}"
-: "${VLAD_TEST_DIR:=$(resolve_test_dir "${SLURM_SUBMIT_DIR:-$PWD}" "validation/vlad" "vlad")}"
 
 if [ -z "${IO_TEST_DIR}" ]; then
     echo "ERROR: IO_TEST_DIR is empty and \$SCRATCH is not set" >&2
     exit 1
 fi
 
-RESULTS_DIR="${VLAD_TEST_DIR}/results/io/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
-mkdir -p "${RESULTS_DIR}"
-
-# ── Environment ────────────────────────────────────────────────
-source validation/harness/load_env.sh
-load_env_from_config validation/config/vlad.yaml --needs openmpi ior mdtest h5bench fio
+# ── Modules ────────────────────────────────────────────────────
+if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
+    module purge
+fi
+module load \
+    "${CHAPAR_MODULE_OPENMPI:-openmpi/5}" \
+    "${CHAPAR_MODULE_IOR:-ior}" \
+    "${CHAPAR_MODULE_MDTEST:-mdtest}" \
+    "${CHAPAR_MODULE_H5BENCH:-h5bench}" \
+    "${CHAPAR_MODULE_FIO:-fio}"
 
 # ── IOR POSIX ──────────────────────────────────────────────────
 echo "=== IOR POSIX ===" >&2
