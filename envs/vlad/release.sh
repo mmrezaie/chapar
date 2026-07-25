@@ -41,9 +41,9 @@ CHAPAR_CONCRETIZE_TIMEOUT="${CHAPAR_CONCRETIZE_TIMEOUT:-}"
 BUILD_SCOPE_DIR=""
 BUILD_STAGING_DIR=""
 BUILDCACHE_MIGRATION_LOCK_DIR=""
-PROMOTE_MODULE_LINK=""
-PROMOTE_MODULE_TMP_LINK=""
-PROMOTE_MODULE_TARGET=""
+declare -a PROMOTE_MODULE_LINKS=()
+declare -a PROMOTE_MODULE_TMP_LINKS=()
+declare -a PROMOTE_MODULE_TARGETS=()
 REFRESH_BUILDCACHE_ON_EXIT="false"
 CCACHE_ROOT=""
 # Keep this as a major version to follow Chapar policy: dependency constraints
@@ -1349,10 +1349,17 @@ release_arch_triplet() {
             *) continue ;;
         esac
         validate_arch_triplet "${candidate}"
-        if [ -n "${module_arch_triplet}" ] && [ "${module_arch_triplet}" != "${candidate}" ]; then
-            die "release has multiple module architectures; cannot choose shared symlink: ${release_dir}"
+        if [ -n "${module_arch_triplet}" ]; then
+            if [ "${module_arch_triplet}" != "${candidate}" ]; then
+                echo "==> Multiple module architectures found; picking highest" >&2
+                echo "    candidates: ${module_arch_triplet} ${candidate}" >&2
+                if [[ "${candidate}" > "${module_arch_triplet}" ]]; then
+                    module_arch_triplet="${candidate}"
+                fi
+            fi
+        else
+            module_arch_triplet="${candidate}"
         fi
-        module_arch_triplet="${candidate}"
     done
 
     [ -n "${module_arch_triplet}" ] || die "could not determine release module architecture from ${release_dir}"
@@ -1371,45 +1378,64 @@ prepare_shared_module_link() {
     local module_dir
     local module_link
     local tmp_link
+    local arch_dir
+    local result=0
 
     [ -n "${CHAPAR_MODULE_ROOT}" ] || return 0
 
-    arch_triplet="$(release_arch_triplet "${release_dir}")"
-    module_dir="${release_dir}/modulefiles/${arch_triplet}"
-    module_link="${CHAPAR_MODULE_ROOT}/${arch_triplet}"
-    tmp_link="${CHAPAR_MODULE_ROOT}/.${arch_triplet}.$$"
-
-    [ -d "${module_dir}" ] || die "missing release module directory: ${module_dir}"
     prepare_shared_directory "${CHAPAR_MODULE_ROOT}" "shared module root"
-    if [ -e "${module_link}" ] && [ ! -L "${module_link}" ]; then
-        die "shared module path exists and is not a symlink: ${module_link}"
-    fi
 
-    rm -f "${tmp_link}"
-    ln -s "${module_dir}" "${tmp_link}"
+    for arch_dir in "${release_dir}/modulefiles"/*; do
+        [ -d "${arch_dir}" ] || continue
+        arch_triplet="$(basename "${arch_dir}")"
+        case "${arch_triplet}" in
+            *-*-*) ;;
+            *) continue ;;
+        esac
+        validate_arch_triplet "${arch_triplet}"
 
-    PROMOTE_MODULE_LINK="${module_link}"
-    PROMOTE_MODULE_TMP_LINK="${tmp_link}"
-    PROMOTE_MODULE_TARGET="${module_dir}"
+        module_link="${CHAPAR_MODULE_ROOT}/${arch_triplet}"
+        tmp_link="${CHAPAR_MODULE_ROOT}/.${arch_triplet}.$$"
+
+        if [ -e "${module_link}" ] && [ ! -L "${module_link}" ]; then
+            echo "WARNING: shared module path exists and is not a symlink: ${module_link}" >&2
+            result=1
+            continue
+        fi
+
+        rm -f "${tmp_link}"
+        ln -s "${arch_dir}" "${tmp_link}"
+        PROMOTE_MODULE_LINKS+=("${module_link}")
+        PROMOTE_MODULE_TMP_LINKS+=("${tmp_link}")
+        PROMOTE_MODULE_TARGETS+=("${arch_dir}")
+    done
+
+    [ "${#PROMOTE_MODULE_TMP_LINKS[@]}" -gt 0 ] || die "no module architecture directories found in ${release_dir}"
+
+    return "${result}"
 }
 
 discard_prepared_shared_module_link() {
-    if [ -n "${PROMOTE_MODULE_TMP_LINK}" ]; then
-        rm -f "${PROMOTE_MODULE_TMP_LINK}"
-    fi
-    PROMOTE_MODULE_LINK=""
-    PROMOTE_MODULE_TMP_LINK=""
-    PROMOTE_MODULE_TARGET=""
+    local idx
+    for idx in "${!PROMOTE_MODULE_TMP_LINKS[@]}"; do
+        rm -f "${PROMOTE_MODULE_TMP_LINKS[$idx]}"
+    done
+    PROMOTE_MODULE_LINKS=()
+    PROMOTE_MODULE_TMP_LINKS=()
+    PROMOTE_MODULE_TARGETS=()
 }
 
 commit_prepared_shared_module_link() {
-    [ -n "${PROMOTE_MODULE_TMP_LINK}" ] || return 0
+    local idx
+    [ "${#PROMOTE_MODULE_TMP_LINKS[@]}" -gt 0 ] || return 0
 
-    perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${PROMOTE_MODULE_TMP_LINK}" "${PROMOTE_MODULE_LINK}"
-    echo "    module:  ${PROMOTE_MODULE_LINK} -> ${PROMOTE_MODULE_TARGET}"
-    PROMOTE_MODULE_LINK=""
-    PROMOTE_MODULE_TMP_LINK=""
-    PROMOTE_MODULE_TARGET=""
+    for idx in "${!PROMOTE_MODULE_TMP_LINKS[@]}"; do
+        perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${PROMOTE_MODULE_TMP_LINKS[$idx]}" "${PROMOTE_MODULE_LINKS[$idx]}"
+        echo "    module:  ${PROMOTE_MODULE_LINKS[$idx]} -> ${PROMOTE_MODULE_TARGETS[$idx]}"
+    done
+    PROMOTE_MODULE_LINKS=()
+    PROMOTE_MODULE_TMP_LINKS=()
+    PROMOTE_MODULE_TARGETS=()
 }
 
 # Build command: install into the configured shared install tree, generate
