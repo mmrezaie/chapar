@@ -328,7 +328,16 @@ set_paths() {
     validate_install_tree_root
     validate_module_root
     OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
-    STORE_ROOT="${CHAPAR_INSTALL_TREE_ROOT:-${OS_ROOT}/store}"
+    if [ -n "${CHAPAR_INSTALL_TREE_ROOT}" ]; then
+        local arch_triplet
+        arch_triplet="$(spack arch 2>/dev/null || true)"
+        if [ -z "${arch_triplet}" ]; then
+            arch_triplet="linux-${OS_NAME}-broadwell"
+        fi
+        STORE_ROOT="${CHAPAR_INSTALL_TREE_ROOT}/${arch_triplet}"
+    else
+        STORE_ROOT="${OS_ROOT}/store"
+    fi
     RELEASES_ROOT="${OS_ROOT}/releases"
     CURRENT_LINK="${OS_ROOT}/current"
     BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
