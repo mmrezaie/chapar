@@ -109,11 +109,7 @@ load_site_config() {
     : "${CHAPAR_CCACHE_COMPILERCHECK:=content}"
     : "${PUBLISH_BUILDCACHE:=false}"
     if [ -z "${CHAPAR_INSTALL_TREE_PROJECTION}" ]; then
-        if [ -n "${CHAPAR_INSTALL_TREE_ROOT}" ]; then
-            CHAPAR_INSTALL_TREE_PROJECTION='{architecture}/{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
-        else
-            CHAPAR_INSTALL_TREE_PROJECTION='{name}-{version}-{hash}'
-        fi
+        CHAPAR_INSTALL_TREE_PROJECTION='{name}-{version}-{hash}'
     fi
 }
 
