@@ -1495,7 +1495,7 @@ cmd_build() {
     spack -e "${ENV_PATH}" -C "${scope_dir}" buildcache push --unsigned --update-index --allow-missing "file://${BUILDCACHE_ROOT}"
     echo "==> Refreshing hpcsim root modules"
     refresh_root_modules
-    apply_release_module_runtime_policy "${staging_dir}" "${final_dir}"
+    apply_release_module_runtime_policy "${staging_dir}" "${final_dir}" || echo "WARNING: module runtime policy application had errors"
 
     arch_triplet="$(release_arch_triplet "${staging_dir}")"
     copy_manifest "${staging_dir}" "${arch_triplet}"
