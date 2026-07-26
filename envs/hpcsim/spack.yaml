@@ -86,7 +86,9 @@ spack:
     # - nvtx~python %gcc@15
     - papi+infiniband+cuda
     - scalasca
-    - scorep+mpi+papi+cuda
+    # ~cuda avoids Spack's scorep recipe bug: --with-libcuda-lib given
+    # without --with-libcuda-include. Same workaround as vlad env.
+    - scorep+mpi+papi~cuda
     - tau+mpi+papi+openmp~cuda
   - visualization_core_specs:
     - ffmpeg %gcc
@@ -284,7 +286,7 @@ spack:
       - cuda_arch=75,80,86,87,89,90,90a,100,103,110,120,121
     ncview:
       require:
-      - spec: 'cflags="-std=gnu17"'
+      - spec: 'cflags="-std=gnu17 -Wno-incompatible-pointer-types"'
         when: 'platform=linux %gcc@15:'
     netcdf-c:
       require:
