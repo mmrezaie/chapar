@@ -339,7 +339,9 @@ prepare_shared_directory() {
         fi
     fi
 
-    chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" || die "could not set mode ${CHAPAR_SHARED_DIR_MODE} on ${label}: ${path}"
+    if ! chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" 2>/dev/null; then
+        echo "WARNING: could not set mode ${CHAPAR_SHARED_DIR_MODE} on ${label}: ${path}"
+    fi
 }
 
 configure_ccache() {

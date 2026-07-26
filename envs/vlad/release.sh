@@ -350,7 +350,7 @@ prepare_shared_directory() {
     fi
 
     if ! chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" 2>/dev/null; then
-        run_as_root chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}"
+        run_as_root chmod "${CHAPAR_SHARED_DIR_MODE}" "${path}" 2>/dev/null || echo "WARNING: could not set mode ${CHAPAR_SHARED_DIR_MODE} on ${label}: ${path}"
     fi
 }
 
