@@ -139,3 +139,94 @@ Failure blocks the release from being considered production-ready.
 - I/O subsystem or filesystem performance
 
 These are separate deeper validation tiers that require specialized hardware.
+
+## Adding a New Environment
+
+Every environment at `envs/<name>/` needs the following files and changes to make the full CI/CD chain work:
+
+### Checklist
+
+| # | File / Change | Purpose | Template Source |
+|---|---------------|---------|-----------------|
+| 1 | `envs/<name>/spack.yaml` | Spack environment with root specs and package policy | New |
+| 2 | `envs/<name>/release.sh` | Build, promote, modules, buildcache — versioned release workflow | Copy from `envs/vlad/release.sh`, search/replace `vlad` → `<name>` |
+| 3 | `envs/<name>/<name>-site.env.example` | Template for local site roots, buildcache, ccache, group policy | Copy from `envs/hpcsim/hpcsim-site.env.example` |
+| 4 | `.github/workflows/incus-spack-build-<name>.yml` | CI caller workflow — triggers on push touching `envs/<name>/**` | Copy from `incus-spack-build-vlad.yml`, search/replace `vlad` → `<name>` |
+| 5 | `etc/profile.d/zz-chapar-<name>.sh` | Profile.d script that `module use`s the current release | Copy from `etc/profile.d/zz-chapar-vlad.sh`, replace `/resources/chapar/vlad/` → `/resources/chapar/<name>/` |
+| 6 | `validation/tests/integrity-test.sbatch` | Add `<name>)` case with `check` calls for each root module | Model on `vlad)` or `hpcsim)` blocks already in the file |
+| 7 | `.github/workflows/incus-spack-build.yml` | If the new env needs special site-env creation in CI, add an `elif` in the "Verify environment resources mount" step | Follow the `hpcsim` / `vlad` patterns at lines ~127–153 |
+
+### Deployment path conventions
+
+- **NFS root**: `/resources/chapar/<name>/` — must reside on an NFS mount shared across cluster nodes (CI enforces this at build time).
+- **OS subdirectory**: `/resources/chapar/<name>/<os>/` (e.g. `rocky9`, `rocky10`).
+- **Release directory**: `<os>/releases/<release-id>/` — immutable after staging rename.
+- **`current` symlink**: `<os>/current → releases/<release-id>` — atomically swapped on promote.
+- **Module artifacts**: `<os>/releases/<release-id>/modulefiles/<arch>/` (release-local until promotion).
+- **Spack install store**: `<os>/store/` (shared across releases).
+- **Buildcache**: `<env_root>/../cache/buildcache/<name>/<os>/` or a shared cross-env cache root.
+- **Cc cache**: `<env_root>/../cache/ccache/<os>/`.
+
+### Release.sh auto-repair on promote
+
+Both `vlad/release.sh` and `hpcsim/release.sh` `cmd_promote()` handle a corner case where a stale directory (not a symlink) exists at the `current` path:
+
+```bash
+if [ -e "${CURRENT_LINK}" ] && [ ! -L "${CURRENT_LINK}" ]; then
+    echo "==> Removing stale 'current' directory: ${CURRENT_LINK}"
+    rm -rf "${CURRENT_LINK}"
+fi
+```
+
+A new environment's release.sh should include the same guard.
+
+### Auto-promote behavior difference
+
+The CI caller workflows and reusable workflow handle promote differently per env:
+
+| Env | Push auto-promote? | Why |
+|-----|-------------------|-----|
+| vlad | **Yes** — always promoted on any successful build | Hardcoded in reusable workflow: `env_name == 'vlad' && 'true'` |
+| hpcsim | **No** — build only, no `current` symlink update | Only promotes via `workflow_dispatch` with explicit `publish_current=true` |
+| new env | **Depends** — the `incus-spack-build.yml` reusable workflow does not have a hardcoded exception for arbitrary envs; set `publish_current=true` in the caller `with:` if auto-promote is desired | `PUBLISH_CURRENT` will fall through to the `workflow_dispatch`-only branch |
+
+### Release.sh differences from env to env
+
+When copying `release.sh` for a new environment, adjust:
+
+1. **Script header / UX constants**: Change `VLAD_ROOT`/`HPCSIM_ROOT` to `<NAME>_ROOT`, `vlad` → `<name>` in all echo messages, scope temp dir prefix.
+2. **`usage()` and help text**: Change env name references.
+3. **`resolve_<name>_root()` / `validate_<name>_root()`**: Rename the resolver function.
+4. **`set_paths()`**: `OS_ROOT="${<NAME>_ROOT}/${OS_NAME}"`, `CURRENT_LINK="${OS_ROOT}/current"`.
+5. **Scope temp dir**: `mktemp -d "${TMPDIR:-/tmp}/<name>-release-scope.XXXXXX"` and similar build_stage paths.
+6. **`prepare_release_roots()`**: Update echo labels.
+7. **`cmd_build()`**: Update the first echo line (`Building <name> release`). Keep GCC and LLVM preinstall if the env targets Rocky.
+8. **`cmd_promote()` / `cmd_publish_modules()` / `cmd_status()`**: Update echo labels. Keep the stale-directory guard.
+9. **`cleanup_build()`**: No env-specific changes needed.
+10. **Module policy**: Keep Open MPI / Intel MPI / CUDA stub policy if the env has those packages; remove or skip otherwise (the functions are idempotent — they check for matching module files).
+
+### Integrity test entry
+
+The integrity test dispatches on `ENV_NAME` in a `case` block. Add:
+
+```bash
+<name>)
+    check "gcc"       "gcc --version"            "compiler runs"
+    check "cmake"     "cmake --version"          "cmake runs"
+    # ... one check per root module ...
+    ;;
+```
+
+The CI pipeline runs integrity validation automatically after every successful build. Failure blocks the release from being considered production-ready.
+
+### Test the chain locally
+
+Before pushing, validate the release flow on a builder container:
+
+```bash
+# concretize only (no install)
+bash ci/incus-build.sh --os rocky10 --env-name <name> --build-action concretize
+
+# full build with promote
+bash ci/incus-build.sh --os rocky10 --env-name <name> --build-action build --publish-current
+```
