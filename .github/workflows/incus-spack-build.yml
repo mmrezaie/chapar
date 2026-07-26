@@ -120,7 +120,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           PUBLISH_CURRENT: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true') || 'false' }}
           PUBLISH_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
-          PUBLISH_BUILDCACHE: ${{ inputs.env_name == 'vlad' && 'true' || 'false' }}
+          PUBLISH_BUILDCACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
         run: |
           set -euo pipefail
 
@@ -131,7 +131,7 @@ jobs:
           CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
           CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
           CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
-          PUBLISH_BUILDCACHE=${PUBLISH_BUILDCACHE}
+          PUBLISH_BUILDCACHE=${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
           PUBLISH_CURRENT=${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
           PUBLISH_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
           EOF
@@ -213,7 +213,7 @@ jobs:
           CHAPAR_MODULE_ROOT: ${{ inputs.env_name == 'vlad' && '/resources/chapar/vlad/modulefiles' || '' }}
           PUBLISH_CURRENT: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true') || 'false' }}
           PUBLISH_MODULES: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false') }}
-          PUBLISH_BUILDCACHE: ${{ inputs.env_name == 'vlad' && 'true' || 'false' }}
+          PUBLISH_BUILDCACHE: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true') }}
           SPACK_INSTALL_ARGS: ${{ inputs.spack_install_args || '-j 8 -p 4' }}
           CHAPAR_CONCRETIZE_TIMEOUT: 3600
           RUN_ID: ${{ github.run_id }}
