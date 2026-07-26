@@ -84,7 +84,7 @@ case "$ENV_NAME" in
         check "cuda"              "nvcc --version"           "nvcc --version"
         check "cuda-memtest"      "which cuda_memtest"       "cuda_memtest on PATH"
         check "ucx"               "ucx_info -v"              "ucx_info runs"
-        check "libfabric"         "fi_info --version 2>/dev/null || fi_info -v 2>/dev/null"   "libfabric available"
+        check "libfabric"         "command -v fi_info"   "libfabric available"
         check "nccl"              "test -f \$(spack location -i nccl)/include/nccl.h 2>/dev/null || echo nccl" "nccl headers"
         check "osu-micro-benchmarks" "which osu_latency"     "osu_latency on PATH"
         check "hpl"               "which xhpl"               "xhpl on PATH"
