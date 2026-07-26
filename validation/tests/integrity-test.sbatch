@@ -84,13 +84,13 @@ case "$ENV_NAME" in
         check "cuda"              "nvcc --version"           "nvcc --version"
         check "cuda-memtest"      "which cuda_memtest"       "cuda_memtest on PATH"
         check "ucx"               "ucx_info -v"              "ucx_info runs"
-        check "libfabric"         "fi_info -v 2>/dev/null"   "libfabric available"
+        check "libfabric"         "fi_info --version 2>/dev/null || fi_info -v 2>/dev/null"   "libfabric available"
         check "nccl"              "test -f \$(spack location -i nccl)/include/nccl.h 2>/dev/null || echo nccl" "nccl headers"
         check "osu-micro-benchmarks" "which osu_latency"     "osu_latency on PATH"
         check "hpl"               "which xhpl"               "xhpl on PATH"
         check "hpcg"              "which hpcg 2>/dev/null || which xhpcg 2>/dev/null || which hpcgbench" "hpcg binary"
         check "stream"            "which stream_c.exe"       "stream on PATH"
-        check "babelstream"       "which babelStream 2>/dev/null || which babelstream 2>/dev/null" "babelstream on PATH"
+        check "babelstream"       "which babelStream 2>/dev/null || which babelstream 2>/dev/null || which BabelStream 2>/dev/null" "babelstream on PATH"
         check "ior"               "which ior"               "ior on PATH"
         check "mdtest"            "which mdtest"             "mdtest on PATH"
         check "fio"               "which fio"                "fio on PATH"
@@ -101,9 +101,10 @@ case "$ENV_NAME" in
         check "papi"              "which papi_command_line"  "papi on PATH"
         check "numactl"           "which numactl"            "numactl on PATH"
         check "likwid"            "which likwid-perfctr"     "likwid on PATH"
-        for prof in caliper hpctoolkit tau scalasca; do
-            check "$prof" "which $prof 2>/dev/null || command -v $prof" "$prof on PATH"
-        done
+        check "caliper"           "which cali-query 2>/dev/null" "caliper on PATH"
+        check "hpctoolkit"        "which hpcrun 2>/dev/null"     "hpctoolkit on PATH"
+        check "tau"               "which tau_exec 2>/dev/null"   "tau on PATH"
+        check "scalasca"          "which scalasca 2>/dev/null || which scout 2>/dev/null" "scalasca on PATH"
         ;;
     hpcsim)
         check "gcc"               "gcc --version"            "compiler runs"
@@ -111,21 +112,21 @@ case "$ENV_NAME" in
         check "openmpi"           "mpirun --version"         "mpirun --version"
         check "cuda"              "nvcc --version"           "nvcc --version"
         check "ucx"               "ucx_info -v"              "ucx_info runs"
-        check "libfabric"         "fi_info -v 2>/dev/null"   "libfabric available"
+        check "libfabric"         "fi_info --version 2>/dev/null || fi_info -v 2>/dev/null"   "libfabric available"
         check "osu-micro-benchmarks" "which osu_latency"     "osu_latency on PATH"
         check "hpl"               "which xhpl"               "xhpl on PATH"
         check "hpcg"              "which hpcg 2>/dev/null || which xhpcg" "hpcg binary"
         check "stream"            "which stream_c.exe"       "stream on PATH"
-        check "babelstream"       "which babelStream 2>/dev/null || which babelstream" "babelstream on PATH"
+        check "babelstream"       "which babelStream 2>/dev/null || which babelstream 2>/dev/null || which BabelStream 2>/dev/null" "babelstream on PATH"
         check "ior"               "which ior"                "ior on PATH"
         check "mdtest"            "which mdtest"             "mdtest on PATH"
         check "fio"               "which fio"                "fio on PATH"
         check "python"            "python3 --version"        "python3 --version"
         check "hwloc"             "lstopo --version 2>/dev/null || hwloc-info --version" "hwloc"
         check "numactl"           "which numactl"            "numactl on PATH"
-        for prof in caliper hpctoolkit tau; do
-            check "$prof" "which $prof 2>/dev/null || command -v $prof" "$prof on PATH"
-        done
+        check "caliper"           "which cali-query 2>/dev/null" "caliper on PATH"
+        check "hpctoolkit"        "which hpcrun 2>/dev/null"     "hpctoolkit on PATH"
+        check "tau"               "which tau_exec 2>/dev/null"   "tau on PATH"
         ;;
 esac
 
