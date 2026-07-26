@@ -80,16 +80,21 @@ on:
         required: true
         type: string
         default: chapar
+      install_tree_root:
+        description: Shared Spack install tree root (one tree per OS+arch across all envs)
+        required: true
+        type: string
+        default: /resources/chapar/install
       env_root:
         description: Shared environment output root inside containers; empty means /resources/chapar/<env_name>
         required: false
         type: string
         default: ""
       buildcache_root:
-        description: Chapar binary cache root inside containers
+        description: Chapar binary cache root inside containers (one per OS across all envs)
         required: true
         type: string
-        default: /resources/chapar/cache/buildcache
+        default: /resources/chapar/buildcache
       ccache_root:
         description: Shared compiler ccache root inside containers
         required: true
@@ -121,6 +126,7 @@ jobs:
       publish_buildcache: ${{ inputs.publish_buildcache == true }}
       spack_install_args: ${{ inputs.spack_install_args || '-j 8 -p 4' }}
       runner_label: ${{ inputs.runner_label || 'chapar' }}
+      install_tree_root: ${{ inputs.install_tree_root || '/resources/chapar/install' }}
       env_root: ${{ inputs.env_root || '' }}
-      buildcache_root: ${{ inputs.buildcache_root || '/resources/chapar/cache/buildcache' }}
+      buildcache_root: ${{ inputs.buildcache_root || '/resources/chapar/buildcache' }}
       ccache_root: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
