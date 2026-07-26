@@ -94,7 +94,7 @@ on:
         description: Chapar binary cache root inside containers
         required: true
         type: string
-        default: /resources/chapar/cache/buildcache/hpcsim
+        default: /resources/chapar/cache/buildcache
       ccache_root:
         description: Shared compiler ccache root inside containers
         required: true
