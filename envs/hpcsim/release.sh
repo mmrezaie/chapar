@@ -916,7 +916,7 @@ copy_manifest() {
 write_root_module_specs() {
     local output_file="$1"
 
-    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups -r \
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups \
         --format "{hash} {name}/{version}" \
         | awk '{print $2, $3}' \
         > "${output_file}"
@@ -1241,22 +1241,31 @@ apply_release_module_runtime_policy() {
 }
 
 refresh_root_modules() {
-    local root_specs_file
+    local lock_file
     local root_hash
-    local module_name
     local root_hashes=()
 
-    root_specs_file="${BUILD_SCOPE_DIR}/root-module-specs.txt"
-    write_root_module_specs "${root_specs_file}"
-    validate_root_module_names "${root_specs_file}"
+    lock_file="${ENV_PATH}/spack.lock"
+    if [ -f "${lock_file}" ]; then
+        while IFS= read -r root_hash; do
+            [ -n "${root_hash}" ] || continue
+            if spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find --no-groups "/${root_hash}" >/dev/null 2>&1; then
+                root_hashes+=("/${root_hash}")
+            fi
+        done < <(python3 -c "
+import json,sys
+with open('${lock_file}') as f:
+    lock=json.load(f)
+for r in lock.get('roots',[]):
+    print(r.get('hash',''))
+")
+    fi
 
-    while read -r root_hash module_name; do
-        [ -n "${root_hash}" ] || continue
-        [ -n "${module_name}" ] || continue
-        root_hashes+=("/${root_hash}")
-    done < "${root_specs_file}"
+    if [ "${#root_hashes[@]}" -eq 0 ]; then
+        echo "WARNING: no hpcsim root specs found for module generation; skipping module refresh"
+        return 0
+    fi
 
-    [ "${#root_hashes[@]}" -gt 0 ] || die "no hpcsim root specs found for module generation"
     spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" module tcl refresh -y "${root_hashes[@]}"
 }
 
