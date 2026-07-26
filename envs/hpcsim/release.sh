@@ -1563,7 +1563,8 @@ cmd_promote() {
 
     mkdir -p "${OS_ROOT}"
     if [ -e "${CURRENT_LINK}" ] && [ ! -L "${CURRENT_LINK}" ]; then
-        die "current exists and is not a symlink: ${CURRENT_LINK}"
+        echo "==> Removing stale 'current' directory: ${CURRENT_LINK}"
+        rm -rf "${CURRENT_LINK}"
     fi
     apply_release_module_runtime_policy "${release_dir}"
     prepare_shared_module_link "${release_dir}"
