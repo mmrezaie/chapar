@@ -916,7 +916,7 @@ copy_manifest() {
 write_root_module_specs() {
     local output_file="$1"
 
-    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups \
+    spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups -r \
         --format "{hash} {name}/{version}" \
         | awk '{print $2, $3}' \
         > "${output_file}"
