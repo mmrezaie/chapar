@@ -23,6 +23,7 @@ as_root() {
     fi
 }
 
+as_root dnf clean all
 as_root dnf -y makecache
 
 as_root dnf -y install \
