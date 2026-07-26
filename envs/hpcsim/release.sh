@@ -916,8 +916,10 @@ copy_manifest() {
 write_root_module_specs() {
     local output_file="$1"
 
+    # {hash} is the full-length concrete hash in Spack's current format
+    # API. Older Spack used {dag_hash} which was removed in favor of {hash}.
     spack -e "${ENV_PATH}" -C "${BUILD_SCOPE_DIR}" find -c --no-groups \
-        --format "{dag_hash} {name}/{version}" \
+        --format "{hash} {name}/{version}" \
         > "${output_file}"
 }
 
