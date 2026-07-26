@@ -14,6 +14,7 @@
 - **Rocky builders:** Do not install or rely on OS CUDA Toolkit, OS Intel oneAPI compiler/MPI, or GitHub CLI RPMs for hpcsim builds. CUDA, Intel MPI, and any future Intel compiler dependency must come from Spack unless the user explicitly changes this policy.
 - **LLVM:** Always use the latest available major version. For LLVM 15+, do not add `+cuda`; Spack marks that variant obsolete. Use NVPTX targets/offload variants as needed, and prefer latest LLVM over downgrading only to satisfy LLVM `+cuda`.
 - **Build cache:** Prefer binary caching (`spack mirror`) over building from source.
+- **Shared install tree:** The cross-environment package store lives at `/resources/chapar/install/linux-<os>-<arch>/`. It uses a flat `{name}-{version}-{hash}` projection with padded install paths. When `CHAPAR_INSTALL_TREE_ROOT` points there, `release.sh` auto-detects the padded_length from the placeholder depth. Do not hardcode `padded_length` — use `detect_padded_length()`.
 - **Versioned releases only — NEVER run `spack install` directly.** Every environment build must go through `envs/<name>/release.sh build <id> [--promote]`. Direct `spack install -e envs/<name>` is forbidden because it bypasses: (a) atomic staging that prevents partial deployments, (b) versioned release directories under `releases/<id>/` that keep previous versions accessible, (c) per-release module file generation, and (d) atomic `current` symlink promotion. A release build stages in `releases/.<id>.staging.<pid>`, then atomically moves to `releases/<id>` on success. Promotion symlink-swaps `releases/<id>` to `current`. Previous releases remain under `releases/` for rollback. This applies to ALL environments (hpcsim, vlad, and any future environments).
 - **PUBLISH_BUILDCACHE defaults to true.** Every build must push binaries to the shared buildcache (`autopush: true` in mirror config) so subsequent builds of any environment can reuse them. Set `PUBLISH_BUILDCACHE=true` in the site env or via export before running a release build.
 - **Commits:** Before pushing commits, split changes by purpose and future review context. Do not mix documentation/comment-only changes with behavior, config, or CI changes unless they are inseparable; if inseparable, explain why in the commit body.
@@ -37,6 +38,9 @@
 | `envs/hpcsim/hpcsim-site.env.example` | Template for local site roots, shared buildcache, shared ccache, and group policy |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
+| `/resources/chapar/install/linux-<os>-<arch>/` | Shared install tree (cross-environment package store) |
+| `/resources/chapar/vlad/` | vlad release root (releases, modulefiles, current symlink) |
+| `/resources/chapar/hpcsim/` | hpcsim release root (releases, modulefiles, current symlink) |
 
 ## Workflows
 

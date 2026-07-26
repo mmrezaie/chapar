@@ -68,6 +68,11 @@ on:
         required: true
         type: string
         default: chapar
+      install_tree_root:
+        description: Shared Spack install tree root (one tree per OS+arch across all envs)
+        required: true
+        type: string
+        default: /resources/chapar/install
       env_root:
         description: Shared environment output root inside containers; empty means /resources/chapar/<env_name>
         required: false
@@ -129,18 +134,20 @@ jobs:
           CHAPAR_INSTALL_MODE=public
           HPCSIM_PUBLIC_ROOT=${CHAPAR_ENV_ROOT}
           CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
+          CHAPAR_INSTALL_TREE_ROOT=${{ inputs.install_tree_root || '/resources/chapar/install' }}
           CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
           CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
           PUBLISH_BUILDCACHE=${{ github.event_name == 'workflow_dispatch' && inputs.publish_buildcache == false && 'false' || 'true' }}
           PUBLISH_CURRENT=${{ github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true' || 'false' }}
           PUBLISH_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.publish_modules == true && 'true' || 'false' }}
           EOF
-            CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT}" bash ci/prepare-hpcsim-root.sh
+            CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT}" CHAPAR_INSTALL_TREE_ROOT="${{ inputs.install_tree_root || '/resources/chapar/install' }}" bash ci/prepare-hpcsim-root.sh
           elif [ "${ENV_NAME}" = "vlad" ]; then
             cat > envs/vlad/vlad-site.env <<EOF
           CHAPAR_INSTALL_MODE=public
           VLAD_PUBLIC_ROOT=${CHAPAR_ENV_ROOT}
           CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT}
+          CHAPAR_INSTALL_TREE_ROOT=${{ inputs.install_tree_root || '/resources/chapar/install' }}
           CHAPAR_BUILDCACHE_ROOT=${CHAPAR_BUILDCACHE_ROOT}
           CHAPAR_CCACHE_ROOT=${CHAPAR_CCACHE_ROOT}
           CHAPAR_MODULE_ROOT=/resources/chapar/vlad/modulefiles
@@ -208,6 +215,7 @@ jobs:
           CHAPAR_ENV_ACTION: ${{ inputs.build_action || 'build' }}
           CHAPAR_ENV_BUILD_MODE: ${{ inputs.build_mode || 'auto' }}
           HPCSIM_ROOT: ${{ (inputs.env_name == 'hpcsim' && (inputs.env_root || inputs.hpcsim_root)) || '' }}
+          CHAPAR_INSTALL_TREE_ROOT: ${{ inputs.install_tree_root || '/resources/chapar/install' }}
           CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || format('/resources/chapar/cache/buildcache/{0}', inputs.env_name) }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           CHAPAR_MODULE_ROOT: ${{ inputs.env_name == 'vlad' && '/resources/chapar/vlad/modulefiles' || '' }}

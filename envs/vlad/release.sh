@@ -51,6 +51,22 @@ CCACHE_ROOT=""
 # bake in a minor/patch CUDA toolkit version.
 CUDA_MAJOR_VERSION="13"
 INSTALL_TREE_PADDED_LENGTH="256"
+detect_padded_length() {
+    local store_root="$1"
+    if [ -d "${store_root}/__spack_path_placeholder__" ]; then
+        local prefix_dir="${store_root}"
+        local count=0
+        while [ -d "${prefix_dir}/__spack_path_placeholder__" ]; do
+            prefix_dir="${prefix_dir}/__spack_path_placeholder__"
+            count=$((count + 1))
+        done
+        # prefix = store_root + / + count * (__spack_path_placeholder__ + /) + __s
+        # len(prefix) = len(store_root) + 1 + count * 27 + 3
+        echo "${count}"
+    else
+        echo "0"
+    fi
+}
 BUILDCACHE_LAYOUT_VERSION="install-tree-padded-${INSTALL_TREE_PADDED_LENGTH}"
 BUILDCACHE_LAYOUT_MARKER=".chapar-buildcache-layout"
 
@@ -397,13 +413,22 @@ prepare_release_roots() {
 make_scope() {
     local module_root="$1"
     local scope_dir
+    local ph_count
+    local effective_padded_length
     scope_dir="$(mktemp -d "${TMPDIR:-/tmp}/vlad-release-scope.XXXXXX")"
+
+    ph_count="$(detect_padded_length "${STORE_ROOT}")"
+    if [ "${ph_count}" -gt 0 ]; then
+        effective_padded_length="$(( ${#STORE_ROOT} + 1 + ph_count * 27 + 3 ))"
+    else
+        effective_padded_length="${INSTALL_TREE_PADDED_LENGTH}"
+    fi
 
     cat > "${scope_dir}/config.yaml" <<EOF
 config:
   install_tree:
     root: ${STORE_ROOT}
-    padded_length: ${INSTALL_TREE_PADDED_LENGTH}
+    padded_length: ${effective_padded_length}
     projections:
       all: "${CHAPAR_INSTALL_TREE_PROJECTION}"
   template_dirs:
