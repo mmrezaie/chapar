@@ -27,7 +27,7 @@ Artifacts are written under:
 
 ```text
 /resources/chapar/hpcsim/rocky9/runs/smoke-local-rocky9
-/resources/chapar/cache/buildcache/rocky9
+/resources/chapar/buildcache/rocky9
 /resources/chapar/cache/ccache/rocky9
 ```
 

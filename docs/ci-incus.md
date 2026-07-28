@@ -122,7 +122,10 @@ Inputs:
 - `runner_label`: common custom runner label, default `chapar`.
 - `env_root`: shared output root. Empty means `/resources/chapar/<env_name>`.
 - `hpcsim_root`: legacy hpcsim output-root alias used only when `env_root` is empty.
-- `buildcache_root`: shared binary cache root, default `/resources/chapar/cache/buildcache`.
+- `install_tree_root`: shared cross-environment install tree root, default
+  `/resources/chapar/install` (one tree per OS+arch across all environments).
+- `buildcache_root`: shared binary cache root, default `/resources/chapar/buildcache`
+  (one cache per OS across all environments).
 - `ccache_root`: shared compiler ccache root, default `/resources/chapar/cache/ccache`.
 
 `buildcache_root` and `ccache_root` should stay outside environment output roots
@@ -164,8 +167,9 @@ Default hpcsim CI output:
 - `/resources/chapar/hpcsim/rocky10/store`
 - `/resources/chapar/hpcsim/rocky10/releases/<release-id>`
 - `/resources/chapar/hpcsim/rocky10/current`
-- `/resources/chapar/cache/buildcache/rocky9`
-- `/resources/chapar/cache/buildcache/rocky10`
+- `/resources/chapar/install/linux-<os>-<arch>` (shared install tree, when configured)
+- `/resources/chapar/buildcache/rocky9`
+- `/resources/chapar/buildcache/rocky10`
 - `/resources/chapar/cache/ccache/rocky9`
 - `/resources/chapar/cache/ccache/rocky10`
 
