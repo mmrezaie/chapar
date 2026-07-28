@@ -164,10 +164,12 @@ Every environment at `envs/<name>/` needs the following files and changes to mak
 
 - **NFS root**: `/resources/chapar/<name>/` — must reside on an NFS mount shared across cluster nodes (CI enforces this at build time).
 - **OS subdirectory**: `/resources/chapar/<name>/<os>/` (e.g. `rocky9`, `rocky10`).
-- **Release directory**: `<os>/releases/<release-id>/` — immutable after staging rename.
-- **`current` symlink**: `<os>/current → releases/<release-id>` — atomically swapped on promote.
-- **Module artifacts**: `<os>/releases/<release-id>/modulefiles/<arch>/` (release-local until promotion).
-- **Spack install store**: `<os>/store/` (shared across releases).
+- **Architecture subdirectory**: `<os>/<arch>/` (e.g. `linux-rocky10-x86_64_v3`), derived from the generated release content, not `spack arch`.
+- **Release directory**: `<os>/<arch>/releases/<release-id>/` — immutable after staging rename (staging happens at `<os>/.<id>.staging.<pid>` because the arch is only known after module generation). Legacy releases at `<os>/releases/<id>` remain promotable.
+- **`current` symlink**: `<os>/<arch>/current → releases/<release-id>` — atomically swapped on promote. Promote also removes any legacy `<os>/current` symlink.
+- **Stable module path**: `<os>/<arch>/modulefiles → current/modulefiles/<arch>` — the user-facing `module use` target, updated on promote.
+- **Module artifacts**: `<os>/<arch>/releases/<release-id>/modulefiles/<arch>/` (release-local until promotion).
+- **Spack install store**: `<os>/store/` (shared across releases; kept at OS level because the store path must exist before the arch is known), or the shared cross-environment install tree when `CHAPAR_INSTALL_TREE_ROOT` is set.
 - **Buildcache**: `<env_root>/../cache/buildcache/<name>/<os>/` or a shared cross-env cache root.
 - **Cc cache**: `<env_root>/../cache/ccache/<os>/`.
 

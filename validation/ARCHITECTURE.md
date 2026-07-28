@@ -282,13 +282,18 @@ the site config and export them to `container-build.sh` → `release.sh`.
   across cluster nodes.
 - **OS subdirectory**: `/resources/chapar/<name>/<os>/` (e.g. `rocky9`,
   `rocky10`).
-- **Release directory**: `<os>/releases/<release-id>/` — immutable after staging
-  rename.
-- **`current` symlink**: `<os>/current → releases/<release-id>` — atomically
-  swapped on promote.
-- **Module artifacts**: `<os>/releases/<release-id>/modulefiles/<arch>/`
+- **Architecture subdirectory**: `<os>/<arch>/` (e.g.
+  `linux-rocky10-x86_64_v3`), derived from the generated release content.
+- **Release directory**: `<os>/<arch>/releases/<release-id>/` — immutable after
+  staging rename. Legacy releases at `<os>/releases/<id>` remain promotable.
+- **`current` symlink**: `<os>/<arch>/current → releases/<release-id>` —
+  atomically swapped on promote.
+- **Stable module path**: `<os>/<arch>/modulefiles →
+  current/modulefiles/<arch>` — the user-facing `module use` target.
+- **Module artifacts**: `<os>/<arch>/releases/<release-id>/modulefiles/<arch>/`
   (release-local until promotion).
-- **Spack install store**: `<os>/store/` (shared across releases) or the
+- **Spack install store**: `<os>/store/` (shared across releases; kept at OS
+  level because the store path must exist before the arch is known) or the
   cross-environment shared install tree.
 
 ## 6. Module File Access
@@ -300,13 +305,13 @@ the site config and export them to `container-build.sh` → `release.sh`.
 
 - **In CI**: The integrity test helper
   (`validation/tests/integrity-test.sbatch`) resolves the module path from the
-  `current` symlink at `/resources/chapar/<env>/<os>/current`, then picks the
-  highest-architecture module directory (e.g., `linux-rocky10-x86_64_v3`) via
-  `ls | grep x86_64_v3 | head -1`.
+  per-arch `current` symlinks at `/resources/chapar/<env>/<os>/<arch>/current`
+  (highest promoted arch wins), falling back to the legacy `<os>/current`
+  pointer and then to the newest unpromoted release.
 
-- **Manual**: To inspect or temporarily use a specific release:
+- **Manual**: The stable path for the promoted release:
   ```bash
-  module use /resources/chapar/<env>/<os>/current/modulefiles/linux-<os>-<arch>
+  module use /resources/chapar/<env>/<os>/linux-<os>-<arch>/modulefiles
   module avail
   ```
 
@@ -327,11 +332,12 @@ the site config and export them to `container-build.sh` → `release.sh`.
 ### Module not found
 
 - **Check the `current` symlink**: Verify
-  `/resources/chapar/<env>/<os>/current` exists and points to a valid release.
-  If it is a regular directory, `release.sh promote` should auto-repair it.
+  `/resources/chapar/<env>/<os>/<arch>/current` exists and points to a valid
+  release. If it is a regular directory, `release.sh promote` should
+  auto-repair it.
 - **Check the modulefiles directory**: The release directory should contain
   `modulefiles/<arch>/<name>/<version>`. Run
-  `ls /resources/chapar/<env>/<os>/current/modulefiles/` to verify.
+  `ls /resources/chapar/<env>/<os>/<arch>/modulefiles/` to verify.
 - **Source profile**: If modules are not appearing after login, run
   `source /etc/profile.d/zz-chapar-<name>.sh` manually or re-login.
 
@@ -388,7 +394,7 @@ A long-running daemon on compute nodes would collect and export:
 | **Deep validation** | Hardware-dependent testing tiers (GPU kernels, fabric RDMA, multi-node MPI, I/O throughput) that run on dedicated test nodes, not in CI. |
 | **Buildcache** | Spack binary cache — a directory tree of prebuilt `.spack` packages addressed by DAG content hash, enabling reuse across builds and environments. |
 | **Install tree** | The Spack package store — a flat directory of installed packages at `/resources/chapar/install/linux-<os>-<arch>/` using `{name}-{version}-{hash}` projection with padded paths for patchelf compatibility. |
-| **`current` symlink** | A symlink at `<os>/current → releases/<release-id>/` that defines the active production release. Atomically swapped on promote. |
+| **`current` symlink** | A symlink at `<os>/<arch>/current → releases/<release-id>/` that defines the active production release for an architecture. Atomically swapped on promote. |
 | **Padded install tree** | An install tree with `__spack_path_placeholder__` directories to ensure a minimum path length, required for patchelf to relocate RPATHs without `CannotGrowString` errors. |
 | **`release.sh`** | Bash helper in each `envs/<name>/` directory that implements the atomic versioned release workflow: `build`, `promote`, `publish-modules`, `module-use`, `status`. |
 | **Integrity check** | A single module-level assertion within the integrity test: load module, run command, pass/fail. |

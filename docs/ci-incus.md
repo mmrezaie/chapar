@@ -162,11 +162,13 @@ CHAPAR_ENV_ROOT=/resources/chapar/myenv ci/incus-build.sh --env-name myenv --env
 Default hpcsim CI output:
 
 - `/resources/chapar/hpcsim/rocky9/store`
-- `/resources/chapar/hpcsim/rocky9/releases/<release-id>`
-- `/resources/chapar/hpcsim/rocky9/current`
+- `/resources/chapar/hpcsim/rocky9/<arch>/releases/<release-id>`
+- `/resources/chapar/hpcsim/rocky9/<arch>/current`
+- `/resources/chapar/hpcsim/rocky9/<arch>/modulefiles`
 - `/resources/chapar/hpcsim/rocky10/store`
-- `/resources/chapar/hpcsim/rocky10/releases/<release-id>`
-- `/resources/chapar/hpcsim/rocky10/current`
+- `/resources/chapar/hpcsim/rocky10/<arch>/releases/<release-id>`
+- `/resources/chapar/hpcsim/rocky10/<arch>/current`
+- `/resources/chapar/hpcsim/rocky10/<arch>/modulefiles`
 - `/resources/chapar/install/linux-<os>-<arch>` (shared install tree, when configured)
 - `/resources/chapar/buildcache/rocky9`
 - `/resources/chapar/buildcache/rocky10`

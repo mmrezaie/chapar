@@ -119,7 +119,7 @@ sbatch ci/sbatch-hpcsim-release-rocky9.sh
 
 The wrapper defaults to `PUBLISH_CURRENT=false` and `PUBLISH_MODULES=true`, so a
 successful build updates `${CHAPAR_MODULE_ROOT}/<arch>` without changing
-`${HPCSIM_ROOT}/<os>/current`. Command-line `sbatch` options can still override
+`${HPCSIM_ROOT}/<os>/<arch>/current`. Command-line `sbatch` options can still override
 the wrapper's `#SBATCH` defaults when a site needs a different partition or core
 count. The submit helper remains available when you want to choose values on the
 command line:
@@ -136,8 +136,9 @@ Default home release layout:
 
 ```text
 ~/.spack/chapar/envs/hpcsim/<os>/store
-~/.spack/chapar/envs/hpcsim/<os>/releases/<release-id>
-~/.spack/chapar/envs/hpcsim/<os>/current -> releases/<release-id>
+~/.spack/chapar/envs/hpcsim/<os>/<arch>/releases/<release-id>
+~/.spack/chapar/envs/hpcsim/<os>/<arch>/current -> releases/<release-id>
+~/.spack/chapar/envs/hpcsim/<os>/<arch>/modulefiles -> current/modulefiles/<arch>
 $CHAPAR_BUILDCACHE_ROOT/<os>
 $CHAPAR_CCACHE_ROOT/<os>
 ```
@@ -156,7 +157,7 @@ CHAPAR_MODULE_ROOT=/share/base/modulefiles
 With an empty `CHAPAR_INSTALL_TREE_ROOT`, package prefixes stay under the padded
 per-OS store such as `/share/base/rocky9/store`. Run `publish-modules` to update
 `/share/base/modulefiles/linux-rocky9-x86_64_v4` as a symlink to the selected
-release's module tree without changing `${HPCSIM_ROOT}/<os>/current`.
+release's module tree without changing `${HPCSIM_ROOT}/<os>/<arch>/current`.
 The published architecture name comes from the generated release module
 directory. A generic Rocky 9 build publishes `linux-rocky9-x86_64_v4`; a
 CPU-specific build publishes its concrete target such as `linux-rocky9-zen5`.
@@ -176,7 +177,7 @@ environment sbatch wrapper defaults to `<env>-<os>-YYYYMMDD`.
 
 After `etc/init.sh`, the promoted shared module path is added automatically when
 `CHAPAR_MODULE_ROOT` points at a matching `linux-<os>-*` symlink. Otherwise, the
-current hpcsim module tree is added when `${HPCSIM_ROOT}/<os>/current` exists. To
+current hpcsim module tree is added when a promoted `${HPCSIM_ROOT}/<os>/<arch>/current` exists. To
 print the exact command for a specific release:
 
 ```bash
@@ -211,12 +212,13 @@ the module is loaded.
 ## Safe Deployment Model
 
 New builds must not overwrite active module trees. The release helper builds in
-`releases/.<release-id>.staging.<pid>`, then renames that staging tree to
-`releases/<release-id>` only after install and module generation succeed.
+`<os>/.<release-id>.staging.<pid>`, then renames that staging tree to
+`<os>/<arch>/releases/<release-id>` only after install and module generation
+succeed.
 
 `publish-modules` updates only the matching architecture symlink below
 `CHAPAR_MODULE_ROOT`; use it when users should load modules from a stable shared
-module root instead of `${HPCSIM_ROOT}/<os>/current`. `promote` updates the
+module root instead of `${HPCSIM_ROOT}/<os>/<arch>/current`. `promote` updates the
 per-OS `current` symlink and, when `CHAPAR_MODULE_ROOT` is set, the shared module
 symlink too. Both commands idempotently ensure generated modulefiles carry the
 current MPI runtime policy before updating public pointers. Do not run `spack uninstall`, `spack gc`, or manual cleanup against
