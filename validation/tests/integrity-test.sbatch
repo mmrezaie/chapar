@@ -35,7 +35,12 @@ if [ -z "$MODULE_PATH" ]; then
             if [ -n "$MODULE_PATH" ] && [ -d "$MODULE_PATH" ]; then
                 # Pick the highest architecture module dir (matches release.sh
                 # multi-arch promotion behavior); do not assume a fixed target.
-                arch_dir=$(ls -1 "$MODULE_PATH" 2>/dev/null | sort | tail -1)
+                # Directories only: modulefiles/ also holds files such as
+                # module-index.yaml.
+                arch_dir=$(find "$MODULE_PATH" -mindepth 1 -maxdepth 1 -type d -name 'linux-*' -printf '%f\n' 2>/dev/null | sort | tail -1)
+                if [ -z "$arch_dir" ]; then
+                    arch_dir=$(find "$MODULE_PATH" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | tail -1)
+                fi
                 [ -n "$arch_dir" ] && MODULE_PATH="$MODULE_PATH/$arch_dir"
             fi
             ;;
