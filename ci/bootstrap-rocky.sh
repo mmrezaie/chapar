@@ -96,6 +96,19 @@ dnf_with_retries install ccache
 as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh /etc/profile.d/zz-chapar-hpcsim.sh
 as_root install -m 0644 etc/profile.d/zz-chapar-vlad.sh /etc/profile.d/zz-chapar-vlad.sh
 
+# Publish the login scripts to the shared tree as well. Compute nodes (Kraken)
+# install a stub that sources /resources/chapar/etc/profile.d/*.sh, so they
+# pick up Chapar profile changes on the next login without re-provisioning.
+if [ -d /resources/chapar ]; then
+    as_root install -d -m 2775 /resources/chapar/etc/profile.d 2>/dev/null \
+        || install -d /resources/chapar/etc/profile.d 2>/dev/null || true
+    as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh etc/profile.d/zz-chapar-vlad.sh \
+        /resources/chapar/etc/profile.d/ 2>/dev/null \
+        || install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh etc/profile.d/zz-chapar-vlad.sh \
+            /resources/chapar/etc/profile.d/ \
+        || echo "WARNING: could not publish profile.d scripts to /resources/chapar/etc/profile.d" >&2
+fi
+
 for safe_dir in \
     "${GITHUB_WORKSPACE:-}" \
     /opt/actions-runner/_work/chapar/chapar \
