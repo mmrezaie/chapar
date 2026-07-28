@@ -788,7 +788,49 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Path to per-suite results directory",
     )
+    p.add_argument(
+        "--prometheus",
+        action="store_true",
+        help="Output metrics in Prometheus exposition format",
+    )
     return p
+
+
+def output_prometheus(
+    flags: List[Flag],
+    args: argparse.Namespace,
+    nodes_total: int = 0,
+    groups_analyzed: int = 0,
+) -> None:
+    lines: List[str] = []
+
+    lines.append("# HELP chapar_outlier_zscore Robust z-score of flagged metric (|z| > threshold = outlier)")
+    lines.append("# TYPE chapar_outlier_zscore gauge")
+    for f in flags:
+        labels = f'node="{f.node}",metric="{f.metric_name}",unit="{f.unit}"'
+        if f.gpu_index is not None:
+            labels += f',gpu="{f.gpu_index}"'
+        if f.peer_node is not None:
+            labels += f',peer_node="{f.peer_node}"'
+        if f.peer_gpu_index is not None:
+            labels += f',peer_gpu="{f.peer_gpu_index}"'
+        lines.append(f'chapar_outlier_zscore{{{labels}}} {f.zscore}')
+
+    lines.append("")
+    lines.append("# HELP chapar_outlier_count Total number of flagged outliers")
+    lines.append("# TYPE chapar_outlier_count gauge")
+    lines.append(f'chapar_outlier_count{{suite="{args.suite}",threshold="{args.threshold}"}} {len(flags)}')
+
+    lines.append("# HELP chapar_outlier_nodes_total Number of nodes analyzed")
+    lines.append("# TYPE chapar_outlier_nodes_total gauge")
+    lines.append(f'chapar_outlier_nodes_total{{suite="{args.suite}"}} {nodes_total}')
+
+    lines.append("# HELP chapar_outlier_groups_analyzed Number of metric groups analyzed")
+    lines.append("# TYPE chapar_outlier_groups_analyzed gauge")
+    lines.append(f'chapar_outlier_groups_analyzed{{suite="{args.suite}"}} {groups_analyzed}')
+
+    sys.stdout.write("\n".join(lines))
+    sys.stdout.write("\n")
 
 
 def main(argv: Optional[List[str]] = None) -> None:
@@ -804,25 +846,37 @@ def main(argv: Optional[List[str]] = None) -> None:
     metrics = parser_fn(results_dir)
 
     if not metrics:
-        output = {
-            "flags": [],
-            "summary": {
-                "nodes_total": 0,
-                "flags_total": 0,
-                "threshold": args.threshold,
-                "groups_analyzed": 0,
-                "warning": "no metrics extracted from results directory",
-            },
-        }
+        if args.prometheus:
+            output_prometheus([], args)
+        else:
+            output = {
+                "flags": [],
+                "summary": {
+                    "nodes_total": 0,
+                    "flags_total": 0,
+                    "threshold": args.threshold,
+                    "groups_analyzed": 0,
+                    "warning": "no metrics extracted from results directory",
+                },
+            }
+            json.dump(output, sys.stdout, indent=2)
+            sys.stdout.write("\n")
     else:
         flags, summary = compute_flags(metrics, threshold=args.threshold)
-        output = {
-            "flags": flags_to_dicts(flags),
-            "summary": summary,
-        }
-
-    json.dump(output, sys.stdout, indent=2)
-    sys.stdout.write("\n")
+        if args.prometheus:
+            output_prometheus(
+                flags,
+                args,
+                nodes_total=summary.get("nodes_total", 0),
+                groups_analyzed=summary.get("groups_analyzed", 0),
+            )
+        else:
+            output = {
+                "flags": flags_to_dicts(flags),
+                "summary": summary,
+            }
+            json.dump(output, sys.stdout, indent=2)
+            sys.stdout.write("\n")
 
 
 if __name__ == "__main__":

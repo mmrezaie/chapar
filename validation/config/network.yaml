@@ -1,0 +1,10 @@
+# Expected network configuration for this cluster
+# Update these values to match your cluster's hardware
+infiniband:
+  expected_hcas: 1
+  expected_state: "ACTIVE"
+  expected_phys_state: "LinkUp"
+  expected_width: "4X"
+  expected_speed: "56 Gbps"
+nccl:
+  expected_transport: "IB"  # IB, Socket, NVLink, or "" for auto-detect

@@ -15,16 +15,27 @@ case "$cmd" in
     done
     ;;
   all)
+    # Exit code 77 means SKIP (test requirements not met on this node);
+    # it is reported but does not fail the run.
     failed=0
     for f in "$VALIDATION_DIR/tests/"*.sbatch; do
       name=$(basename "$f" .sbatch)
       printf "\n=== %s ===\n" "$name"
       if [ "${CHAPAR_DRY_RUN:-0}" = "1" ]; then
         echo "[dry-run] Would submit: $f"
-      elif [ -n "${SLURM_JOB_ID:-}" ]; then
-        bash "$f" || { echo "FAIL: $name" >&2; failed=1; }
+        continue
+      fi
+      rc=0
+      if [ -n "${SLURM_JOB_ID:-}" ]; then
+        bash "$f" || rc=$?
       else
-        sbatch --wait "$f" || { echo "FAIL: $name" >&2; failed=1; }
+        sbatch --wait "$f" || rc=$?
+      fi
+      if [ "$rc" = "77" ]; then
+        echo "SKIP: $name (requirements not met on this node)" >&2
+      elif [ "$rc" != "0" ]; then
+        echo "FAIL: $name" >&2
+        failed=1
       fi
     done
     [ "$failed" = "0" ] || exit 1
@@ -42,6 +53,8 @@ case "$cmd" in
     echo "  CHAPAR_KEEP_MODULES=1  Skip module purge (use pre-loaded environment)"
     echo "  CHAPAR_DRY_RUN=1       Print what would run without executing"
     echo "  RESULTS_ROOT           Custom results directory (default: validation/results/)"
+    echo ""
+    echo "Exit codes: 0 = pass, 77 = skipped (requirements not met), other = fail"
     echo "  MPI_RDMA_BYTES         Message size for MPI RDMA tests (default: 8388608)"
     echo "  MPI_RDMA_ITERS         Iterations for MPI RDMA tests (default: 100)"
     ;;
