@@ -93,7 +93,7 @@ case "$ENV_NAME" in
         check "cuda-memtest"      "which cuda_memtest"       "cuda_memtest on PATH"
         check "ucx"               "ucx_info -v"              "ucx_info runs"
         check "libfabric"         "command -v fi_info"   "libfabric available"
-        check "nccl"              "bash -c 'IFS=:; for d in \${LD_LIBRARY_PATH:-}; do compgen -G \"\$d/libnccl.so*\" >/dev/null && exit 0; done; exit 1'" "libnccl on LD_LIBRARY_PATH"
+        check "nccl"              "bash -c 'IFS=:; for d in \${CMAKE_PREFIX_PATH:-}; do compgen -G \"\$d/lib*/libnccl.so*\" >/dev/null && exit 0; done; exit 1'" "libnccl under module prefix"
         check "osu-micro-benchmarks" "which osu_latency"     "osu_latency on PATH"
         check "hpl"               "which xhpl"               "xhpl on PATH"
         check "hpcg"              "which hpcg 2>/dev/null || which xhpcg 2>/dev/null || which hpcgbench" "hpcg binary"
