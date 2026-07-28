@@ -141,17 +141,38 @@ if type module >/dev/null 2>&1; then
         done
     fi
 
-    _chapar_hpcsim_current="${_chapar_hpcsim_root}/${_chapar_hpcsim_os}/current"
-    if [ "${_chapar_shared_module_added}" != "true" ] && [ -n "${_chapar_hpcsim_os}" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
-        _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
-        _chapar_hpcsim_module_root="${_chapar_hpcsim_release}/modulefiles"
-        if [ -n "${_chapar_hpcsim_release}" ] && [ -d "${_chapar_hpcsim_module_root}" ]; then
-            for _chapar_hpcsim_module_dir in "${_chapar_hpcsim_module_root}"/*; do
-                [ -d "${_chapar_hpcsim_module_dir}" ] || continue
-                case "$(basename "${_chapar_hpcsim_module_dir}")" in
-                    *-*-*) module use "${_chapar_hpcsim_module_dir}" >/dev/null 2>&1 || true ;;
-                esac
-            done
+    # Promoted release modules. New layout keeps `current` under per-arch
+    # roots (<os>/<arch>/current); fall back to the legacy <os>/current.
+    if [ "${_chapar_shared_module_added}" != "true" ] && [ -n "${_chapar_hpcsim_os}" ]; then
+        _chapar_hpcsim_current_added="false"
+        for _chapar_hpcsim_current in "${_chapar_hpcsim_root}/${_chapar_hpcsim_os}"/linux-*/current; do
+            [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ] || continue
+            _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
+            _chapar_hpcsim_module_root="${_chapar_hpcsim_release}/modulefiles"
+            if [ -n "${_chapar_hpcsim_release}" ] && [ -d "${_chapar_hpcsim_module_root}" ]; then
+                for _chapar_hpcsim_module_dir in "${_chapar_hpcsim_module_root}"/*; do
+                    [ -d "${_chapar_hpcsim_module_dir}" ] || continue
+                    case "$(basename "${_chapar_hpcsim_module_dir}")" in
+                        *-*-*)
+                            module use "${_chapar_hpcsim_module_dir}" >/dev/null 2>&1 || true
+                            _chapar_hpcsim_current_added="true"
+                            ;;
+                    esac
+                done
+            fi
+        done
+        _chapar_hpcsim_current="${_chapar_hpcsim_root}/${_chapar_hpcsim_os}/current"
+        if [ "${_chapar_hpcsim_current_added}" != "true" ] && { [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ]; }; then
+            _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
+            _chapar_hpcsim_module_root="${_chapar_hpcsim_release}/modulefiles"
+            if [ -n "${_chapar_hpcsim_release}" ] && [ -d "${_chapar_hpcsim_module_root}" ]; then
+                for _chapar_hpcsim_module_dir in "${_chapar_hpcsim_module_root}"/*; do
+                    [ -d "${_chapar_hpcsim_module_dir}" ] || continue
+                    case "$(basename "${_chapar_hpcsim_module_dir}")" in
+                        *-*-*) module use "${_chapar_hpcsim_module_dir}" >/dev/null 2>&1 || true ;;
+                    esac
+                done
+            fi
         fi
     fi
 fi
@@ -160,5 +181,5 @@ unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_root _chapa
 unset _chapar_module_root _chapar_module_archdir
 unset _chapar_hpcsim_os _chapar_hpcsim_root _chapar_hpcsim_current _chapar_hpcsim_release
 unset _chapar_hpcsim_module_root _chapar_hpcsim_module_dir
-unset _chapar_shared_module_added
+unset _chapar_shared_module_added _chapar_hpcsim_current_added
 unset -f _chapar_detect_hpcsim_os 2>/dev/null || true

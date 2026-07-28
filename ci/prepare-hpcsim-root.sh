@@ -136,7 +136,8 @@ ccache_dir="${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
 umask 0002
 ensure_dir "${HPCSIM_ROOT}" "hpcsim root"
 ensure_dir "${os_root}" "${OS_NAME} hpcsim root"
-ensure_dir "${os_root}/releases" "${OS_NAME} releases root"
+# Release directories live under <os>/<arch>/releases; release.sh creates them
+# once the architecture is known after module generation.
 ensure_dir "${os_root}/runs" "${OS_NAME} runs root"
 ensure_dir "${store_dir}" "Spack install tree"
 if [ -n "${CHAPAR_MODULE_ROOT}" ]; then

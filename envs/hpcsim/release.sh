@@ -10,10 +10,12 @@ set -euo pipefail
 # - The Spack install tree is shared, but module trees are release-local until
 #   promotion. A new build may add packages to the shared store, but it must not
 #   rewrite the module tree used by running jobs.
-# - A release is assembled in `releases/.<id>.staging.<pid>` and moved into place
-#   only after installation, module generation, and manifest writing succeed.
-#   Promotion is a separate atomic symlink swap of `<os>/current`; when configured,
-#   it also atomically updates shared module-root symlinks per architecture.
+# - A release is assembled in `<os>/.<id>.staging.<pid>` and moved into
+#   `<os>/<arch>/releases/<id>` only after installation, module generation, and
+#   manifest writing succeed. The architecture directory comes from the
+#   generated release content. Promotion is a separate atomic symlink swap of
+#   `<os>/<arch>/current` plus a stable `<os>/<arch>/modulefiles` symlink; when
+#   configured, it also atomically updates shared module-root symlinks.
 # - Release builds use a temporary command-line Spack scope. That scope points at
 #   the shared install tree, release module root, and per-OS binary buildcache
 #   without changing repository, system, or user Spack config.
@@ -159,8 +161,9 @@ Environment:
 
 Release layout:
   ${CHAPAR_INSTALL_TREE_ROOT:-${HPCSIM_ROOT}/<os>/store}
-  ${HPCSIM_ROOT}/<os>/releases/<release-id>
-  ${HPCSIM_ROOT}/<os>/current -> releases/<release-id>
+  ${HPCSIM_ROOT}/<os>/<arch>/releases/<release-id>
+  ${HPCSIM_ROOT}/<os>/<arch>/current -> releases/<release-id>
+  ${HPCSIM_ROOT}/<os>/<arch>/modulefiles -> current/modulefiles/<arch>
   ${CHAPAR_MODULE_ROOT}/<arch> -> release modulefiles, when publish-modules or
                                    promote is used with CHAPAR_MODULE_ROOT set
   ${CHAPAR_BUILDCACHE_ROOT}/<os>
@@ -338,10 +341,28 @@ set_paths() {
     else
         STORE_ROOT="${OS_ROOT}/store"
     fi
-    RELEASES_ROOT="${OS_ROOT}/releases"
-    CURRENT_LINK="${OS_ROOT}/current"
+    LEGACY_CURRENT_LINK="${OS_ROOT}/current"
     BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT}/${OS_NAME}"
     CCACHE_ROOT="${CHAPAR_CCACHE_ROOT}/${OS_NAME}"
+}
+
+# Releases live under <os>/<arch>/releases/<id>, where <arch> is the module
+# architecture derived from the generated release content (not `spack arch`,
+# which reports the host microarchitecture). Lookups glob the arch directories
+# and fall back to the legacy <os>/releases/<id> layout for older releases.
+find_release_dir() {
+    local release_id="$1"
+    local matches=()
+    local candidate
+
+    for candidate in "${OS_ROOT}"/linux-*/releases/"${release_id}" "${OS_ROOT}/releases/${release_id}"; do
+        [ -d "${candidate}" ] && matches+=("${candidate}")
+    done
+    case "${#matches[@]}" in
+        0) return 1 ;;
+        1) printf '%s\n' "${matches[0]}" ;;
+        *) die "release ${release_id} exists in multiple locations: ${matches[*]}" ;;
+    esac
 }
 
 prepare_shared_directory() {
@@ -390,7 +411,6 @@ prepare_release_roots() {
     prepare_shared_directory "${HPCSIM_ROOT}" "hpcsim release root"
     prepare_shared_directory "${OS_ROOT}" "${OS_NAME} hpcsim root"
     prepare_shared_directory "${STORE_ROOT}" "${OS_NAME} Spack install tree"
-    prepare_shared_directory "${RELEASES_ROOT}" "${OS_NAME} releases root"
     if [ -n "${CHAPAR_MODULE_ROOT}" ]; then
         prepare_shared_directory "${CHAPAR_MODULE_ROOT}" "shared module root"
     fi
@@ -1305,14 +1325,21 @@ for r in lock.get('roots',[]):
 # changes later.
 resolve_release_dir() {
     local release_id="${1:-}"
-    local release_dir
+    local release_dir=""
+    local candidate
 
     set_paths
     if [ -n "${release_id}" ]; then
         validate_release_id "${release_id}"
-        release_dir="${RELEASES_ROOT}/${release_id}"
+        release_dir="$(find_release_dir "${release_id}")" || die "missing release directory for ${release_id} under ${OS_ROOT}"
     else
-        release_dir="${CURRENT_LINK}"
+        # Highest arch root wins when several are promoted; fall back to the
+        # legacy <os>/current pointer for pre-restructure deployments.
+        for candidate in "${OS_ROOT}"/linux-*/current; do
+            [ -L "${candidate}" ] || [ -d "${candidate}" ] || continue
+            release_dir="${candidate}"
+        done
+        [ -n "${release_dir}" ] || release_dir="${LEGACY_CURRENT_LINK}"
     fi
 
     [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
@@ -1471,10 +1498,15 @@ cmd_build() {
             ;;
     esac
 
-    final_dir="${RELEASES_ROOT}/${RELEASE_ID}"
-    staging_dir="${RELEASES_ROOT}/.${RELEASE_ID}.staging.$$"
+    # The final release location depends on the module architecture, which is
+    # only known after concretization; stage at the OS root and place the
+    # release under <os>/<arch>/releases once modules are generated.
+    if final_dir="$(find_release_dir "${RELEASE_ID}" 2>/dev/null)"; then
+        die "release already exists: ${final_dir}"
+    fi
+    final_dir=""
+    staging_dir="${OS_ROOT}/.${RELEASE_ID}.staging.$$"
     BUILD_STAGING_DIR="${staging_dir}"
-    [ ! -e "${final_dir}" ] || die "release already exists: ${final_dir}"
     [ ! -e "${staging_dir}" ] || die "staging path already exists: ${staging_dir}"
 
     prepare_release_roots
@@ -1525,9 +1557,17 @@ cmd_build() {
     spack -e "${ENV_PATH}" -C "${scope_dir}" buildcache push --unsigned --update-index --allow-missing "file://${BUILDCACHE_ROOT}"
     echo "==> Refreshing hpcsim root modules"
     refresh_root_modules
-    apply_release_module_runtime_policy "${staging_dir}" "${final_dir}" || echo "WARNING: module runtime policy application had errors"
 
+    # The module architecture decides the release's final home; resolve it
+    # before applying the runtime policy, which records final paths.
     arch_triplet="$(release_arch_triplet "${staging_dir}")"
+    validate_arch_triplet "${arch_triplet}"
+    final_dir="${OS_ROOT}/${arch_triplet}/releases/${RELEASE_ID}"
+    [ ! -e "${final_dir}" ] || die "release already exists: ${final_dir}"
+    prepare_shared_directory "${OS_ROOT}/${arch_triplet}" "${OS_NAME} ${arch_triplet} root"
+    prepare_shared_directory "${OS_ROOT}/${arch_triplet}/releases" "${OS_NAME} ${arch_triplet} releases root"
+
+    apply_release_module_runtime_policy "${staging_dir}" "${final_dir}" || echo "WARNING: module runtime policy application had errors"
     copy_manifest "${staging_dir}" "${arch_triplet}"
 
     # The final rename is the publication point. Anything before this can fail
@@ -1582,40 +1622,77 @@ cmd_migrate_buildcache() {
 cmd_promote() {
     local release_id="${1:-}"
     local release_dir
+    local arch_triplet
+    local arch_root
+    local current_link
+    local link_target
     local tmp_link
+    local modules_link
+    local tmp_modules_link
 
     [ -n "${release_id}" ] || die "release-id is required for promote"
     validate_release_id "${release_id}"
     set_paths
-    release_dir="${RELEASES_ROOT}/${release_id}"
-    [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
+    release_dir="$(find_release_dir "${release_id}")" || die "missing release directory for ${release_id} under ${OS_ROOT}"
     ensure_cmd perl
 
-    mkdir -p "${OS_ROOT}"
-    if [ -e "${CURRENT_LINK}" ] && [ ! -L "${CURRENT_LINK}" ]; then
-        echo "==> Removing stale 'current' directory: ${CURRENT_LINK}"
-        rm -rf "${CURRENT_LINK}"
+    arch_triplet="$(release_arch_triplet "${release_dir}")"
+    validate_arch_triplet "${arch_triplet}"
+    arch_root="${OS_ROOT}/${arch_triplet}"
+    current_link="${arch_root}/current"
+    case "${release_dir}" in
+        "${arch_root}/releases/${release_id}") link_target="releases/${release_id}" ;;
+        "${OS_ROOT}/releases/${release_id}") link_target="../releases/${release_id}" ;;
+        *) die "unexpected release location: ${release_dir}" ;;
+    esac
+
+    prepare_shared_directory "${arch_root}" "${OS_NAME} ${arch_triplet} root"
+    if [ -e "${current_link}" ] && [ ! -L "${current_link}" ]; then
+        echo "==> Removing stale 'current' directory: ${current_link}"
+        rm -rf "${current_link}"
     fi
     apply_release_module_runtime_policy "${release_dir}"
     prepare_shared_module_link "${release_dir}"
 
-    tmp_link="${OS_ROOT}/.current.$$"
+    tmp_link="${arch_root}/.current.$$"
     rm -f "${tmp_link}"
-    if ! ln -s "releases/${release_id}" "${tmp_link}"; then
+    if ! ln -s "${link_target}" "${tmp_link}"; then
         discard_prepared_shared_module_link
         die "could not prepare current symlink: ${tmp_link}"
     fi
     # POSIX rename is atomic on the same filesystem, which avoids readers seeing
     # a missing or half-written `current` link during promotion/rollback.
-    if ! perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${tmp_link}" "${CURRENT_LINK}"; then
+    if ! perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${tmp_link}" "${current_link}"; then
         rm -f "${tmp_link}"
         discard_prepared_shared_module_link
-        die "could not update current symlink: ${CURRENT_LINK}"
+        die "could not update current symlink: ${current_link}"
+    fi
+
+    # Stable user-facing module path: <os>/<arch>/modulefiles always follows
+    # the promoted release through `current`.
+    modules_link="${arch_root}/modulefiles"
+    tmp_modules_link="${arch_root}/.modulefiles.$$"
+    rm -f "${tmp_modules_link}"
+    if [ -e "${modules_link}" ] && [ ! -L "${modules_link}" ]; then
+        echo "WARNING: not updating ${modules_link}: exists and is not a symlink"
+    elif ln -s "current/modulefiles/${arch_triplet}" "${tmp_modules_link}" 2>/dev/null; then
+        perl -e 'rename $ARGV[0], $ARGV[1] or die "$!\n"' "${tmp_modules_link}" "${modules_link}" || {
+            rm -f "${tmp_modules_link}"
+            echo "WARNING: could not update modulefiles symlink: ${modules_link}"
+        }
+    fi
+
+    # Retire the legacy <os>/current pointer so stale fallbacks stop resolving.
+    if [ -L "${LEGACY_CURRENT_LINK}" ]; then
+        echo "==> Removing legacy 'current' symlink: ${LEGACY_CURRENT_LINK}"
+        rm -f "${LEGACY_CURRENT_LINK}"
     fi
 
     echo "==> Promoted hpcsim release"
     echo "    os:      ${OS_NAME}"
-    echo "    current: ${CURRENT_LINK} -> releases/${release_id}"
+    echo "    arch:    ${arch_triplet}"
+    echo "    current: ${current_link} -> ${link_target}"
+    echo "    modules: ${modules_link} -> current/modulefiles/${arch_triplet}"
     commit_prepared_shared_module_link
 }
 
@@ -1630,8 +1707,7 @@ cmd_publish_modules() {
     validate_release_id "${release_id}"
     set_paths
     [ -n "${CHAPAR_MODULE_ROOT}" ] || die "CHAPAR_MODULE_ROOT is required for publish-modules"
-    release_dir="${RELEASES_ROOT}/${release_id}"
-    [ -d "${release_dir}" ] || die "missing release directory: ${release_dir}"
+    release_dir="$(find_release_dir "${release_id}")" || die "missing release directory for ${release_id} under ${OS_ROOT}"
     ensure_cmd perl
 
     apply_release_module_runtime_policy "${release_dir}"
@@ -1681,15 +1757,22 @@ cmd_status() {
     else
         echo "module root: (release-local)"
     fi
-    echo "releases:    ${RELEASES_ROOT}"
+    echo "releases:    ${OS_ROOT}/<arch>/releases"
     echo "buildcache:  ${BUILDCACHE_ROOT}"
     echo "ccache:      ${CCACHE_ROOT}"
-    if [ -L "${CURRENT_LINK}" ]; then
-        echo "current:     ${CURRENT_LINK} -> $(readlink "${CURRENT_LINK}")"
-    elif [ -e "${CURRENT_LINK}" ]; then
-        echo "current:     ${CURRENT_LINK} (not a symlink)"
-    else
-        echo "current:     (none)"
+    local arch_root
+    for arch_root in "${OS_ROOT}"/linux-*; do
+        [ -d "${arch_root}" ] || continue
+        if [ -L "${arch_root}/current" ]; then
+            echo "current:     ${arch_root}/current -> $(readlink "${arch_root}/current")"
+        else
+            echo "current:     ${arch_root}/current (none)"
+        fi
+    done
+    if [ -L "${LEGACY_CURRENT_LINK}" ]; then
+        echo "legacy:      ${LEGACY_CURRENT_LINK} -> $(readlink "${LEGACY_CURRENT_LINK}")"
+    elif [ -e "${LEGACY_CURRENT_LINK}" ]; then
+        echo "legacy:      ${LEGACY_CURRENT_LINK} (not a symlink)"
     fi
     if [ -n "${CHAPAR_MODULE_ROOT}" ] && [ -d "${CHAPAR_MODULE_ROOT}" ]; then
         local module_link

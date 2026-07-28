@@ -26,20 +26,27 @@ if [ -z "$MODULE_PATH" ]; then
     case "$ENV_NAME" in
         vlad|hpcsim)
             BASE="/resources/chapar/${ENV_NAME}/${OS_NAME:-rocky10}"
-            if [ -L "$BASE/current" ]; then
+            # New layout: <base>/<arch>/current -> releases/<id>; the highest
+            # promoted arch wins. Fall back to the legacy <base>/current, then
+            # to the newest unpromoted release in either layout.
+            for arch_root in "$BASE"/linux-*; do
+                [ -e "$arch_root/current/modulefiles" ] && MODULE_PATH="$arch_root/current/modulefiles"
+            done
+            if [ -z "$MODULE_PATH" ] && [ -L "$BASE/current" ]; then
                 MODULE_PATH="$BASE/current/modulefiles"
-            elif [ -d "$BASE/releases" ]; then
-                latest=$(ls -t "$BASE/releases" 2>/dev/null | head -1)
-                [ -n "$latest" ] && MODULE_PATH="$BASE/releases/$latest/modulefiles"
+            fi
+            if [ -z "$MODULE_PATH" ]; then
+                latest=$(ls -td "$BASE"/linux-*/releases/*/ "$BASE"/releases/*/ 2>/dev/null | head -1)
+                [ -n "$latest" ] && MODULE_PATH="${latest%/}/modulefiles"
             fi
             if [ -n "$MODULE_PATH" ] && [ -d "$MODULE_PATH" ]; then
                 # Pick the highest architecture module dir (matches release.sh
                 # multi-arch promotion behavior); do not assume a fixed target.
                 # Directories only: modulefiles/ also holds files such as
                 # module-index.yaml.
-                arch_dir=$(find "$MODULE_PATH" -mindepth 1 -maxdepth 1 -type d -name 'linux-*' -printf '%f\n' 2>/dev/null | sort | tail -1)
+                arch_dir=$(find "$MODULE_PATH/" -mindepth 1 -maxdepth 1 -type d -name 'linux-*' -printf '%f\n' 2>/dev/null | sort | tail -1)
                 if [ -z "$arch_dir" ]; then
-                    arch_dir=$(find "$MODULE_PATH" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | tail -1)
+                    arch_dir=$(find "$MODULE_PATH/" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | tail -1)
                 fi
                 [ -n "$arch_dir" ] && MODULE_PATH="$MODULE_PATH/$arch_dir"
             fi
