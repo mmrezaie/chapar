@@ -1022,6 +1022,12 @@ modulefile_prefix_for_exe() {
 
     while read -r directive variable value _rest; do
         [ "${directive}" = "prepend-path" ] || continue
+        # Newer Spack tcl templates emit `prepend-path -d {:} PATH {...}`;
+        # skip the delimiter option pair so the variable name is matched.
+        if [ "${variable}" = "-d" ] || [ "${variable}" = "--delim" ]; then
+            variable="${_rest%% *}"
+            value="${_rest#* }"
+        fi
         [ "${variable}" = "PATH" ] || continue
         [ -n "${value}" ] || continue
         value="${value#\{}"
