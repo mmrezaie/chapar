@@ -30,6 +30,18 @@ Tests submit Slurm batch jobs by default. If already inside a Slurm allocation, 
 | `gpu-stress` | Per-GPU cuda-memtest and optional gpu-burn (8h) | 1 | 1 | 8h |
 | `hpc-challenge` | HPL, HPCG, STREAM, BabelStream benchmarks | 1 | — | 4h |
 
+### Node Health Validation
+
+| Test | Description | Nodes | GPUs | Time |
+|------|-------------|-------|------|------|
+| `gemm-pulse` | Repeated GPU GEMM; flags throttling/fail-slow via coefficient of variation | 1 | 1 | 5m |
+| `ib-link-check` | Validates IB HCA count, link state, width, speed against `config/network.yaml` | 1 | — | 2m |
+| `nccl-transport-check` | NCCL all_reduce; asserts the selected transport matches `config/network.yaml` | 1 | 1 | 5m |
+
+These tests emit machine-readable verdicts (`PASS`/`WARN`/`FAIL`/`SKIP`) as JSON
+plus Prometheus exposition files (`.prom`) suitable for a node_exporter
+textfile collector. They exit `77` when the required hardware is absent.
+
 ### Interconnect Validation
 
 | Test | Description | Nodes | GPUs | Time |
@@ -64,7 +76,10 @@ The MPI RDMA tests verify end-to-end RDMA data integrity across nodes. The GPU v
 
 ## Environment Configuration
 
-Tests use sensible defaults for module versions and resource requests. Override any setting via environment variables — no config files needed.
+Tests use sensible defaults for module versions and resource requests. Override
+any setting via environment variables. The node health tests additionally read
+cluster-specific expectations (IB link manifest, expected NCCL transport) from
+`validation/config/network.yaml`; edit that file to match your cluster.
 
 ### Module Overrides
 
@@ -172,7 +187,10 @@ python3 validation/analyze/outliers.py --suite node-smoke --threshold 2.0 \
 5. Use `CHAPAR_MODULE_<NAME>` variables for module loads
 6. Run commands that write output to `$RESULTS_DIR`
 
-The test passes if it exits 0. Any non-zero exit is a failure.
+The test passes if it exits 0. Exit code `77` means the test was skipped
+because its hardware requirements are not met on the node (reported as `SKIP`
+by `./validation/run all`, not a failure). Any other non-zero exit is a
+failure.
 
 ## Output Artifacts
 
