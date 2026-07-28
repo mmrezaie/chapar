@@ -23,10 +23,24 @@ as_root() {
     fi
 }
 
-as_root dnf clean all
-as_root dnf -y makecache
+# Rocky mirrors intermittently fail metadata downloads; retry before giving up.
+dnf_with_retries() {
+    local attempt
+    for attempt in 1 2 3; do
+        if as_root dnf -y "$@"; then
+            return 0
+        fi
+        echo "WARNING: dnf $1 failed (attempt ${attempt}/3); cleaning metadata and retrying in 30s" >&2
+        as_root dnf clean all || true
+        sleep 30
+    done
+    as_root dnf -y "$@"
+}
 
-as_root dnf -y install \
+as_root dnf clean all
+dnf_with_retries makecache
+
+dnf_with_retries install \
     autoconf \
     automake \
     bash \
@@ -76,8 +90,8 @@ as_root dnf -y install \
 
 as_root dnf config-manager --set-enabled crb || true
 
-as_root dnf -y install epel-release
-as_root dnf -y install ccache
+dnf_with_retries install epel-release
+dnf_with_retries install ccache
 
 as_root install -m 0644 etc/profile.d/zz-chapar-hpcsim.sh /etc/profile.d/zz-chapar-hpcsim.sh
 as_root install -m 0644 etc/profile.d/zz-chapar-vlad.sh /etc/profile.d/zz-chapar-vlad.sh
