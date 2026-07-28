@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=00:10:00
-#SBATCH --job-name=integrity-${ENV_NAME:-unknown}
+#SBATCH --job-name=integrity-test
 
 set -euo pipefail
 
@@ -22,9 +22,10 @@ results="["
 
 # ---- Resolve module path ----
 if [ -z "$MODULE_PATH" ]; then
+    OS_NAME="${OS_NAME:-$(. /etc/os-release 2>/dev/null && echo "${ID}${VERSION_ID%%.*}")}"
     case "$ENV_NAME" in
         vlad|hpcsim)
-            BASE="/resources/chapar/${ENV_NAME}/rocky10"
+            BASE="/resources/chapar/${ENV_NAME}/${OS_NAME:-rocky10}"
             if [ -L "$BASE/current" ]; then
                 MODULE_PATH="$BASE/current/modulefiles"
             elif [ -d "$BASE/releases" ]; then
@@ -32,7 +33,9 @@ if [ -z "$MODULE_PATH" ]; then
                 [ -n "$latest" ] && MODULE_PATH="$BASE/releases/$latest/modulefiles"
             fi
             if [ -n "$MODULE_PATH" ] && [ -d "$MODULE_PATH" ]; then
-                arch_dir=$(ls "$MODULE_PATH" 2>/dev/null | grep "x86_64_v3" | head -1)
+                # Pick the highest architecture module dir (matches release.sh
+                # multi-arch promotion behavior); do not assume a fixed target.
+                arch_dir=$(ls -1 "$MODULE_PATH" 2>/dev/null | sort | tail -1)
                 [ -n "$arch_dir" ] && MODULE_PATH="$MODULE_PATH/$arch_dir"
             fi
             ;;
@@ -78,14 +81,14 @@ check() {
 # ---- Tests by environment ----
 case "$ENV_NAME" in
     vlad)
-        check "gcc/15.3.0"       "gcc --version"            "compiler runs"
+        check "gcc"               "gcc --version"            "compiler runs"
         check "cmake"             "cmake --version"          "cmake runs"
         check "openmpi"           "mpirun --version"         "mpirun --version"
         check "cuda"              "nvcc --version"           "nvcc --version"
         check "cuda-memtest"      "which cuda_memtest"       "cuda_memtest on PATH"
         check "ucx"               "ucx_info -v"              "ucx_info runs"
         check "libfabric"         "command -v fi_info"   "libfabric available"
-        check "nccl"              "test -f \$(spack location -i nccl)/include/nccl.h 2>/dev/null || echo nccl" "nccl headers"
+        check "nccl"              "bash -c 'IFS=:; for d in \${LD_LIBRARY_PATH:-}; do compgen -G \"\$d/libnccl.so*\" >/dev/null && exit 0; done; exit 1'" "libnccl on LD_LIBRARY_PATH"
         check "osu-micro-benchmarks" "which osu_latency"     "osu_latency on PATH"
         check "hpl"               "which xhpl"               "xhpl on PATH"
         check "hpcg"              "which hpcg 2>/dev/null || which xhpcg 2>/dev/null || which hpcgbench" "hpcg binary"
