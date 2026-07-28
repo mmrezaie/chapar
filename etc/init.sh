@@ -145,7 +145,15 @@ if type module >/dev/null 2>&1; then
     # roots (<os>/<arch>/current); fall back to the legacy <os>/current.
     if [ "${_chapar_shared_module_added}" != "true" ] && [ -n "${_chapar_hpcsim_os}" ]; then
         _chapar_hpcsim_current_added="false"
-        for _chapar_hpcsim_current in "${_chapar_hpcsim_root}/${_chapar_hpcsim_os}"/linux-*/current; do
+        for _chapar_hpcsim_arch_root in "${_chapar_hpcsim_root}/${_chapar_hpcsim_os}"/linux-*; do
+            # Prefer the stable <arch>/modulefiles symlink so MODULEPATH shows
+            # the layout path instead of a release-id path.
+            if [ -d "${_chapar_hpcsim_arch_root}/modulefiles/" ]; then
+                module use "${_chapar_hpcsim_arch_root}/modulefiles" >/dev/null 2>&1 || true
+                _chapar_hpcsim_current_added="true"
+                continue
+            fi
+            _chapar_hpcsim_current="${_chapar_hpcsim_arch_root}/current"
             [ -L "${_chapar_hpcsim_current}" ] || [ -d "${_chapar_hpcsim_current}" ] || continue
             _chapar_hpcsim_release="$(cd -P "${_chapar_hpcsim_current}" 2>/dev/null && pwd || true)"
             _chapar_hpcsim_module_root="${_chapar_hpcsim_release}/modulefiles"
@@ -181,5 +189,5 @@ unset _chapar_etc_dir _chapar_root _chapar_spack_setup _chapar_spack_root _chapa
 unset _chapar_module_root _chapar_module_archdir
 unset _chapar_hpcsim_os _chapar_hpcsim_root _chapar_hpcsim_current _chapar_hpcsim_release
 unset _chapar_hpcsim_module_root _chapar_hpcsim_module_dir
-unset _chapar_shared_module_added _chapar_hpcsim_current_added
+unset _chapar_shared_module_added _chapar_hpcsim_current_added _chapar_hpcsim_arch_root
 unset -f _chapar_detect_hpcsim_os 2>/dev/null || true
