@@ -119,7 +119,7 @@ jobs:
           ENV_NAME: ${{ inputs.env_name }}
           ENV_PATH: ${{ inputs.env_path || format('envs/{0}', inputs.env_name) }}
           CHAPAR_ENV_ROOT: ${{ inputs.env_root || (inputs.env_name == 'hpcsim' && inputs.hpcsim_root) || format('/resources/chapar/{0}', inputs.env_name) }}
-          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || format('/resources/chapar/cache/buildcache/{0}', inputs.env_name) }}
+          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           OS_NAME: ${{ matrix.os_name }}
           RUN_ID: ${{ github.run_id }}
@@ -216,7 +216,7 @@ jobs:
           CHAPAR_ENV_BUILD_MODE: ${{ inputs.build_mode || 'auto' }}
           HPCSIM_ROOT: ${{ (inputs.env_name == 'hpcsim' && (inputs.env_root || inputs.hpcsim_root)) || '' }}
           CHAPAR_INSTALL_TREE_ROOT: ${{ inputs.install_tree_root || '/resources/chapar/install' }}
-          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root || format('/resources/chapar/cache/buildcache/{0}', inputs.env_name) }}
+          CHAPAR_BUILDCACHE_ROOT: ${{ inputs.buildcache_root }}
           CHAPAR_CCACHE_ROOT: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}
           CHAPAR_MODULE_ROOT: ${{ inputs.env_name == 'vlad' && '/resources/chapar/vlad/modulefiles' || '' }}
           PUBLISH_CURRENT: ${{ (inputs.env_name == 'vlad' && 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_current == true && 'true') || 'false' }}

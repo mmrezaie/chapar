@@ -17,6 +17,7 @@ ENV_PATH=""
 OS_NAME=""
 HPCSIM_ROOT="${HPCSIM_ROOT:-}"
 CHAPAR_BUILDCACHE_ROOT="${CHAPAR_BUILDCACHE_ROOT:-}"
+CHAPAR_INSTALL_TREE_ROOT="${CHAPAR_INSTALL_TREE_ROOT:-}"
 BUILDCACHE_DIR=""
 SCOPE_DIR=""
 INSTALL_TREE_PADDED_LENGTH="256"
@@ -76,7 +77,15 @@ if [ -z "${BUILDCACHE_DIR}" ]; then
 fi
 
 OS_ROOT="${HPCSIM_ROOT}/${OS_NAME}"
-STORE_ROOT="${OS_ROOT}/store"
+# Match release.sh: when the shared cross-environment install tree is
+# configured, the store lives under <root>/<arch-triplet>, not <os>/store.
+if [ -n "${CHAPAR_INSTALL_TREE_ROOT:-}" ]; then
+    arch_triplet="$(spack arch 2>/dev/null || true)"
+    [ -n "${arch_triplet}" ] || { echo "ERROR: spack arch failed; cannot resolve shared install tree under ${CHAPAR_INSTALL_TREE_ROOT}" >&2; exit 1; }
+    STORE_ROOT="${CHAPAR_INSTALL_TREE_ROOT}/${arch_triplet}"
+else
+    STORE_ROOT="${OS_ROOT}/store"
+fi
 SCOPE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/hpcsim-buildcache-scope.XXXXXX")"
 trap 'rm -rf "${SCOPE_DIR}"' EXIT
 
