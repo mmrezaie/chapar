@@ -107,7 +107,7 @@ load_site_config() {
     : "${CHAPAR_SHARED_GROUP:=}"
     : "${CHAPAR_SHARED_DIR_MODE:=2775}"
     : "${CHAPAR_CCACHE_COMPILERCHECK:=content}"
-    : "${PUBLISH_BUILDCACHE:=false}"
+    : "${PUBLISH_BUILDCACHE:=true}"
     if [ -z "${CHAPAR_INSTALL_TREE_PROJECTION}" ]; then
         CHAPAR_INSTALL_TREE_PROJECTION='{name}-{version}-{hash}'
     fi
