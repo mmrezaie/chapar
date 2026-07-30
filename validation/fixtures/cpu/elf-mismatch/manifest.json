@@ -1,0 +1,6 @@
+{
+  "expected": {"platform": "intel-x86", "vendor": "intel", "features": ["avx2"], "numa_nodes": 1, "pci_devices": 2},
+  "cpu_platform": {"architecture": "x86_64", "vendor": "intel", "features": ["avx2"], "numa_nodes": 1, "pci_devices": 2, "chapar_arch": "linux-rocky10-x86_64_v4", "elf": [{"path": "fixture-arm-binary", "machine": "AArch64", "error": ""}]},
+  "slurm_placement": {"allocation": true, "job_id": "fixture-5", "node_list": "fixture-node", "cpus_on_node": 16, "cpus_per_task": 1, "binding_cpus": "0"},
+  "verdicts": {"cpu-platform": "FAIL", "slurm-placement": "PASS"}
+}

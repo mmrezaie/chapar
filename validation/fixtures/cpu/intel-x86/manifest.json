@@ -1,0 +1,6 @@
+{
+  "expected": {"platform": "intel-x86", "vendor": "intel", "features": ["avx2", "avx512f"], "numa_nodes": 2, "pci_devices": 8},
+  "cpu_platform": {"architecture": "x86_64", "vendor": "intel", "features": ["avx2", "avx512f"], "numa_nodes": 2, "pci_devices": 8, "chapar_arch": "linux-rocky10-x86_64_v4", "elf": [{"path": "fixture-gcc", "machine": "Advanced Micro Devices X86-64", "error": ""}]},
+  "slurm_placement": {"allocation": true, "job_id": "fixture-1", "node_list": "fixture-node", "cpus_on_node": 64, "cpus_per_task": 4, "binding_cpus": "0-3"},
+  "verdicts": {"cpu-platform": "PASS", "slurm-placement": "PASS"}
+}

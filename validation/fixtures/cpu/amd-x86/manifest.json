@@ -1,0 +1,6 @@
+{
+  "expected": {"platform": "amd-x86", "vendor": "amd", "features": ["avx2"], "numa_nodes": 4, "pci_devices": 12},
+  "cpu_platform": {"architecture": "x86_64", "vendor": "amd", "features": ["avx2"], "numa_nodes": 4, "pci_devices": 12, "chapar_arch": "linux-rocky10-zen4", "elf": [{"path": "fixture-gcc", "machine": "Advanced Micro Devices X86-64", "error": ""}]},
+  "slurm_placement": {"allocation": true, "job_id": "fixture-2", "node_list": "fixture-node", "cpus_on_node": 128, "cpus_per_task": 8, "binding_cpus": "0-7"},
+  "verdicts": {"cpu-platform": "PASS", "slurm-placement": "PASS"}
+}

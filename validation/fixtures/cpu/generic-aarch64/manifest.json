@@ -1,0 +1,6 @@
+{
+  "expected": {"platform": "generic", "vendor": "generic", "features": ["asimd"], "numa_nodes": 1, "pci_devices": 4},
+  "cpu_platform": {"architecture": "aarch64", "vendor": "generic", "features": ["asimd"], "numa_nodes": 1, "pci_devices": 4, "chapar_arch": "linux-rocky10-aarch64", "elf": [{"path": "fixture-gcc", "machine": "AArch64", "error": ""}]},
+  "slurm_placement": {"allocation": true, "job_id": "fixture-4", "node_list": "fixture-node", "cpus_on_node": 32, "cpus_per_task": 2, "binding_cpus": "0-1"},
+  "verdicts": {"cpu-platform": "PASS", "slurm-placement": "PASS"}
+}

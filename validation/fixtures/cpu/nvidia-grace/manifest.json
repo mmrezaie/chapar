@@ -1,0 +1,6 @@
+{
+  "expected": {"platform": "nvidia-grace", "vendor": "nvidia", "features": ["asimd"], "numa_nodes": 2, "pci_devices": 10},
+  "cpu_platform": {"architecture": "aarch64", "vendor": "nvidia", "features": ["asimd"], "numa_nodes": 2, "pci_devices": 10, "chapar_arch": "linux-rocky10-aarch64", "elf": [{"path": "fixture-gcc", "machine": "AArch64", "error": ""}]},
+  "slurm_placement": {"allocation": true, "job_id": "fixture-3", "node_list": "fixture-node", "cpus_on_node": 72, "cpus_per_task": 4, "binding_cpus": "0-3"},
+  "verdicts": {"cpu-platform": "PASS", "slurm-placement": "PASS"}
+}
