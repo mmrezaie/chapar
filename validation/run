@@ -2,7 +2,94 @@
 set -euo pipefail
 
 VALIDATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cmd="${1:-help}"
+profile_name=""
+site_profile=""
+arguments=()
+
+usage() {
+  echo "Usage: ./validation/run <test>"
+  echo "       ./validation/run list"
+  echo "       ./validation/run all"
+  echo "       ./validation/run --profile <capability|node|fabric|storage|accelerator|full> --site-profile <path>"
+  echo ""
+  echo "Environment variables:"
+  echo "  CHAPAR_MODULE_<NAME>   Override module for <name> (e.g., CHAPAR_MODULE_CUDA=cuda/12.8)"
+  echo "  CHAPAR_PARTITION       Slurm partition"
+  echo "  CHAPAR_NODES           Override node count for multi-node tests"
+  echo "  CHAPAR_TIME            Override time limit"
+  echo "  CHAPAR_KEEP_MODULES=1  Skip module purge (use pre-loaded environment)"
+  echo "  CHAPAR_DRY_RUN=1       Print what would run without executing"
+  echo "  RESULTS_ROOT           Custom results directory (default: validation/results/)"
+  echo ""
+  echo "Profile runs validate the site profile before submission, export its suite policies,"
+  echo "and emit non-authoritative selection evidence under RESULTS_ROOT."
+  echo ""
+  echo "Exit codes: 0 = pass, 77 = skipped (requirements not met), other = fail"
+  echo "  MPI_RDMA_BYTES         Message size for MPI RDMA tests (default: 8388608)"
+  echo "  MPI_RDMA_ITERS         Iterations for MPI RDMA tests (default: 100)"
+}
+
+run_profile() {
+  source "${VALIDATION_DIR}/lib/profile-selection.sh"
+  validation_profile_select "${site_profile}" "${profile_name}"
+  export VALIDATION_SITE_PROFILE="${site_profile}"
+  export VALIDATION_UNAVAILABLE_POLICY="${VALIDATION_PROFILE_UNAVAILABLE_POLICY}"
+  export VALIDATION_THRESHOLD_POLICY="${VALIDATION_PROFILE_THRESHOLD_POLICY}"
+  printf 'PROFILE_SELECTION_EVIDENCE=%s\n' "${VALIDATION_PROFILE_EVIDENCE}"
+
+  failed=0
+  for name in "${VALIDATION_PROFILE_SELECTED_SUITES[@]}"; do
+    test_file="${VALIDATION_DIR}/tests/${name}.sbatch"
+    printf "\n=== %s ===\n" "${name}"
+    if [ "${CHAPAR_DRY_RUN:-0}" = "1" ]; then
+      echo "[dry-run] Would submit: ${test_file}"
+      continue
+    fi
+    rc=0
+    if [ -n "${SLURM_JOB_ID:-}" ]; then
+      bash "${test_file}" || rc=$?
+    else
+      sbatch --wait "${test_file}" || rc=$?
+    fi
+    if [ "${rc}" = "77" ]; then
+      echo "SKIP: ${name} (requirements not met on this node)" >&2
+    elif [ "${rc}" != "0" ]; then
+      echo "FAIL: ${name}" >&2
+      failed=1
+    fi
+  done
+  [ "${failed}" = "0" ] || return 1
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --profile)
+      [ "$#" -ge 2 ] || { echo "--profile requires a tier name" >&2; exit 2; }
+      profile_name="$2"
+      shift 2
+      ;;
+    --site-profile)
+      [ "$#" -ge 2 ] || { echo "--site-profile requires a path" >&2; exit 2; }
+      site_profile="$2"
+      shift 2
+      ;;
+    *)
+      arguments+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [ -n "${profile_name}" ] || [ -n "${site_profile}" ]; then
+  [ -n "${profile_name}" ] && [ -n "${site_profile}" ] || { echo "--profile and --site-profile must be used together" >&2; exit 2; }
+  [ "${#arguments[@]}" = 0 ] || { echo "profile selection does not accept a suite argument" >&2; exit 2; }
+  [ -f "${site_profile}" ] || { echo "site profile is not a regular file: ${site_profile}" >&2; exit 2; }
+  run_profile
+  exit $?
+fi
+
+cmd="${arguments[0]:-help}"
+[ "${#arguments[@]}" -le 1 ] || { echo "only one validation command is allowed" >&2; exit 2; }
 
 case "$cmd" in
   list)
@@ -41,22 +128,7 @@ case "$cmd" in
     [ "$failed" = "0" ] || exit 1
     ;;
   help|--help|-h)
-    echo "Usage: ./validation/run <test>"
-    echo "       ./validation/run list"
-    echo "       ./validation/run all"
-    echo ""
-    echo "Environment variables:"
-    echo "  CHAPAR_MODULE_<NAME>   Override module for <name> (e.g., CHAPAR_MODULE_CUDA=cuda/12.8)"
-    echo "  CHAPAR_PARTITION       Slurm partition"
-    echo "  CHAPAR_NODES           Override node count for multi-node tests"
-    echo "  CHAPAR_TIME            Override time limit"
-    echo "  CHAPAR_KEEP_MODULES=1  Skip module purge (use pre-loaded environment)"
-    echo "  CHAPAR_DRY_RUN=1       Print what would run without executing"
-    echo "  RESULTS_ROOT           Custom results directory (default: validation/results/)"
-    echo ""
-    echo "Exit codes: 0 = pass, 77 = skipped (requirements not met), other = fail"
-    echo "  MPI_RDMA_BYTES         Message size for MPI RDMA tests (default: 8388608)"
-    echo "  MPI_RDMA_ITERS         Iterations for MPI RDMA tests (default: 100)"
+    usage
     ;;
   *)
     test_file="$VALIDATION_DIR/tests/${cmd}.sbatch"

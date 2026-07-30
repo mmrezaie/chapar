@@ -1,0 +1,56 @@
+schema_version: "1.0"
+site:
+  profile_id: required-rdma-mismatch
+  owner_group: validation-operators
+  approval_role: validation-operator
+platform:
+  operating_system: rocky10
+  architecture: aarch64
+  cpu_vendor: nvidia
+  cpu_platform: nvidia-grace
+hardware:
+  node_count: 1
+  cores_per_node: 72
+  gpus_per_node: 0
+  accelerator:
+    kind: none
+topology:
+  node_bounds:
+    minimum: 1
+    maximum: 1
+  edges: []
+  fabric: ethernet
+  max_hops: 0
+available_capabilities:
+  - cpu
+safe_storage:
+  roots:
+    - target: job-scratch
+      owner: slurm-job
+      relative_directory: chapar-validation
+      cleanup: job-end
+    - target: managed-results
+      owner: validation-service
+      relative_directory: chapar-validation
+      cleanup: retention-policy
+tiers:
+  capability:
+    selected_suites:
+      - cpu-platform
+    required_capabilities:
+      - cpu
+      - rdma
+    resources:
+      nodes: 1
+      gpus_per_node: 0
+      max_edges: 0
+    partition_class: developer
+    unavailable_policy: skip
+    threshold_policy: warn
+baseline_policy:
+  mode: optional
+  storage_target: managed-results
+  minimum_samples: 3
+  retention_days: 7
+  metrics:
+    - cpu-throughput
