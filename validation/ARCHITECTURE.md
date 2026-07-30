@@ -159,7 +159,11 @@ Beyond integrity validation (module load + basic tool execution), deep validatio
 
 ### Running Deep Validation
 
-These tests are hardware-dependent and must be submitted to appropriate Slurm partitions. They are NOT part of the CI pipeline.
+These tests are hardware-dependent and must be submitted to appropriate Slurm
+partitions. They are not part of Incus build CI. A separate protected Slurm
+workflow may run an allowlisted profile tier after its service account, GitHub
+Environment, immutable release provenance, and restricted storage policy are
+configured; submission success alone is never validation authority.
 
 ```bash
 # Run GEMM pulse on a GPU node
