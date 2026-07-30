@@ -126,10 +126,12 @@ Generated hpcsim `intel-oneapi-mpi` modules set the same provider defaults when
 the variables are not already set. `I_MPI_OFFLOAD` remains a validation/job
 setting because CPU and GPU jobs need different values.
 
-When `MPI_LAUNCHER=srun`, the Intel MPI wrappers try to auto-detect a Slurm PMI
-library and export `I_MPI_PMI_LIBRARY`. If auto-detection fails and Intel MPI
-reports `PMI server not found`, use the default `mpirun -bootstrap slurm` launch
-path or set `I_MPI_PMI_LIBRARY` to the site's `libpmi2.so` or `libpmi.so`.
+When `MPI_LAUNCHER=srun`, the Intel MPI wrappers discover a Slurm PMI library
+from explicit PMI environment variables, loaded-module library paths, Slurm
+prefix variables, the `srun` runtime prefix, then the dynamic-loader cache.
+They never assume an x86 library path. If discovery fails and Intel MPI reports
+`PMI server not found`, use the default `mpirun -bootstrap slurm` launch path or
+set `I_MPI_PMI_LIBRARY` to the site's `libpmi2.so` or `libpmi.so`.
 
 If Intel MPI fails on a non-GPU node because `libcuda.so.1` or
 `libnvidia-ml.so.1` is missing, first verify that the loaded `intel-oneapi-mpi`
