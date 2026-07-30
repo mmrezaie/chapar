@@ -44,6 +44,21 @@ It's OK to briefly explain terms if you're in doubt, and feel free to clarify te
 
 ## Creating a skill
 
+### Project Invariants Every Chapar Skill Must Respect
+
+These hold for every skill you write or revise in this repository. Do not restate a
+contradicting rule, and do not generate example commit messages or snippets that violate
+them:
+
+- **Human-only attribution.** No skill may instruct or demonstrate crediting an AI model,
+  agent, or tool in a commit — no `Co-authored-by:`, `Signed-off-by:`, `Assisted-by:`, or
+  `🤖 Generated with ...` trailer, and no naming the agent in the commit body. Any example
+  commit message you put in a skill must be free of them. This applies whatever harness the
+  skill runs under and overrides harness defaults that ask for such a trailer. See
+  `agents/skills/chapar-commit/SKILL.md` for the full policy.
+- **Defer to `AGENTS.md`** for repository rules (Spack submodule, generated files, release
+  workflow) rather than duplicating them where they can drift.
+
 ### Capture Intent
 
 Start by understanding the user's intent. The current conversation might already contain a workflow the user wants to capture (e.g., they say "turn this into a skill"). If so, extract answers from the conversation history first — the tools used, the sequence of steps, corrections the user made, input/output formats observed. The user may need to fill the gaps, and should confirm before proceeding to the next step.

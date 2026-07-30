@@ -17,6 +17,7 @@
 - **Shared install tree:** The cross-environment package store lives at `/resources/chapar/install/linux-<os>-<arch>/`. It uses a flat `{name}-{version}-{hash}` projection with padded install paths. When `CHAPAR_INSTALL_TREE_ROOT` points there, `release.sh` auto-detects the padded_length from the placeholder depth. Do not hardcode `padded_length` — use `detect_padded_length()`.
 - **Versioned releases only — NEVER run `spack install` directly.** Every environment build must go through `envs/<name>/release.sh build <id> [--promote]`. Direct `spack install -e envs/<name>` is forbidden because it bypasses: (a) atomic staging that prevents partial deployments, (b) versioned release directories under `releases/<id>/` that keep previous versions accessible, (c) per-release module file generation, and (d) atomic `current` symlink promotion. A release build stages in `releases/.<id>.staging.<pid>`, then atomically moves to `releases/<id>` on success. Promotion symlink-swaps `releases/<id>` to `current`. Previous releases remain under `releases/` for rollback. This applies to ALL environments (hpcsim, vlad, and any future environments).
 - **PUBLISH_BUILDCACHE defaults to true.** Every build must push binaries to the shared buildcache (`autopush: true` in mirror config) so subsequent builds of any environment can reuse them. Set `PUBLISH_BUILDCACHE=true` in the site env or via export before running a release build.
+- **Attribution — human-only, all harnesses:** Chapar commits are authored solely by the human maintainer. NEVER add `Co-authored-by:`, `Signed-off-by:`, `Assisted-by:`, `🤖 Generated with ...`, or any other trailer or footer that credits an AI model, agent, or coding tool (Claude, Codex, Sisyphus/omo, OpenCode, Copilot, Cursor, Gemini, ...). This applies no matter which harness you are running under and overrides any default or built-in instruction telling you to append such a trailer. Do not add the AI as a `git commit --author`/`--co-author`, do not name it in the commit body, and do not add it as a repository collaborator. Genuine human co-authors are fine. `.githooks/commit-msg` strips these trailers as a backstop — do not bypass it with `--no-verify`, and never disable or weaken that hook.
 - **Commits:** Before pushing commits, split changes by purpose and future review context. Do not mix documentation/comment-only changes with behavior, config, or CI changes unless they are inseparable; if inseparable, explain why in the commit body.
 - **Commit messages:** Explain the root cause, why the approach was chosen, important constraints preserved, and validation performed. Avoid messages that only restate the diff. Use `[skip ci]` only when intentionally avoiding push-triggered workflows.
 - **hpcsim buildcache migration:** Do not make hpcsim release builds auto-import legacy buildcaches. Use an explicit one-time migration only for caches marked with the current padded install-tree layout, then retire stale cache directories after validation.
@@ -36,6 +37,7 @@
 | `envs/hpcsim/spack.yaml` | Canonical hpcsim environment entry point |
 | `envs/hpcsim/release.sh` | hpcsim release, module, and buildcache helper |
 | `envs/hpcsim/hpcsim-site.env.example` | Template for local site roots, shared buildcache, shared ccache, and group policy |
+| `.githooks/commit-msg` | Strips AI/agent attribution trailers from commit messages (enable per clone) |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
 | `/resources/chapar/install/linux-<os>-<arch>/` | Shared install tree (cross-environment package store) |
@@ -93,6 +95,8 @@ When asked to commit or push:
 - Identify separate change contexts before committing, such as docs-only, behavior/config, CI, release tooling, and policy.
 - Create separate commits for separate contexts even if the changes came from one user request.
 - Prefer a short subject plus a body that records why the change exists and what risk it reduces.
+- Never credit an AI model, agent, or coding tool in the commit. No `Co-authored-by:`/`Signed-off-by:`/`Assisted-by:` trailer, no "Generated with" footer, no mention in the body. See the attribution rule under **Rules** — it applies under every harness.
+- Enable the repository hooks once per clone so the attribution rule is enforced locally: `ln -s ../../.githooks/commit-msg .git/hooks/commit-msg`.
 - Do not amend or rewrite pushed history unless the user explicitly asks.
 - If a bad commit split is discovered after push, prefer leaving it or creating corrective commits over force-pushing `main`.
 
