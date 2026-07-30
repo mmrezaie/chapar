@@ -9,10 +9,12 @@ set -euo pipefail
 
 validation_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 config_file="${validation_dir}/config/network.yaml"
-run_id="${SLURM_JOB_ID:-$(date -u +%Y%m%dT%H%M%S)}"
 node="${SLURM_NODELIST:-$(hostname -s)}"
-RESULTS_DIR="${RESULTS_ROOT:-${validation_dir}/results}/ib-link-check/${run_id}/${node}"
-mkdir -p "${RESULTS_DIR}"
+RESULTS_ROOT="${RESULTS_ROOT:-${validation_dir}/results}"
+source "${validation_dir}/lib/verdict.sh"
+source "${validation_dir}/lib/result-manifest.sh"
+validation_result_init ib-link-check "${RESULTS_ROOT}" "${node}"
+RESULTS_DIR="${VALIDATION_NODE_DIR}"
 
 # Read expected values from config
 EXPECTED_STATE="ACTIVE"
@@ -52,13 +54,7 @@ echo "Expected: hcas=${EXPECTED_HCAS} state=${EXPECTED_STATE} phys_state=${EXPEC
 SYSFS_IB="/sys/class/infiniband"
 if [ ! -d "$SYSFS_IB" ] || [ -z "$(ls -A "$SYSFS_IB" 2>/dev/null)" ]; then
     echo "SKIP: no InfiniBand HCAs found at ${SYSFS_IB}" >&2
-    python3 -c "
-import json
-result = {'node': '${node}', 'hcas': 0, 'ports': [], 'verdict': 'SKIP'}
-with open('${RESULTS_DIR}/ib_link_check.json', 'w') as f:
-    json.dump(result, f, indent=2)
-"
-    exit 77
+    validation_resource_unavailable "no InfiniBand HCA at ${SYSFS_IB}" optional
 fi
 
 # Check each HCA
@@ -170,6 +166,5 @@ echo "Results: ${RESULTS_DIR}" >&2
 
 verdict=$(python3 -c "import json; print(json.load(open('${RESULTS_DIR}/ib_link_check.json')).get('verdict', 'FAIL'))")
 if [ "$verdict" = "FAIL" ]; then
-    echo "FAIL: InfiniBand link manifest mismatch (see ${RESULTS_DIR}/ib_link_check.json)" >&2
-    exit 1
+    validation_threshold_violation "InfiniBand link manifest mismatch"
 fi
