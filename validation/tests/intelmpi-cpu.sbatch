@@ -29,43 +29,7 @@ if [ "${MPI_LAUNCHER_ARGS+x}" != x ]; then
 fi
 : "${MPI_RDMA_CPU_EXE:=mpi_rdma_cpu.intelmpi}"
 
-configure_intelmpi_srun_pmi() {
-    local candidate
-    local line
-
-    [ "${MPI_LAUNCHER}" = srun ] || return 0
-    [ -z "${I_MPI_PMI_LIBRARY:-}" ] || return 0
-
-    for candidate in \
-        /usr/lib64/libpmi2.so \
-        /usr/lib64/slurm/libpmi2.so \
-        /usr/lib/x86_64-linux-gnu/libpmi2.so \
-        /usr/lib64/libpmi.so \
-        /usr/lib64/slurm/libpmi.so \
-        /usr/lib/x86_64-linux-gnu/libpmi.so; do
-        if [ -r "${candidate}" ]; then
-            export I_MPI_PMI_LIBRARY="${candidate}"
-            return 0
-        fi
-    done
-
-    if command -v ldconfig >/dev/null 2>&1; then
-        while read -r line; do
-            case "${line}" in
-                *libpmi2.so*'=> '*) candidate="${line##* => }" ;;
-                *libpmi.so*'=> '*) candidate="${line##* => }" ;;
-                *) candidate="" ;;
-            esac
-            if [ -n "${candidate}" ] && [ -r "${candidate}" ]; then
-                export I_MPI_PMI_LIBRARY="${candidate}"
-                return 0
-            fi
-        done < <(ldconfig -p 2>/dev/null || true)
-    fi
-
-    echo "WARNING: MPI_LAUNCHER=srun but I_MPI_PMI_LIBRARY was not set and no PMI library was auto-detected." >&2
-    echo "WARNING: If Intel MPI reports 'PMI server not found', use MPI_LAUNCHER=mpirun or set I_MPI_PMI_LIBRARY." >&2
-}
+source "${VALIDATION_DIR}/lib/intelmpi-pmi.sh"
 
 # ── Modules ────────────────────────────────────────────────────
 if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
