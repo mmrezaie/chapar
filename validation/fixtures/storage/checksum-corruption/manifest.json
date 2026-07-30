@@ -1,0 +1,17 @@
+{
+  "mount_expectation": {
+    "filesystem_class": "vast",
+    "source_identity": "fixture-vast-source",
+    "filesystem_types": ["nfs4"],
+    "required_options": ["rw"]
+  },
+  "mount_observed": {
+    "source_identity": "fixture-vast-source",
+    "filesystem_type": "nfs4",
+    "options": ["rw", "vers=4.1"],
+    "nfs_client_available": true
+  },
+  "namespace": {"marker_visible_to_all_ranks": true, "rename_visible_to_all_ranks": true, "delete_visible_to_all_ranks": true},
+  "checksums": {"all_rank_writes_verified": false},
+  "verdicts": {"vast": "FAIL"}
+}

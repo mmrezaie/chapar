@@ -1,0 +1,17 @@
+{
+  "mount_expectation": {
+    "filesystem_class": "generic",
+    "source_identity": "fixture-posix-source",
+    "filesystem_types": ["xfs"],
+    "required_options": ["rw"]
+  },
+  "mount_observed": {
+    "source_identity": "fixture-posix-source",
+    "filesystem_type": "xfs",
+    "options": ["rw", "relatime"],
+    "nfs_client_available": false
+  },
+  "namespace": {"marker_visible_to_all_ranks": true, "rename_visible_to_all_ranks": true, "delete_visible_to_all_ranks": true},
+  "checksums": {"all_rank_writes_verified": true},
+  "verdicts": {"vast": "PASS"}
+}
