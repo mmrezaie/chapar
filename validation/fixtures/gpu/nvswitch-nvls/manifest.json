@@ -1,0 +1,7 @@
+{
+  "profile": {"hardware": {"gpus_per_node": 2, "accelerator": {"kind": "gpu", "vendor": "nvidia"}}, "topology": {"gpu": {"models": ["NVIDIA H100"], "interconnect": "nvswitch", "minimum_links_per_gpu": 1, "minimum_p2p_gbps": 100, "require_nvls": true}}},
+  "topology_observed": {"commands": {"nvidia-smi": true}, "full_gpu_allocation": true, "nvidia_smi_l": "GPU 0: NVIDIA H100 (UUID: fixture-0)\nGPU 1: NVIDIA H100 (UUID: fixture-1)", "topo_m": "GPU0 GPU1\nGPU0 X NV12\nGPU1 NV12 X\nNVSwitch", "nvlink_status": "GPU 0 Link 0: Active\nGPU 1 Link 0: Active\nNVSwitch Active", "nvlink_errors": "GPU 0: Link 0: 0\nGPU 1: Link 0: 0"},
+  "p2p_observed": {"commands": {"nvidia-smi": true, "nvbandwidth": true}, "full_gpu_allocation": true, "p2p_matrix": "GPU0 GPU1 OK\nGPU1 GPU0 OK", "nvbandwidth": "aggregate bandwidth: 400 GB/s", "counter_before": "GPU 0: Link 0: 0\nGPU 1: Link 0: 0", "counter_after": "GPU 0: Link 0: 0\nGPU 1: Link 0: 0", "fabric_manager": "active"},
+  "nccl_observed": {"commands": {"all_reduce_perf": true}, "full_gpu_allocation": true, "nodes": 1, "exit_code": 0, "output": "NCCL INFO NVLS multicast path selected"},
+  "verdicts": {"gpu-topology": "PASS", "nvlink-p2p": "PASS", "nccl-transport-check": "PASS"}
+}
