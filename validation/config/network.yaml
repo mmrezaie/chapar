@@ -7,4 +7,4 @@ infiniband:
   expected_width: "4X"
   expected_speed: "56 Gbps"
 nccl:
-  expected_transport: "IB"  # IB, Socket, NVLink, or "" for auto-detect
+  expected_transport: "IB"  # Inter-node IB, RoCE, Socket, or "" for auto-detect; intra-node P2P/NVLS is profile-selected.
