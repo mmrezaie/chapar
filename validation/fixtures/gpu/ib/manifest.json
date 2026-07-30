@@ -1,0 +1,8 @@
+{
+  "profile": {"hardware": {"gpus_per_node": 2, "accelerator": {"kind": "gpu", "vendor": "nvidia"}}, "topology": {"gpu": {"models": ["NVIDIA H100"], "interconnect": "pcie", "minimum_links_per_gpu": 0, "minimum_p2p_gbps": 50, "require_nvls": false}}},
+  "expected_network": "IB",
+  "topology_observed": {"commands": {"nvidia-smi": true}, "full_gpu_allocation": true, "nvidia_smi_l": "GPU 0: NVIDIA H100 (UUID: fixture-0)\nGPU 1: NVIDIA H100 (UUID: fixture-1)", "topo_m": "GPU0 GPU1\nGPU0 X PIX\nGPU1 PIX X", "nvlink_status": "", "nvlink_errors": ""},
+  "p2p_observed": {"commands": {"nvidia-smi": true, "nvbandwidth": true}, "full_gpu_allocation": true, "p2p_matrix": "GPU0 GPU1 OK\nGPU1 GPU0 OK", "nvbandwidth": "aggregate bandwidth: 90 GB/s", "counter_before": "", "counter_after": "", "fabric_manager": "unavailable"},
+  "nccl_observed": {"commands": {"all_reduce_perf": true}, "full_gpu_allocation": true, "nodes": 2, "exit_code": 0, "output": "NCCL INFO Channel 00 via P2P/PCI\nNCCL INFO NET/IB : Using mlx5_0"},
+  "verdicts": {"gpu-topology": "PASS", "nvlink-p2p": "WARN", "nccl-transport-check": "PASS"}
+}

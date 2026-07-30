@@ -1,0 +1,7 @@
+{
+  "profile": {"hardware": {"gpus_per_node": 2, "accelerator": {"kind": "gpu", "vendor": "nvidia"}}, "topology": {"gpu": {"models": ["NVIDIA H100"], "interconnect": "nvlink", "minimum_links_per_gpu": 1, "minimum_p2p_gbps": 100, "require_nvls": false}}},
+  "topology_observed": {"commands": {"nvidia-smi": false}, "nvidia_smi_l": "", "topo_m": "", "nvlink_status": "", "nvlink_errors": ""},
+  "p2p_observed": {"commands": {"nvidia-smi": false, "nvbandwidth": false}, "full_gpu_allocation": false, "p2p_matrix": "", "nvbandwidth": "", "counter_before": "", "counter_after": "", "fabric_manager": "unavailable"},
+  "nccl_observed": {"commands": {"all_reduce_perf": false}, "full_gpu_allocation": false, "nodes": 1, "exit_code": 127, "output": ""},
+  "verdicts": {"gpu-topology": "FAIL", "nvlink-p2p": "FAIL", "nccl-transport-check": "FAIL"}
+}

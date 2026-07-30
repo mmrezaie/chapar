@@ -1,179 +1,153 @@
 #!/usr/bin/env bash
-# DESCRIPTION: NCCL transport assertion - verify NCCL selected expected transport (IB/Socket/NVLink)
+# DESCRIPTION: Full-GPU NCCL transport assertion for separate intra-node and inter-node paths
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:1
+#SBATCH --gpus-per-node=8
+#SBATCH --exclusive
 #SBATCH --time=00:05:00
 #SBATCH --job-name=nccl-transport-check
 
 set -euo pipefail
 
-validation_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-config_file="${validation_dir}/config/network.yaml"
-run_id="${SLURM_JOB_ID:-$(date -u +%Y%m%dT%H%M%S)}"
+usage() {
+    printf '%s\n' 'Usage: nccl-transport-check.sbatch [--fixture validation/fixtures/gpu/<case>]'
+}
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+validation_dir="$(cd "${script_dir}/.." && pwd)"
+results_root="${RESULTS_ROOT:-${validation_dir}/results}"
 node="${SLURM_NODELIST:-$(hostname -s)}"
-RESULTS_DIR="${RESULTS_ROOT:-${validation_dir}/results}/nccl-transport-check/${run_id}/${node}"
-mkdir -p "${RESULTS_DIR}"
+fixture=""
 
-# Load modules
-if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
-    module purge 2>/dev/null || true
-fi
-module load "${CHAPAR_MODULE_CUDA:-cuda/13}" "${CHAPAR_MODULE_NCCL:-nccl}" 2>/dev/null || {
-    echo "WARNING: Could not load cuda/nccl modules" >&2
-}
-
-# Read expected transport from config
-EXPECTED_TRANSPORT=""
-if [ -f "$config_file" ]; then
-    EXPECTED_TRANSPORT=$(python3 -c "
-import yaml
-with open('$config_file') as f:
-    cfg = yaml.safe_load(f)
-print(cfg.get('nccl', {}).get('expected_transport', ''))
-" 2>/dev/null || echo "")
+if [ "${1:-}" = --fixture ]; then
+    [ "$#" = 2 ] || { usage; exit 2; }
+    fixture="$2"
+    [ -f "${fixture}/manifest.json" ] || { printf 'GPU fixture manifest is missing: %s\n' "${fixture}" >&2; exit 2; }
+elif [ "$#" -ne 0 ]; then
+    usage
+    exit 2
 fi
 
-echo "=== NCCL Transport Check ===" >&2
-echo "Expected transport: ${EXPECTED_TRANSPORT:-auto-detect}" >&2
+source "${validation_dir}/lib/verdict.sh"
+source "${validation_dir}/lib/result-manifest.sh"
+validation_result_init nccl-transport-check "${results_root}" "${node}"
+results_dir="${VALIDATION_NODE_DIR}"
 
-# Run NCCL all_reduce with DEBUG output. NCCL writes its debug stream to
-# NCCL_DEBUG_FILE; keep Python's own stderr separate so neither clobbers
-# the other. The heredoc always exits 0 and encodes the verdict in JSON;
-# the shell decides the final exit code from that verdict.
-NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,NET \
-NCCL_DEBUG_FILE="${RESULTS_DIR}/nccl_debug.log" \
-MASTER_PORT_BASE="$((29500 + ${SLURM_JOB_ID:-0} % 1000))" \
-python3 - << 'PYEOF' 2>"${RESULTS_DIR}/python_stderr.log" > "${RESULTS_DIR}/nccl_result.log"
-import json, os, sys
+if [ -z "${fixture}" ] && [ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]; then
+    module purge
+fi
+if [ -z "${fixture}" ]; then
+    module load "${CHAPAR_MODULE_CUDA:-cuda/13}" "${CHAPAR_MODULE_NCCL:-nccl}" "${CHAPAR_MODULE_NCCL_TESTS:-nccl-tests}"
+fi
 
-try:
-    import torch
-    import torch.distributed as dist
-except ImportError:
-    print(json.dumps({"error": "PyTorch not available", "verdict": "SKIP"}))
-    sys.exit(0)
+export NCCL_TRANSPORT_FIXTURE="${fixture}"
+export NCCL_TRANSPORT_PROFILE="${VALIDATION_SITE_PROFILE:-}"
+export NCCL_TRANSPORT_RESULT="${results_dir}/nccl_transport_check.json"
+export NCCL_TRANSPORT_PROM="${results_dir}/nccl_transport.prom"
+export NCCL_TRANSPORT_NODE="${node}"
+export NCCL_TRANSPORT_NETWORK_CONFIG="${validation_dir}/config/network.yaml"
 
-os.environ['RANK'] = '0'
-os.environ['WORLD_SIZE'] = '1'
-os.environ['MASTER_ADDR'] = '127.0.0.1'
-os.environ['MASTER_PORT'] = os.environ.get('MASTER_PORT_BASE', '29500')
-
-try:
-    if not torch.cuda.is_available():
-        print(json.dumps({"error": "CUDA not available", "verdict": "SKIP"}))
-        sys.exit(0)
-
-    dist.init_process_group(backend='nccl', rank=0, world_size=1)
-    t = torch.ones(1024, device='cuda:0')
-    dist.all_reduce(t)
-    dist.destroy_process_group()
-
-    print(json.dumps({"result": "AllReduce OK", "verdict": "PASS"}))
-except Exception as e:
-    print(json.dumps({"error": str(e), "verdict": "FAIL"}))
-PYEOF
-
-RUN_VERDICT=$(python3 -c "
+python3 <<'PY'
 import json
-try:
-    with open('${RESULTS_DIR}/nccl_result.log') as f:
-        print(json.load(f).get('verdict', 'FAIL'))
-except Exception:
-    print('FAIL')
-")
+import os
+import pathlib
+import re
+import shutil
+import subprocess
 
-if [ "$RUN_VERDICT" = "SKIP" ]; then
-    echo "SKIP: $(cat "${RESULTS_DIR}/nccl_result.log")" >&2
-    exit 77
-fi
 
-# Parse NCCL debug output for the selected network transport. Depending on
-# the NCCL version the line is "Using network IB", "Using network Socket",
-# or "NET/IB : Using ..." / "NET/Socket : Using ...". NCCL versions also
-# differ in whether NCCL_DEBUG_FILE is honored, so scan Python stderr too.
-SELECTED_TRANSPORT=$(python3 - "$RESULTS_DIR" << 'PYEOF'
-import re, sys
+def read_yaml(path):
+    import yaml
+    with open(path, encoding="utf-8") as stream:
+        return yaml.safe_load(stream) or {}
 
-text = ""
-for name in ("nccl_debug.log", "python_stderr.log"):
-    try:
-        with open(f"{sys.argv[1]}/{name}") as f:
-            text += f.read()
-    except OSError:
-        pass
 
-m = re.search(r'Using network\s*:?\s*(\S+)', text)
-name = m.group(1) if m else ""
-if not name:
-    m = re.search(r'NET/(IB|Socket)\b', text)
-    name = m.group(1) if m else ""
-
-# Normalize plugin names (IB, IBext, Socket, AWS Libfabric, ...) to a class
-if re.search(r'ib', name, re.IGNORECASE):
-    print("IB")
-elif re.search(r'socket', name, re.IGNORECASE):
-    print("Socket")
+fixture_path = os.environ["NCCL_TRANSPORT_FIXTURE"]
+fixture_data = json.loads((pathlib.Path(fixture_path) / "manifest.json").read_text(encoding="utf-8")) if fixture_path else {}
+if fixture_path:
+    profile = fixture_data.get("profile", {})
+    observed = fixture_data.get("nccl_observed", {})
+    expected_network = fixture_data.get("expected_network", "")
 else:
-    print(name)
-PYEOF
-)
-echo "Selected transport: ${SELECTED_TRANSPORT:-<not observed>}" >&2
+    profile_path = os.environ["NCCL_TRANSPORT_PROFILE"]
+    profile = read_yaml(profile_path) if profile_path else {}
+    config_path = os.environ["NCCL_TRANSPORT_NETWORK_CONFIG"]
+    expected_network = read_yaml(config_path).get("nccl", {}).get("expected_transport", "") if pathlib.Path(config_path).is_file() else ""
+    executable = shutil.which("all_reduce_perf")
+    gpu_count = profile.get("hardware", {}).get("gpus_per_node", 0)
+    if executable and isinstance(gpu_count, int) and gpu_count > 0:
+        command = [executable, "-b", "8", "-e", "128M", "-f", "2", "-g", str(gpu_count)]
+        if os.environ.get("SLURM_JOB_ID"):
+            command = ["srun", "--ntasks-per-node=1", *command]
+        completed = subprocess.run(command, check=False, capture_output=True, text=True, env={**os.environ, "NCCL_DEBUG": "INFO", "NCCL_DEBUG_SUBSYS": "INIT,NET,P2P"})
+        observed = {"commands": {"all_reduce_perf": True}, "output": completed.stdout + completed.stderr, "exit_code": completed.returncode}
+    else:
+        observed = {"commands": {"all_reduce_perf": False}, "output": "", "exit_code": 127}
 
-# Compare with expected
-VERDICT="$RUN_VERDICT"
-NOTE=""
-if [ "$VERDICT" = "PASS" ] && [ -n "$EXPECTED_TRANSPORT" ]; then
-    if [ -z "$SELECTED_TRANSPORT" ]; then
-        echo "WARN: NCCL did not report a network transport (single-rank init may not exercise the network)" >&2
-        VERDICT="WARN"
-        NOTE="transport not observed in NCCL debug output"
-    elif [ "$SELECTED_TRANSPORT" != "$EXPECTED_TRANSPORT" ]; then
-        echo "MISMATCH: Expected ${EXPECTED_TRANSPORT}, got ${SELECTED_TRANSPORT}" >&2
-        VERDICT="FAIL"
-        NOTE="transport mismatch"
-    fi
-fi
+hardware = profile.get("hardware", {})
+accelerator = hardware.get("accelerator", {})
+gpu_policy = profile.get("topology", {}).get("gpu", {})
+expected_count = hardware.get("gpus_per_node")
+errors = []
+if not profile:
+    errors.append("VALIDATION_SITE_PROFILE is required for live GPU validation")
+elif accelerator.get("kind") != "gpu" or accelerator.get("vendor") != "nvidia":
+    verdict = "SKIP"
+else:
+    if not observed.get("commands", {}).get("all_reduce_perf", False):
+        errors.append("required command unavailable: all_reduce_perf")
+    if not isinstance(expected_count, int) or expected_count < 2:
+        errors.append("profile must select at least two GPUs per node")
+    if fixture_path:
+        full_allocation = observed.get("full_gpu_allocation", False)
+        nodes = observed.get("nodes", 1)
+    else:
+        visible = [value for value in os.environ.get("CUDA_VISIBLE_DEVICES", "").split(",") if value]
+        full_allocation = bool(os.environ.get("SLURM_JOB_ID")) and os.environ.get("SLURM_GPUS_ON_NODE") == str(expected_count) and len(visible) == expected_count
+        nodes = int(os.environ.get("SLURM_JOB_NUM_NODES", "1"))
+    if not full_allocation:
+        errors.append("full profile-selected GPU allocation is required")
+    output = observed.get("output", "")
+    if observed.get("exit_code") != 0:
+        errors.append(f"all_reduce_perf failed with exit code {observed.get('exit_code')}")
+    if re.search(r"\bNVLS\b", output, re.IGNORECASE):
+        intra_node = "NVLS"
+    elif re.search(r"P2P/NVL|\bNVLink\b", output, re.IGNORECASE):
+        intra_node = "NVLink"
+    elif re.search(r"P2P/PCI|\bPCIe\b", output, re.IGNORECASE):
+        intra_node = "PCIe"
+    else:
+        intra_node = ""
+    if re.search(r"\bRoCE\b", output, re.IGNORECASE):
+        network = "RoCE"
+    elif re.search(r"NET/(?:IB|IBext)\b|Using network\s*:?[ \t]*IB", output, re.IGNORECASE):
+        network = "IB"
+    elif re.search(r"NET/Socket\b|Using network\s*:?[ \t]*Socket", output, re.IGNORECASE):
+        network = "Socket"
+    else:
+        network = ""
+    expected_intra = "NVLS" if gpu_policy.get("require_nvls") else {"nvlink": "NVLink", "nvswitch": "NVLink", "pcie": "PCIe"}.get(gpu_policy.get("interconnect"), "")
+    if expected_intra and intra_node != expected_intra:
+        errors.append(f"intra-node NCCL path mismatch: expected={expected_intra}, got={intra_node or 'unobserved'}")
+    if nodes > 1 and expected_network and network != expected_network:
+        errors.append(f"inter-node NCCL transport mismatch: expected={expected_network}, got={network or 'unobserved'}")
+    verdict = "FAIL" if errors else "PASS"
 
-# Write summary JSON
-export SUMMARY_NODE="$node" SUMMARY_EXPECTED="$EXPECTED_TRANSPORT" \
-       SUMMARY_SELECTED="$SELECTED_TRANSPORT" SUMMARY_VERDICT="$VERDICT" SUMMARY_NOTE="$NOTE"
-python3 -c "
-import json, os
-result = {
-    'node': os.environ['SUMMARY_NODE'],
-    'expected_transport': os.environ['SUMMARY_EXPECTED'],
-    'selected_transport': os.environ['SUMMARY_SELECTED'],
-    'verdict': os.environ['SUMMARY_VERDICT'],
-}
-if os.environ['SUMMARY_NOTE']:
-    result['note'] = os.environ['SUMMARY_NOTE']
-with open('${RESULTS_DIR}/nccl_transport_check.json', 'w') as f:
-    json.dump(result, f, indent=2)
-print(json.dumps(result, indent=2))
-"
+declared = fixture_data.get("verdicts", {}).get("nccl-transport-check", "")
+if declared and verdict != declared:
+    errors.append(f"fixture declared {declared} but validation produced {verdict}")
+    verdict = "FAIL"
+payload = {"fixture": bool(fixture_path), "node": os.environ["NCCL_TRANSPORT_NODE"], "expected_gpu_count": expected_count, "intra_node_transport": intra_node if 'intra_node' in locals() else "", "inter_node_transport": network if 'network' in locals() else "", "inter_node_asserted": nodes > 1 if 'nodes' in locals() else False, "artifacts_sanitized": True, "verdict": verdict, "failures": errors}
+pathlib.Path(os.environ["NCCL_TRANSPORT_RESULT"]).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+transport_code = {"IB": 0, "Socket": 1, "NVLink": 2, "NVLS": 3, "RoCE": 4}.get(payload["inter_node_transport"] or payload["intra_node_transport"], -1)
+pathlib.Path(os.environ["NCCL_TRANSPORT_PROM"]).write_text(f'# HELP nccl_transport_selected NCCL selected transport class\n# TYPE nccl_transport_selected gauge\nnccl_transport_selected{{node="{payload["node"]}"}} {transport_code}\n', encoding="utf-8")
+PY
 
-# Write Prometheus output
-python3 -c "
-import json
-with open('${RESULTS_DIR}/nccl_transport_check.json') as f:
-    d = json.load(f)
-lines = []
-lines.append('# HELP nccl_transport_selected NCCL transport class selected (0=IB, 1=Socket, 2=NVLink, -1=unknown)')
-lines.append('# TYPE nccl_transport_selected gauge')
-transport_code = {'IB': 0, 'Socket': 1, 'NVLink': 2}.get(d.get('selected_transport',''), -1)
-lines.append(f'nccl_transport_selected{{node=\"{d[\"node\"]}\"}} {transport_code}')
-lines.append('# HELP nccl_transport_verdict NCCL transport check verdict (0=PASS, 1=WARN, 2=FAIL)')
-lines.append('# TYPE nccl_transport_verdict gauge')
-verdict_code = {'PASS': 0, 'WARN': 1}.get(d.get('verdict'), 2)
-lines.append(f'nccl_transport_verdict{{node=\"{d[\"node\"]}\"}} {verdict_code}')
-with open('${RESULTS_DIR}/nccl_transport.prom', 'w') as f:
-    f.write('\\n'.join(lines) + '\\n')
-"
+verdict="$(python3 -c "import json; print(json.load(open('${results_dir}/nccl_transport_check.json'))['verdict'])")"
+reason="$(python3 -c "import json; value=json.load(open('${results_dir}/nccl_transport_check.json')); print('; '.join(value['failures']))")"
+case "${verdict}" in
+    FAIL) validation_threshold_violation "${reason}" ;;
+    SKIP) validation_resource_unavailable 'profile does not select an NVIDIA NCCL suite' optional ;;
+esac
 
-echo "Results: ${RESULTS_DIR}" >&2
-
-if [ "$VERDICT" = "FAIL" ]; then
-    echo "FAIL: NCCL transport check failed (see ${RESULTS_DIR}/nccl_transport_check.json)" >&2
-    exit 1
-fi
+printf 'NCCL transport evidence written to %s\n' "${results_dir}" >&2
