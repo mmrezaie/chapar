@@ -33,6 +33,10 @@ envs/*/.spack-env/
 # Site/datacenter-local vlad roots, cache roots, groups, and policy.
 /envs/vlad/vlad-site.env
 
+# Site-local validation profile and all hardware-validation result artifacts.
+/validation/config/cluster-site.yaml
+/validation/results/
+
 # Agent working artifacts (OpenCode planning workspace, link-scopes backups)
 .omo/
 /etc/*.bak.*/
