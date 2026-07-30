@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chapar.example/schema/validation/cluster-profile/v1",
+  "title": "Chapar validation cluster site profile",
+  "description": "Fail-closed site contract consumed by future Slurm validation runners.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "site", "platform", "hardware", "topology", "available_capabilities", "safe_storage", "tiers", "baseline_policy"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "owner_group", "approval_role"],
+      "properties": {
+        "profile_id": {"$ref": "#/$defs/identifier"},
+        "owner_group": {"$ref": "#/$defs/identifier"},
+        "approval_role": {"enum": ["cluster-operator", "validation-operator"]}
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "architecture", "cpu_vendor", "cpu_platform"],
+      "properties": {
+        "operating_system": {"enum": ["rocky9", "rocky10"]},
+        "architecture": {"enum": ["aarch64", "x86_64_v3", "x86_64_v4", "zen4", "zen5"]},
+        "cpu_vendor": {"enum": ["amd", "generic", "intel", "nvidia"]},
+        "cpu_platform": {"enum": ["amd-x86", "generic", "intel-x86", "nvidia-grace"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"cpu_platform": {"const": "nvidia-grace"}}},
+          "then": {"properties": {"architecture": {"const": "aarch64"}, "cpu_vendor": {"const": "nvidia"}}}
+        }
+      ]
+    },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_count", "cores_per_node", "gpus_per_node", "accelerator"],
+      "properties": {
+        "node_count": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "cores_per_node": {"type": "integer", "minimum": 1, "maximum": 512},
+        "gpus_per_node": {"type": "integer", "minimum": 0, "maximum": 16},
+        "accelerator": {"oneOf": [{"$ref": "#/$defs/noAccelerator"}, {"$ref": "#/$defs/gpuAccelerator"}]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"gpus_per_node": {"const": 0}}},
+          "then": {"properties": {"accelerator": {"$ref": "#/$defs/noAccelerator"}}},
+          "else": {"properties": {"accelerator": {"$ref": "#/$defs/gpuAccelerator"}}}
+        }
+      ]
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_bounds", "edges", "fabric", "max_hops"],
+      "properties": {
+        "node_bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": {"type": "integer", "minimum": 1, "maximum": 4096},
+            "maximum": {"type": "integer", "minimum": 1, "maximum": 4096}
+          }
+        },
+        "edges": {"type": "array", "minItems": 0, "maxItems": 256, "items": {"$ref": "#/$defs/topologyEdge"}},
+        "fabric": {"enum": ["ethernet", "infiniband", "roce"]},
+        "max_hops": {"type": "integer", "minimum": 0, "maximum": 16},
+        "gpu": {"$ref": "#/$defs/gpuTopology"},
+        "rdma": {"$ref": "#/$defs/rdmaTopology"},
+        "roce": {"$ref": "#/$defs/roceTopology"}
+      }
+    },
+    "available_capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/capability"},
+      "contains": {"const": "cpu"}
+    },
+    "safe_storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roots"],
+      "properties": {
+        "roots": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safeStorageRoot"},
+          "allOf": [
+            {"contains": {"properties": {"target": {"const": "job-scratch"}}}},
+            {"contains": {"properties": {"target": {"const": "managed-results"}}}}
+          ]
+        }
+      }
+    },
+    "tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 6,
+      "properties": {
+        "capability": {"$ref": "#/$defs/tier"},
+        "node": {"$ref": "#/$defs/tier"},
+        "fabric": {"$ref": "#/$defs/tier"},
+        "storage": {"$ref": "#/$defs/tier"},
+        "accelerator": {"$ref": "#/$defs/tier"},
+        "full": {"$ref": "#/$defs/tier"}
+      }
+    },
+    "baseline_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "storage_target", "minimum_samples", "retention_days", "metrics"],
+      "properties": {
+        "mode": {"enum": ["required", "optional"]},
+        "storage_target": {"const": "managed-results"},
+        "minimum_samples": {"type": "integer", "minimum": 3, "maximum": 365},
+        "retention_days": {"type": "integer", "minimum": 1, "maximum": 3650},
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"enum": ["cpu-throughput", "gpu-gemm-gflops", "ib-bandwidth-gbps", "io-bandwidth-mibps", "mpi-latency-us"]}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["hardware"],
+        "properties": {
+          "hardware": {
+            "required": ["accelerator"],
+            "properties": {
+              "accelerator": {
+                "required": ["vendor"],
+                "properties": {"vendor": {"const": "nvidia"}}
+              }
+            }
+          }
+        }
+      },
+      "then": {"properties": {"topology": {"required": ["gpu"]}}}
+    },
+    {
+      "if": {"properties": {"topology": {"properties": {"fabric": {"const": "roce"}}}}},
+      "then": {"properties": {"topology": {"required": ["roce"]}}}
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 63
+    },
+    "capability": {
+      "enum": ["cpu", "gpu", "multi-node", "parallel-storage", "rdma", "slurm"]
+    },
+    "noAccelerator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {"kind": {"const": "none"}}
+    },
+    "gpuAccelerator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "vendor", "memory_gib"],
+      "properties": {
+        "kind": {"const": "gpu"},
+        "vendor": {"enum": ["amd", "nvidia"]},
+        "memory_gib": {"type": "integer", "minimum": 1, "maximum": 512}
+      }
+    },
+    "topologyEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "destination", "kind"],
+      "properties": {
+        "source": {"$ref": "#/$defs/identifier"},
+        "destination": {"$ref": "#/$defs/identifier"},
+        "kind": {"enum": ["gpu-pcie", "gpu-nvlink", "node-fabric", "storage-fabric"]}
+      }
+    },
+    "rdmaPort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["port", "state", "width", "minimum_rate_gbps", "link_layer", "max_counter_delta"],
+      "properties": {
+        "port": {"type": "integer", "minimum": 1, "maximum": 16},
+        "state": {"enum": ["ACTIVE"]},
+        "width": {"type": "string", "pattern": "^[1-9][0-9]*X$"},
+        "minimum_rate_gbps": {"type": "number", "minimum": 1, "maximum": 1600},
+        "link_layer": {"enum": ["InfiniBand", "Ethernet"]},
+        "max_counter_delta": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}, "maxProperties": 32}
+      }
+    },
+    "rdmaHca": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name_pattern", "model_pattern", "firmware_pattern", "pci_bdf_pattern", "netdev_pattern", "ports"],
+      "properties": {
+        "name_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "model_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "firmware_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "pci_bdf_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "netdev_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "ports": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/rdmaPort"}}
+      }
+    },
+    "rdmaTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hcas", "max_benchmark_edges", "fabric_query_authorized", "minimum_bandwidth_gbps", "maximum_latency_us"],
+      "properties": {
+        "hcas": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/rdmaHca"}},
+        "max_benchmark_edges": {"type": "integer", "minimum": 1, "maximum": 256},
+        "fabric_query_authorized": {"type": "boolean"},
+        "minimum_bandwidth_gbps": {"type": "number", "minimum": 0, "maximum": 1600},
+        "maximum_latency_us": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000}
+      }
+    },
+    "roceCounterLimits": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 32,
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "roceEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hca_pattern", "port", "netdev", "vlan_netdev", "vlan_id", "address_pattern", "gid_type", "mtu", "pfc_max_counter_delta", "ecn_max_counter_delta", "retransmit_max_counter_delta"],
+      "properties": {
+        "hca_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "port": {"type": "integer", "minimum": 1, "maximum": 16},
+        "netdev": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]+$", "minLength": 1, "maxLength": 63},
+        "vlan_netdev": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]+$", "minLength": 1, "maxLength": 63},
+        "vlan_id": {"type": "integer", "minimum": 1, "maximum": 4094},
+        "address_pattern": {"type": "string", "minLength": 1, "maxLength": 128},
+        "gid_type": {"const": "RoCE v2"},
+        "mtu": {"type": "integer", "minimum": 576, "maximum": 9600},
+        "pfc_max_counter_delta": {"$ref": "#/$defs/roceCounterLimits"},
+        "ecn_max_counter_delta": {"$ref": "#/$defs/roceCounterLimits"},
+        "retransmit_max_counter_delta": {"$ref": "#/$defs/roceCounterLimits"}
+      }
+    },
+    "roceTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint", "max_benchmark_edges", "minimum_bandwidth_gbps", "maximum_latency_us"],
+      "properties": {
+        "endpoint": {"$ref": "#/$defs/roceEndpoint"},
+        "max_benchmark_edges": {"type": "integer", "minimum": 1, "maximum": 256},
+        "minimum_bandwidth_gbps": {"type": "number", "minimum": 0, "maximum": 1600},
+        "maximum_latency_us": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000}
+      }
+    },
+    "gpuTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["models", "interconnect", "minimum_links_per_gpu", "minimum_p2p_gbps", "require_nvls"],
+      "properties": {
+        "models": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9 ._-]{2,80}$"}},
+        "interconnect": {"enum": ["pcie", "nvlink", "nvswitch"]},
+        "minimum_links_per_gpu": {"type": "integer", "minimum": 0, "maximum": 32},
+        "minimum_p2p_gbps": {"type": "number", "minimum": 0, "maximum": 5000},
+        "require_nvls": {"type": "boolean"}
+      },
+      "allOf": [
+        {"if": {"properties": {"interconnect": {"const": "pcie"}}}, "then": {"properties": {"minimum_links_per_gpu": {"const": 0}, "require_nvls": {"const": false}}}},
+        {"if": {"properties": {"require_nvls": {"const": true}}}, "then": {"properties": {"interconnect": {"const": "nvswitch"}}}}
+      ]
+    },
+    "safeStorageRoot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "owner", "relative_directory", "cleanup"],
+      "properties": {
+        "target": {"enum": ["job-scratch", "managed-results"]},
+        "owner": {"enum": ["slurm-job", "validation-service"]},
+        "relative_directory": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$", "minLength": 3, "maxLength": 63},
+        "cleanup": {"enum": ["job-end", "retention-policy"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"target": {"const": "job-scratch"}}},
+          "then": {"properties": {"owner": {"const": "slurm-job"}, "cleanup": {"const": "job-end"}}}
+        },
+        {
+          "if": {"properties": {"target": {"const": "managed-results"}}},
+          "then": {"properties": {"owner": {"const": "validation-service"}, "cleanup": {"const": "retention-policy"}}}
+        }
+      ]
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selected_suites", "required_capabilities", "resources", "partition_class", "unavailable_policy", "threshold_policy"],
+      "properties": {
+        "selected_suites": {
+          "type": "array",
+          "minItems": 1,
+            "maxItems": 20,
+          "uniqueItems": true,
+            "items": {"enum": ["cpu-platform", "frameworks", "gemm-pulse", "gpu-stress", "gpu-topology", "hpc-challenge", "ib-link-check", "ib-pairwise", "integrity-test", "intelmpi-cpu", "intelmpi-gpu", "io", "module-smoke", "mpi-collective", "nccl-transport-check", "node-admission", "node-smoke", "nvlink-p2p", "openmpi-cpu", "openmpi-gpu", "profiling", "rdma-link-check", "rocev2-pairwise", "slurm-placement", "storage-burnin", "transport", "vast"]}
+        },
+        "required_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/capability"}
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nodes", "gpus_per_node", "max_edges"],
+          "properties": {
+            "nodes": {"type": "integer", "minimum": 1, "maximum": 4096},
+            "gpus_per_node": {"type": "integer", "minimum": 0, "maximum": 16},
+            "max_edges": {"type": "integer", "minimum": 0, "maximum": 256}
+          }
+        },
+        "partition_class": {"enum": ["cpu", "developer", "fabric", "gpu", "production", "storage"]},
+        "unavailable_policy": {"enum": ["fail", "skip"]},
+        "threshold_policy": {"enum": ["fail", "warn"]}
+      }
+    }
+  }
+}

@@ -1,0 +1,213 @@
+# Copy this file to cluster-site.yaml and replace generic values with site policy.
+# The real profile is ignored. Storage targets are logical IDs resolved by a
+# runner-owned allowlist; profiles must never contain filesystem paths.
+schema_version: "1.0"
+site:
+  profile_id: example-cluster
+  owner_group: cluster-operations
+  approval_role: cluster-operator
+platform:
+  operating_system: rocky10
+  architecture: x86_64_v4
+  cpu_vendor: generic
+  cpu_platform: generic
+hardware:
+  node_count: 32
+  cores_per_node: 64
+  gpus_per_node: 8
+  accelerator:
+    kind: gpu
+    vendor: nvidia
+    memory_gib: 80
+topology:
+  node_bounds:
+    minimum: 1
+    maximum: 32
+  edges:
+    - source: compute-gpu
+      destination: fabric
+      kind: node-fabric
+    - source: compute-gpu
+      destination: results-service
+      kind: storage-fabric
+  fabric: infiniband
+  max_hops: 2
+  rdma:
+    hcas:
+      - name_pattern: "mlx5_[0-9]+"
+        model_pattern: "ConnectX-8"
+        firmware_pattern: "28\\.[0-9]+\\.[0-9]+"
+        pci_bdf_pattern: "0000:[0-9a-f]{2}:[0-9a-f]{2}\\.[0-7]"
+        netdev_pattern: "ib[0-9]+"
+        ports:
+          - port: 1
+            state: ACTIVE
+            width: "8X"
+            minimum_rate_gbps: 400
+            link_layer: InfiniBand
+            max_counter_delta:
+              symbol_error: 0
+              port_rcv_errors: 0
+    max_benchmark_edges: 8
+    fabric_query_authorized: false
+    minimum_bandwidth_gbps: 100
+    maximum_latency_us: 10
+  gpu:
+    models:
+      - NVIDIA H100
+    interconnect: nvswitch
+    minimum_links_per_gpu: 1
+    minimum_p2p_gbps: 100
+    require_nvls: true
+available_capabilities:
+  - cpu
+  - gpu
+  - multi-node
+  - parallel-storage
+  - rdma
+  - slurm
+safe_storage:
+  roots:
+    - target: job-scratch
+      owner: slurm-job
+      relative_directory: chapar-validation
+      cleanup: job-end
+    - target: managed-results
+      owner: validation-service
+      relative_directory: chapar-validation
+      cleanup: retention-policy
+tiers:
+  capability:
+    selected_suites:
+      - cpu-platform
+      - integrity-test
+      - module-smoke
+    required_capabilities:
+      - cpu
+    resources:
+      nodes: 1
+      gpus_per_node: 0
+      max_edges: 0
+    partition_class: developer
+    unavailable_policy: skip
+    threshold_policy: warn
+  node:
+    selected_suites:
+      - hpc-challenge
+      - node-admission
+      - node-smoke
+      - slurm-placement
+    required_capabilities:
+      - cpu
+    resources:
+      nodes: 1
+      gpus_per_node: 0
+      max_edges: 0
+    partition_class: cpu
+    unavailable_policy: fail
+    threshold_policy: fail
+  fabric:
+    selected_suites:
+      - ib-link-check
+      - rdma-link-check
+      - ib-pairwise
+      - openmpi-cpu
+      - transport
+    required_capabilities:
+      - cpu
+      - multi-node
+      - rdma
+    resources:
+      nodes: 2
+      gpus_per_node: 0
+      max_edges: 8
+    partition_class: fabric
+    unavailable_policy: fail
+    threshold_policy: fail
+  storage:
+    selected_suites:
+      - io
+      - storage-burnin
+      - vast
+    required_capabilities:
+      - cpu
+      - multi-node
+      - parallel-storage
+    resources:
+      nodes: 4
+      gpus_per_node: 0
+      max_edges: 0
+    partition_class: storage
+    unavailable_policy: fail
+    threshold_policy: warn
+  accelerator:
+    selected_suites:
+      - cpu-platform
+      - frameworks
+      - gemm-pulse
+      - gpu-stress
+      - gpu-topology
+      - intelmpi-gpu
+      - nccl-transport-check
+      - nvlink-p2p
+      - openmpi-gpu
+    required_capabilities:
+      - cpu
+      - gpu
+    resources:
+      nodes: 1
+      gpus_per_node: 8
+      max_edges: 0
+    partition_class: gpu
+    unavailable_policy: fail
+    threshold_policy: fail
+  full:
+    selected_suites:
+      - frameworks
+      - gemm-pulse
+      - gpu-stress
+      - gpu-topology
+      - hpc-challenge
+      - ib-link-check
+      - rdma-link-check
+      - ib-pairwise
+      - integrity-test
+      - intelmpi-cpu
+      - intelmpi-gpu
+      - io
+      - module-smoke
+      - mpi-collective
+      - nccl-transport-check
+      - node-admission
+      - node-smoke
+      - nvlink-p2p
+      - openmpi-cpu
+      - openmpi-gpu
+      - profiling
+      - slurm-placement
+      - storage-burnin
+      - transport
+    required_capabilities:
+      - cpu
+      - gpu
+      - multi-node
+      - parallel-storage
+      - rdma
+      - slurm
+    resources:
+      nodes: 4
+      gpus_per_node: 8
+      max_edges: 16
+    partition_class: production
+    unavailable_policy: fail
+    threshold_policy: fail
+baseline_policy:
+  mode: required
+  storage_target: managed-results
+  minimum_samples: 7
+  retention_days: 90
+  metrics:
+    - gpu-gemm-gflops
+    - ib-bandwidth-gbps
+    - io-bandwidth-mibps
+    - mpi-latency-us
