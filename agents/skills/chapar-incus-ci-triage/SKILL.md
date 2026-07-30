@@ -6,9 +6,13 @@ description: Triage Chapar GitHub Actions Incus Spack-environment CI failures, i
 # Chapar Incus CI Triage
 
 Use this playbook for Incus-backed GitHub Actions that build Chapar Spack
-environments. The current workflow is `.github/workflows/incus-spack-build.yml`
-for `envs/hpcsim`, but future workflows may target other `envs/<name>`
-environments. Identify the environment before changing config.
+environments. `.github/workflows/incus-spack-build.yml` is the reusable
+workflow; per-environment caller workflows trigger it (currently
+`incus-spack-build-hpcsim.yml` and `incus-spack-build-vlad.yml`, on pushes
+touching their `envs/<name>/**`). Identify the environment before changing
+config. Note the auto-promote difference: vlad promotes on every successful
+push build, hpcsim promotes only via `workflow_dispatch` with
+`publish_current=true`.
 
 ## First Principles
 

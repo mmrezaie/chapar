@@ -74,7 +74,8 @@ otherwise read the skill's `SKILL.md` before changing files.
 | Live CI/CD progress inspection via mounted artifact roots, logs, stores, releases, modulefiles, or caches | `agents/skills/chapar-ci-artifact-watch/SKILL.md` |
 | CUDA/GDR transport work involving UCX, Open MPI, libfabric, GDRCopy, NCCL, or NVSHMEM | `agents/skills/chapar-cuda-gdr-transport/SKILL.md` |
 | Incus-backed GitHub Actions or Rocky runner CI triage | `agents/skills/chapar-incus-ci-triage/SKILL.md` |
-| CVE checker agent, security scan config, Nemotron summaries, or issue workflow changes | `agents/skills/chapar-cve-checker/SKILL.md` |
+| CVE checker agent, CodeQL code scanning, security scan config, Nemotron summaries, or issue workflow changes | `agents/skills/chapar-cve-checker/SKILL.md` |
+| Cluster validation tests under `validation/` — integrity test, hardware/interconnect tiers, verdict outputs | `agents/skills/chapar-validation/SKILL.md` |
 | Local Spack package overlay recipe or patch changes under `spack_repo/chapar_plus` | `agents/skills/chapar-spack-repo-overlay/SKILL.md` |
 | OpenCode config, agent skill layout, skill migration, or project skill policy changes | `agents/skills/chapar-opencode-skills/SKILL.md` |
 | Creating or improving `agents/skills` | `agents/skills/skill-creator/SKILL.md` |

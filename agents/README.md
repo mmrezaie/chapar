@@ -10,8 +10,11 @@ with Chapar. OpenCode loads project skills from `agents/skills`.
 - `skills/chapar-spack-env-change` and `skills/chapar-spack-solve-debug` are
   environment-generic: use them for `envs/hpcsim` today and for future
   `envs/<name>` environments.
-- `skills/chapar-release-helper` is intentionally hpcsim-specific because the
-  current release helper is `envs/hpcsim/release.sh`.
+- `skills/chapar-release-helper` is environment-generic: it covers
+  `envs/hpcsim/release.sh`, `envs/vlad/release.sh`, and any future
+  `envs/<name>/release.sh`.
+- `skills/chapar-validation` covers the cluster validation suite under
+  `validation/` (integrity test and hardware/interconnect tiers).
 - `skills/chapar-incus-ci-triage` covers Rocky self-hosted Incus runner and CI
   failures.
 - `skills/chapar-cve-checker` covers the security scanner workflow and its

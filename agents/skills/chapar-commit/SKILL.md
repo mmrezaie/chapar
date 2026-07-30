@@ -27,7 +27,7 @@ Create separate commits for separate review contexts:
 - CI workflow changes
 - release tooling changes
 - buildcache policy changes
-- project-local pi/agent workflow changes
+- project-local agent skill/workflow changes
 
 Do not mix documentation/comment-only changes with behavior/config/CI changes unless inseparable. If inseparable, explain why in the commit body.
 

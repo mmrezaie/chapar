@@ -1,14 +1,17 @@
 ---
 name: chapar-release-helper
-description: Modify or debug release helpers for any Chapar environment (hpcsim, vlad, or future) under envs/<name>/release.sh. Use for release builds, staging/promote logic, module refresh, generated Spack scopes, and release metadata. For generic package/env edits, use chapar-spack-env-change.
+description: Modify or debug release helpers for any Chapar environment (hpcsim, vlad, or future), e.g. envs/hpcsim/release.sh or envs/vlad/release.sh. Use for release builds, staging/promote logic, module refresh, generated Spack scopes, and release metadata. For generic package/env edits, use chapar-spack-env-change.
 ---
 
-# Chapar hpcsim Release Helper
+# Chapar Release Helper
 
-Use this playbook before editing `envs/hpcsim/release.sh`. This skill is
-intentionally hpcsim-specific because that is the release helper that exists
-today. If a future environment gets its own release helper, copy the invariants
-that apply but inspect that helper's own paths and variables first.
+Use this playbook before editing any `envs/<name>/release.sh` (currently
+`envs/hpcsim/release.sh` and `envs/vlad/release.sh`). The helpers share the
+same structure; inspect the target helper's own paths and variables before
+editing, and keep intentional differences (for example, hpcsim-only GCC/LLVM
+preinstall or CUDA stub module policy) rather than blindly syncing the files.
+For adding a release helper to a new environment, follow the "Adding a New
+Environment" checklist in `AGENTS.md`.
 
 ## Invariants
 
@@ -22,7 +25,10 @@ that apply but inspect that helper's own paths and variables first.
   shared root with architecture/compiler projections; module trees are
   release-local until promotion.
 - Release command-line Spack scope must be temporary and cleaned up.
-- hpcsim user-facing module names are hashless `{name}/{version}`.
+- User-facing module names are hashless `{name}/{version}`.
+- `cmd_promote()` must keep the stale-`current` auto-repair guard: if a plain
+  directory (not a symlink) exists at the `current` path, remove it before
+  promoting.
 - **NEVER run `spack install -e envs/<name>` directly.** Always use `envs/<name>/release.sh build <id> [--promote]`. This rule applies to ALL environments, not just hpcsim.
 - Refresh modules only for explicit concrete environment roots, not dependencies.
 - Fail on duplicate root module names instead of adding hash suffixes.
@@ -41,17 +47,17 @@ user explicitly requests a persistent behavior change.
 
 ## Safe Validation
 
-Always run:
+Always run (for the helper you edited):
 
 ```bash
-bash -n envs/hpcsim/release.sh
-git diff --check -- envs/hpcsim/release.sh
+bash -n envs/<name>/release.sh
+git diff --check -- envs/<name>/release.sh
 ```
 
 For non-destructive path/status checks:
 
 ```bash
-OS_NAME=rocky9 bash envs/hpcsim/release.sh status
+OS_NAME=rocky9 bash envs/<name>/release.sh status
 ```
 
 Do not run build/promote commands unless explicitly asked.
