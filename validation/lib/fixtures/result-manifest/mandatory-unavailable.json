@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "kind": "suite",
+  "suite": "io",
+  "run_id": "fixture-required-001",
+  "run_issued_at": "2026-07-30T12:00:00Z",
+  "generated_at": "2026-07-30T12:01:00Z",
+  "provenance": {"mode": "runner", "ci_authoritative": true},
+  "verdict": "FAIL",
+  "reason": "required resource unavailable: IO_TEST_DIR is empty",
+  "policies": {"unavailable": "skip", "threshold": "fail"},
+  "artifacts": {"summary": "summary.json", "prometheus": "suite.prom"}
+}

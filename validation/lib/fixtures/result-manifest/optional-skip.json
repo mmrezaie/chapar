@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "kind": "suite",
+  "suite": "ib-link-check",
+  "run_id": "fixture-skip-001",
+  "run_issued_at": "2026-07-30T12:00:00Z",
+  "generated_at": "2026-07-30T12:01:00Z",
+  "provenance": {"mode": "runner", "ci_authoritative": true},
+  "verdict": "SKIP",
+  "reason": "optional resource unavailable: no InfiniBand HCA",
+  "policies": {"unavailable": "skip", "threshold": "fail"},
+  "artifacts": {"summary": "summary.json", "prometheus": "suite.prom"}
+}

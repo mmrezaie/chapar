@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "kind": "suite",
+  "suite": "node-smoke",
+  "run_id": "manual-7b3f82c0-8118-4d2c-b88a-25b5b550c6d3",
+  "run_issued_at": "2026-07-30T12:00:00Z",
+  "generated_at": "2026-07-30T12:01:00Z",
+  "provenance": {"mode": "manual", "ci_authoritative": false},
+  "verdict": "PASS",
+  "policies": {"unavailable": "fail", "threshold": "fail"},
+  "artifacts": {"summary": "summary.json", "prometheus": "suite.prom"}
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "kind": "suite",
+  "suite": "nccl-transport-check",
+  "run_id": "fixture-warn-001",
+  "run_issued_at": "2026-07-30T12:00:00Z",
+  "generated_at": "2026-07-30T12:01:00Z",
+  "provenance": {"mode": "runner", "ci_authoritative": true},
+  "verdict": "WARN",
+  "reason": "transport not observed",
+  "policies": {"unavailable": "skip", "threshold": "warn"},
+  "artifacts": {"summary": "summary.json", "prometheus": "suite.prom"}
+}
