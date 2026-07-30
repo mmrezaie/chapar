@@ -72,8 +72,14 @@ Genuine human co-authors are fine and should be preserved.
 `.githooks/commit-msg` strips these trailers as a backstop. Enable it once per clone:
 
 ```bash
-ln -s ../../.githooks/commit-msg .git/hooks/commit-msg
+cp .githooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 ```
+
+Copy rather than symlink into `.githooks/`: a symlink dangles on any branch where the
+file is not tracked, and git treats a broken-symlink hook as absent, so commits would
+silently keep their trailers. Do not install via `git config core.hooksPath .githooks`
+either — that also activates `.githooks/pre-commit`, which requires a local Incus
+container and will fail commits on machines without one.
 
 Do not bypass it with `git commit --no-verify`, and do not disable or weaken the hook.
 Prefer writing the message correctly in the first place — the hook is a safety net, not

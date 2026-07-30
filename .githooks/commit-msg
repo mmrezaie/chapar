@@ -10,6 +10,17 @@
 #
 # Human co-authors are preserved: only lines naming a known AI vendor/agent
 # identity are removed.
+#
+# INSTALL (per clone) — copy, do not symlink:
+#     cp .githooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+#
+# A symlink into .githooks/ dangles on any branch where this file is not tracked,
+# and git treats a broken-symlink hook as absent — commits then silently keep
+# their AI trailers. A copy stays active across every branch.
+#
+# Do NOT run `git config core.hooksPath .githooks` to install this. That also
+# activates .githooks/pre-commit, which requires a local Incus container and will
+# fail commits on any machine without one. Install individual hooks instead.
 
 set -euo pipefail
 

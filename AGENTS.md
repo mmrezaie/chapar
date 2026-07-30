@@ -96,7 +96,7 @@ When asked to commit or push:
 - Create separate commits for separate contexts even if the changes came from one user request.
 - Prefer a short subject plus a body that records why the change exists and what risk it reduces.
 - Never credit an AI model, agent, or coding tool in the commit. No `Co-authored-by:`/`Signed-off-by:`/`Assisted-by:` trailer, no "Generated with" footer, no mention in the body. See the attribution rule under **Rules** — it applies under every harness.
-- Enable the repository hooks once per clone so the attribution rule is enforced locally: `ln -s ../../.githooks/commit-msg .git/hooks/commit-msg`.
+- Enable the hook once per clone so the attribution rule is enforced locally: `cp .githooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg`. Copy rather than symlink — a symlink dangles on branches where the file is not tracked, and git treats a broken-symlink hook as absent. Do not install it via `core.hooksPath`, which would also activate the Incus-dependent `pre-commit` hook.
 - Do not amend or rewrite pushed history unless the user explicitly asks.
 - If a bad commit split is discovered after push, prefer leaving it or creating corrective commits over force-pushing `main`.
 
