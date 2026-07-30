@@ -1,0 +1,5 @@
+{
+  "profile": {"topology": {"fabric": "infiniband", "rdma": {"hcas": [{"name_pattern": "mlx5_0", "model_pattern": "ConnectX-8", "firmware_pattern": "28\\.40\\.[0-9]+", "pci_bdf_pattern": "0000:ca:00\\.0", "netdev_pattern": "ib0", "ports": [{"port": 1, "state": "ACTIVE", "width": "8X", "minimum_rate_gbps": 400, "link_layer": "InfiniBand", "max_counter_delta": {}}]}], "max_benchmark_edges": 1, "fabric_query_authorized": false, "minimum_bandwidth_gbps": 300, "maximum_latency_us": 3}}},
+  "rdma_observed": {"hcas": [{"name": "mlx5_0", "model": "Mellanox ConnectX-8", "firmware": "28.39.1000", "pci_bdf": "0000:ca:00.0", "ports": [{"port": 1, "state": "ACTIVE", "width": "8X", "rate_gbps": 400, "link_layer": "InfiniBand", "guid": "248a:0703:00aa:0001", "lid": "12", "gids": ["fe80::1"], "netdev": "ib0", "counters_before": {}, "counters_after": {}}]}], "benchmark_edges": [{"id": "edge", "verbs_success": true, "bandwidth_gbps": 380, "latency_us": 1}], "fabric_queries": {}},
+  "verdicts": {"rdma-link-check": "FAIL"}
+}
