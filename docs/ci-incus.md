@@ -74,6 +74,44 @@ To run a manual build, open the GitHub Actions tab, select the specific
 environment's workflow (e.g. "Incus Chapar Environment Build (hpcsim)"), and
 click `Run workflow`.
 
+## Protected Slurm Validation
+
+`.github/workflows/slurm-infrastructure-validation.yml` is intentionally
+separate from Incus build CI. It is a protected default-branch manual/scheduled
+scaffold for real hardware validation and never changes Incus build, release,
+or promotion behavior. Before enabling it, administrators must create every
+capability-labelled GitHub Environment with required reviewers and branch
+restrictions, register only the matching dedicated service principal on each
+runner label, and restrict those Unix accounts' Slurm partition/QOS and
+filesystem ACLs.
+
+The workflow uses a checked-in matrix of protected GitHub Environment and
+dedicated runner-label pairs. It covers NVIDIA NVLink, NVIDIA NVSwitch,
+InfiniBand/ConnectX-8, RoCEv2/ConnectX-8, VAST, Intel x86, AMD x86, NVIDIA
+Grace ARM, generic aarch64, and multi-node pools. The dispatch surface retains
+only fixed profile, environment, release, and tier choice keys; the matrix
+selects the capability-appropriate tier and never derives selection from OS
+alone. Administrators must create every named protected environment and assign
+only its matching dedicated runner label.
+
+`ci/submit-validation.sh` obtains the real values from a service-owned
+`CI_VALIDATION_POLICY_FILE`; each profile entry binds one site profile,
+protected GitHub Environment, runner label, capability set, allowed tiers,
+minimum node/edge coverage, and fixed partition, QOS, and wall time. It rejects
+arbitrary scheduler arguments, paths, commands, release IDs, environment names,
+or runner labels. Keep the policy, real profile, profile digest source, and
+restricted source/result roots outside this repository.
+
+The collector treats `sbatch --parsable` as the sole cancellation identity and
+uses bounded polling followed by `sacct` state, exit code, and TRES validation.
+It produces authority only after those checks, runner-manifest validation, and
+the profile's expected node/edge coverage. The restricted result root retains
+the capability inventory, module-version listing, profile/policy/release
+digests, suite manifests, raw suite logs, `scontrol` and `sacct` records, and a
+coverage report. GitHub artifacts are sanitised aggregates only. The workflow
+has no promotion switch. Any eventual promotion gate requires baseline sign-off
+and a separate protected change, never a dispatch selection.
+
 ## Resources Mount
 
 On the Incus host, mount the resources export at `/resources`:
