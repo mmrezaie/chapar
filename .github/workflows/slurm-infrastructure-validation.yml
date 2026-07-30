@@ -1,0 +1,141 @@
+name: Slurm Infrastructure Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Allowlisted capability-labelled validation profile
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - nvidia-nvlink
+          - nvidia-nvswitch
+          - infiniband-connectx8
+          - roce-connectx8
+          - vast
+          - intel-x86
+          - amd-x86
+          - nvidia-grace-arm
+          - generic-aarch64
+          - multi-node
+      environment:
+        description: Chapar environment key
+        required: true
+        type: choice
+        default: hpcsim
+        options:
+          - hpcsim
+      release:
+        description: Runner-owned immutable release alias
+        required: true
+        type: choice
+        default: candidate
+        options:
+          - candidate
+      tier:
+        description: Validated profile tier, constrained again by runner policy
+        required: true
+        type: choice
+        default: capability
+        options:
+          - capability
+          - node
+          - fabric
+          - storage
+          - accelerator
+          - full
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || inputs.profile == 'all' || inputs.profile == matrix.profile)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: nvidia-nvlink
+            tier: accelerator
+            github_environment: slurm-validation-nvidia-nvlink
+            runner_label: slurm-validation-nvidia-nvlink
+          - profile: nvidia-nvswitch
+            tier: accelerator
+            github_environment: slurm-validation-nvidia-nvswitch
+            runner_label: slurm-validation-nvidia-nvswitch
+          - profile: infiniband-connectx8
+            tier: fabric
+            github_environment: slurm-validation-infiniband-connectx8
+            runner_label: slurm-validation-infiniband-connectx8
+          - profile: roce-connectx8
+            tier: fabric
+            github_environment: slurm-validation-roce-connectx8
+            runner_label: slurm-validation-roce-connectx8
+          - profile: vast
+            tier: storage
+            github_environment: slurm-validation-vast
+            runner_label: slurm-validation-vast
+          - profile: intel-x86
+            tier: node
+            github_environment: slurm-validation-intel-x86
+            runner_label: slurm-validation-intel-x86
+          - profile: amd-x86
+            tier: node
+            github_environment: slurm-validation-amd-x86
+            runner_label: slurm-validation-amd-x86
+          - profile: nvidia-grace-arm
+            tier: node
+            github_environment: slurm-validation-nvidia-grace-arm
+            runner_label: slurm-validation-nvidia-grace-arm
+          - profile: generic-aarch64
+            tier: node
+            github_environment: slurm-validation-generic-aarch64
+            runner_label: slurm-validation-generic-aarch64
+          - profile: multi-node
+            tier: fabric
+            github_environment: slurm-validation-multi-node
+            runner_label: slurm-validation-multi-node
+    concurrency:
+      group: slurm-infrastructure-validation-${{ matrix.profile }}
+      cancel-in-progress: false
+    runs-on: [self-hosted, "${{ matrix.runner_label }}"]
+    environment:
+      name: ${{ matrix.github_environment }}
+    timeout-minutes: 90
+    steps:
+      - name: Check out protected default-branch source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Submit and collect capability-labelled validation tier
+        id: validation
+        env:
+          CI_VALIDATION_PROFILE: ${{ matrix.profile }}
+          CI_VALIDATION_ENVIRONMENT: ${{ inputs.environment || 'hpcsim' }}
+          CI_VALIDATION_RELEASE: ${{ inputs.release || 'candidate' }}
+          CI_VALIDATION_TIER: ${{ matrix.tier }}
+          CI_VALIDATION_GITHUB_ENVIRONMENT: ${{ matrix.github_environment }}
+          CI_VALIDATION_RUNNER_LABEL: ${{ matrix.runner_label }}
+        run: >-
+          bash ci/submit-validation.sh
+          --profile "${CI_VALIDATION_PROFILE}"
+          --environment "${CI_VALIDATION_ENVIRONMENT}"
+          --release "${CI_VALIDATION_RELEASE}"
+          --tier "${CI_VALIDATION_TIER}"
+
+      - name: Upload sanitised validation aggregate
+        if: always() && steps.validation.outputs.artifact_dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: slurm-validation-${{ matrix.profile }}-${{ github.run_id }}
+          path: ${{ steps.validation.outputs.artifact_dir }}
+          if-no-files-found: error
+          retention-days: 7
