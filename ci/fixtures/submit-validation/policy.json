@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "service_account": "fixture-service",
+  "source_stage_root": "/fixture/source-stage",
+  "results_root": "/fixture/results",
+  "profiles": {
+    "fixture-cpu": {
+      "site_profile": "/fixture/site-profile.yaml",
+      "github_environment": "fixture-slurm-cpu",
+      "runner_label": "fixture-slurm-cpu",
+      "required_capabilities": ["cpu"],
+      "allowed_tiers": ["capability"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-cpu", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "nvidia-nvlink": {
+      "site_profile": "/fixture/nvidia-nvlink.yaml",
+      "github_environment": "slurm-validation-nvidia-nvlink",
+      "runner_label": "slurm-validation-nvidia-nvlink",
+      "required_capabilities": ["cpu", "gpu", "slurm"],
+      "allowed_tiers": ["accelerator", "full"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-nvidia-nvlink", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "nvidia-nvswitch": {
+      "site_profile": "/fixture/nvidia-nvswitch.yaml",
+      "github_environment": "slurm-validation-nvidia-nvswitch",
+      "runner_label": "slurm-validation-nvidia-nvswitch",
+      "required_capabilities": ["cpu", "gpu", "slurm"],
+      "allowed_tiers": ["accelerator", "full"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-nvidia-nvswitch", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "infiniband-connectx8": {
+      "site_profile": "/fixture/infiniband-connectx8.yaml",
+      "github_environment": "slurm-validation-infiniband-connectx8",
+      "runner_label": "slurm-validation-infiniband-connectx8",
+      "required_capabilities": ["cpu", "multi-node", "rdma", "slurm"],
+      "allowed_tiers": ["fabric", "full"],
+      "coverage": {"nodes": 2, "edges": 1},
+      "submission": {"partition": "fixture-infiniband", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "roce-connectx8": {
+      "site_profile": "/fixture/roce-connectx8.yaml",
+      "github_environment": "slurm-validation-roce-connectx8",
+      "runner_label": "slurm-validation-roce-connectx8",
+      "required_capabilities": ["cpu", "multi-node", "rdma", "slurm"],
+      "allowed_tiers": ["fabric", "full"],
+      "coverage": {"nodes": 2, "edges": 1},
+      "submission": {"partition": "fixture-roce", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "vast": {
+      "site_profile": "/fixture/vast.yaml",
+      "github_environment": "slurm-validation-vast",
+      "runner_label": "slurm-validation-vast",
+      "required_capabilities": ["cpu", "multi-node", "parallel-storage", "slurm"],
+      "allowed_tiers": ["storage", "full"],
+      "coverage": {"nodes": 2, "edges": 0},
+      "submission": {"partition": "fixture-vast", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "intel-x86": {
+      "site_profile": "/fixture/intel-x86.yaml",
+      "github_environment": "slurm-validation-intel-x86",
+      "runner_label": "slurm-validation-intel-x86",
+      "required_capabilities": ["cpu", "slurm"],
+      "allowed_tiers": ["capability", "node", "full"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-intel", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "amd-x86": {
+      "site_profile": "/fixture/amd-x86.yaml",
+      "github_environment": "slurm-validation-amd-x86",
+      "runner_label": "slurm-validation-amd-x86",
+      "required_capabilities": ["cpu", "slurm"],
+      "allowed_tiers": ["capability", "node", "full"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-amd", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "nvidia-grace-arm": {
+      "site_profile": "/fixture/nvidia-grace-arm.yaml",
+      "github_environment": "slurm-validation-nvidia-grace-arm",
+      "runner_label": "slurm-validation-nvidia-grace-arm",
+      "required_capabilities": ["cpu", "slurm"],
+      "allowed_tiers": ["capability", "node", "full"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-grace", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "generic-aarch64": {
+      "site_profile": "/fixture/generic-aarch64.yaml",
+      "github_environment": "slurm-validation-generic-aarch64",
+      "runner_label": "slurm-validation-generic-aarch64",
+      "required_capabilities": ["cpu", "slurm"],
+      "allowed_tiers": ["capability", "node", "full"],
+      "coverage": {"nodes": 1, "edges": 0},
+      "submission": {"partition": "fixture-aarch64", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    },
+    "multi-node": {
+      "site_profile": "/fixture/multi-node.yaml",
+      "github_environment": "slurm-validation-multi-node",
+      "runner_label": "slurm-validation-multi-node",
+      "required_capabilities": ["cpu", "multi-node", "slurm"],
+      "allowed_tiers": ["fabric", "full"],
+      "coverage": {"nodes": 2, "edges": 1},
+      "submission": {"partition": "fixture-multi-node", "qos": "fixture-validation", "time_limit": "00:10:00"}
+    }
+  },
+  "environments": {
+    "hpcsim": {"release_root": "/fixture/releases"}
+  },
+  "release_aliases": {
+    "candidate": {"environment": "hpcsim", "release_id": "fixture-release"}
+  }
+}
