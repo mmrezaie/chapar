@@ -13,13 +13,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
-RESULTS_DIR="${RESULTS_ROOT}/transport/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
-mkdir -p "${RESULTS_DIR}"
+node="${SLURM_NODELIST:-$(hostname -s)}"
+source "${VALIDATION_DIR}/lib/verdict.sh"
+source "${VALIDATION_DIR}/lib/result-manifest.sh"
+source "${VALIDATION_DIR}/lib/rdma-device.sh"
+validation_result_init transport "${RESULTS_ROOT}" "${node}"
+RESULTS_DIR="${VALIDATION_NODE_DIR}"
+
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+    validation_resource_unavailable "no NVIDIA GPU available" mandatory
+fi
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${EXTERNAL_UCX_PERFTEST:=external/ucx-perftest/ucx_perftest}"
 : "${EXTERNAL_PERFTEST:=external/perftest/ib_write_bw}"
 : "${NCCL_DEBUG:=INFO}"
+RDMA_HCA="$(rdma_selected_hca)" || validation_resource_unavailable "no discovered/profile-selected InfiniBand HCA" mandatory
+export RDMA_HCA
 
 # ── Modules ────────────────────────────────────────────────────
 if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
@@ -65,7 +75,7 @@ if [ -x "${VALIDATION_DIR}/${EXTERNAL_PERFTEST}" ]; then
     echo "=== ib_write_bw ===" >&2
     srun -n 2 --ntasks-per-node=1 \
         "${VALIDATION_DIR}/${EXTERNAL_PERFTEST}" \
-        -d mlx5_0 --report_gbits \
+        -d "${RDMA_HCA}" --report_gbits \
         > "${RESULTS_DIR}/ib_write_bw.log" 2>&1 || true
 else
     echo "WARNING: ib_write_bw not found — skipping raw verbs probe" >&2
