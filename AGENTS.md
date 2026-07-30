@@ -37,6 +37,10 @@
 | `envs/hpcsim/spack.yaml` | Canonical hpcsim environment entry point |
 | `envs/hpcsim/release.sh` | hpcsim release, module, and buildcache helper |
 | `envs/hpcsim/hpcsim-site.env.example` | Template for local site roots, shared buildcache, shared ccache, and group policy |
+| `AGENTS.md` | Canonical repository guidance, shared by all agent runtimes |
+| `CLAUDE.md` | Claude Code entry point; imports `AGENTS.md` (Claude Code does not read `AGENTS.md`) |
+| `agents/skills/` | Canonical project skills; loaded by OpenCode/Codex via `opencode.json` |
+| `.claude/skills/` | Per-skill symlinks into `agents/skills/` so Claude Code discovers the same skills |
 | `.githooks/commit-msg` | Strips AI/agent attribution trailers from commit messages (enable per clone) |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
@@ -86,6 +90,28 @@ otherwise read the skill's `SKILL.md` before changing files.
 
 `AGENTS.md` is baseline repository guidance, not a skill. Use it together with
 the matching skill playbook when both apply.
+
+### Harness wiring
+
+Each runtime discovers these files differently, so the same content is exposed three ways
+with no duplicated copies:
+
+| Runtime | Rules | Skills |
+|---------|-------|--------|
+| OpenCode | `AGENTS.md` | `opencode.json` → `skills.paths: ["agents/skills"]` |
+| Codex / omo | `AGENTS.md` | same `opencode.json` paths |
+| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` with `@AGENTS.md` | `.claude/skills/<name>` symlinks into `agents/skills/<name>` |
+
+Claude Code reads `CLAUDE.md`, not `AGENTS.md`, and discovers skills only under
+`.claude/skills/`. Keep both wirings intact when adding a skill or renaming a rule file,
+otherwise a rule silently stops applying under one harness. When adding a skill:
+
+```bash
+ln -s ../../agents/skills/<name> .claude/skills/<name>
+```
+
+Instruction files are context, not enforcement — no harness guarantees compliance. Rules
+that must hold regardless live in `.githooks/`.
 
 ## Commit Workflow
 
