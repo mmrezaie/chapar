@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# commit-msg: strip AI/agent self-attribution trailers from commit messages.
+#
+# Chapar policy: commits are authored solely by the human maintainer. AI models
+# and agents must not present themselves as contributors or co-authors.
+#
+# This hook STRIPS the offending trailers rather than rejecting the commit, so
+# it works with any harness (Claude Code, Codex/omo, OpenCode, Cursor, ...)
+# without breaking their commit flow.
+#
+# Human co-authors are preserved: only lines naming a known AI vendor/agent
+# identity are removed.
+#
+# INSTALL (per clone) — copy, do not symlink:
+#     cp .githooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+#
+# A symlink into .githooks/ dangles on any branch where this file is not tracked,
+# and git treats a broken-symlink hook as absent — commits then silently keep
+# their AI trailers. A copy stays active across every branch.
+#
+# Do NOT run `git config core.hooksPath .githooks` to install this. That also
+# activates .githooks/pre-commit, which requires a local Incus container and will
+# fail commits on any machine without one. Install individual hooks instead.
+
+set -euo pipefail
+
+MSG_FILE="$1"
+[ -f "$MSG_FILE" ] || exit 0
+
+python3 - "$MSG_FILE" <<'PY'
+import re
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    text = fh.read()
+
+AGENT = (
+    r"noreply@anthropic\.com|@anthropic\.com|@sisyphuslabs\.ai|@openai\.com"
+    r"|\bclaude\b|\banthropic\b|\bsisyphus\b|\bclio-agent\b|\bopencode\b|\bcodex\b"
+    r"|\bcopilot\b|\bcursor\b|\bchatgpt\b|\bopenai\b|\bgemini\b|\bdevin\b|\baider\b"
+    r"|\bgpt-[0-9]|\bopus\b|\bsonnet\b|\bhaiku\b|\bfable\b"
+)
+
+patterns = [
+    # Attribution trailers naming an AI vendor or agent identity.
+    r"(?im)^[ \t]*(?:co-authored-by|signed-off-by|assisted-by|reviewed-by|helped-by)"
+    r"[ \t]*:.*(?:" + AGENT + r").*(?:\r?\n)?",
+    # "Generated with <tool>" advertisement footers, with or without robot emoji.
+    r"(?im)^[ \t]*\U0001F916?[ \t]*generated with .*(?:\r?\n)?",
+    r"(?im)^.*\U0001F916[ \t]*generated with.*(?:\r?\n)?",
+    # Bare "created/written/authored by <agent>" footers.
+    r"(?im)^[ \t]*(?:created|written|authored)[ \t]+(?:by|with)[ \t]+"
+    r"(?:" + AGENT + r").*(?:\r?\n)?",
+]
+
+original = text
+for pat in patterns:
+    text = re.sub(pat, "", text)
+
+if text != original:
+    # Collapse blank-line runs left behind, and normalise the trailing newline.
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.rstrip("\n") + "\n"
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    print("commit-msg: removed AI/agent attribution trailer(s)", file=sys.stderr)
+PY
