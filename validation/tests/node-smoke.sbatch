@@ -13,8 +13,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
-RESULTS_DIR="${RESULTS_ROOT}/node-smoke/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST:-$(hostname)}"
-mkdir -p "${RESULTS_DIR}"
+node="${SLURM_NODELIST:-$(hostname)}"
+source "${VALIDATION_DIR}/lib/verdict.sh"
+source "${VALIDATION_DIR}/lib/result-manifest.sh"
+validation_result_init node-smoke "${RESULTS_ROOT}" "${node}"
+RESULTS_DIR="${VALIDATION_NODE_DIR}"
 
 # ── Modules ────────────────────────────────────────────────────
 if [[ "${CHAPAR_KEEP_MODULES:-0}" != 1 ]]; then
@@ -44,6 +47,9 @@ papi_command_line -e PAPI_L2_TCM > "${RESULTS_DIR}/papi_l2.txt"
 # ── Per-GPU cuda-memtest ───────────────────────────────────────
 echo "=== cuda-memtest (per GPU) ===" >&2
 GPU_COUNT="${SLURM_GPUS_ON_NODE:-$(nvidia-smi -L 2>/dev/null | wc -l)}"
+if [ "${GPU_COUNT}" -lt 1 ]; then
+    validation_resource_unavailable "no GPU allocated" mandatory
+fi
 for g in $(seq 0 $((GPU_COUNT - 1))); do
     echo "  GPU ${g} …" >&2
     CUDA_VISIBLE_DEVICES="${g}" \
