@@ -12,8 +12,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_ROOT="${RESULTS_ROOT:-$VALIDATION_DIR/results}"
-RESULTS_DIR="${RESULTS_ROOT}/io/$(date -u +%Y%m%dT%H%M%S)/${SLURM_NODELIST}"
-mkdir -p "${RESULTS_DIR}"
+node="${SLURM_NODELIST:-$(hostname -s)}"
+source "${VALIDATION_DIR}/lib/verdict.sh"
+source "${VALIDATION_DIR}/lib/result-manifest.sh"
+validation_result_init io "${RESULTS_ROOT}" "${node}"
+RESULTS_DIR="${VALIDATION_NODE_DIR}"
 
 # ── Runtime knobs ──────────────────────────────────────────────
 : "${IO_TEST_DIR:=${SCRATCH:-}}"
@@ -25,7 +28,7 @@ FIO_CFG="${FIO_CFG:-}"
 
 if [ -z "${IO_TEST_DIR}" ]; then
     echo "ERROR: IO_TEST_DIR is empty and \$SCRATCH is not set" >&2
-    exit 1
+    validation_resource_unavailable "IO_TEST_DIR is empty and SCRATCH is not set" mandatory
 fi
 
 # ── Modules ────────────────────────────────────────────────────
