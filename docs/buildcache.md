@@ -29,8 +29,6 @@ URLs rooted at `${CHAPAR_BUILDCACHE_ROOT}/<os>`. This makes the cache visible to
 - release builds driven by `envs/hpcsim/release.sh`
 - generic sbatch builds submitted by `ci/submit-env-build.sh` or directly
   through `ci/sbatch-env-build.sh`
-- hpcsim release builds submitted by `ci/submit-hpcsim-release.sh` or directly
-  through `ci/sbatch-hpcsim-release-rocky9.sh` / `ci/sbatch-hpcsim-release-rocky10.sh`
 - future Chapar environments that inherit the same scopes
 
 Release builds generate a temporary command-line scope with the same mirror name.

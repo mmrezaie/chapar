@@ -9,23 +9,21 @@ environments outside that checkout.
 ```text
 etc/
 |-- system/                 # System scope shared by all users on a machine
-|   |-- include.yaml        # Routes rocky9/rocky10, linux fallback, base
+|   |-- include.yaml        # Routes ubuntu24.04, linux fallback, base
 |   |-- base/               # Cross-platform settings
 |   |   |-- concretizer.yaml
 |   |   |-- config.yaml
 |   |   |-- mirrors.yaml
 |   |   |-- packages.yaml   # Virtual providers and shared package policy
 |   |   `-- repos.yaml
-|   |-- rocky9/             # Rocky 9 compiler, ccache, libc externals, buildcache mirror
-|   |-- rocky10/            # Rocky 10 compiler, ccache, libc externals, buildcache mirror
+|   |-- ubuntu24.04/        # Ubuntu 24.04 compiler, ccache, libc externals, buildcache mirror
 |   `-- linux/              # Generic Linux fallback
 `-- user/                   # User scope for per-user paths and overrides
     |-- include.yaml
     |-- base/
     |   |-- config.yaml
     |   `-- modules.yaml
-    |-- rocky9/
-    `-- rocky10/
+    `-- ubuntu24.04/
 ```
 
 ## Scope Precedence
@@ -66,7 +64,7 @@ source /path/to/chapar/etc/init.sh
 
 The initializer sources `envs/hpcsim/hpcsim-site.env` when present, sets
 `SPACK_USER_CONFIG_PATH`, `SPACK_SYSTEM_CONFIG_PATH`, and a fast local
-`SPACK_USER_CACHE_PATH`. The active Rocky scopes attach the shared
+`SPACK_USER_CACHE_PATH`. The active OS scopes attach the shared
 `chapar-buildcache` mirror under `${CHAPAR_BUILDCACHE_ROOT}/<os>` so hpcsim and
 user installs can share one configured binary cache. It also exports shared
 ccache variables rooted at `${CHAPAR_CCACHE_ROOT}/<os>`. If environment modules
@@ -79,12 +77,9 @@ Both system and user scopes use this include pattern:
 
 ```yaml
 include:
-- path: rocky9
+- path: ubuntu24.04
   optional: true
-  when: os == "rocky9"
-- path: rocky10
-  optional: true
-  when: os == "rocky10"
+  when: os == "ubuntu24.04"
 - path: linux
   optional: true
   when: platform == "linux"
@@ -97,11 +92,11 @@ defaults when necessary.
 ## External Package Policy
 
 Use OS externals sparingly. The hpcsim environment should mostly depend on
-Spack-built packages so Rocky 9 and Rocky 10 stay as similar as practical.
+Spack-built packages so builders and deployment nodes stay as similar as practical.
 
 Expected system externals:
 
-- Rocky: system GCC, `glibc`, and `ccache`. CUDA should be built by Spack for hpcsim GPU packages.
+- Ubuntu: system GCC, `glibc`, and `ccache`. CUDA should be built by Spack for hpcsim GPU packages.
 
 Do not add ordinary link-time dependencies such as OpenSSL, zlib, libpng, curl,
 OpenBLAS, HDF5, or NetCDF as generic OS externals. Add such externals only for a
@@ -149,8 +144,8 @@ as a symlink to the selected release-local module tree without changing
 `${HPCSIM_ROOT}/<os>/current`. `release.sh promote <release-id>` updates both
 `current` and the shared module symlink when `CHAPAR_MODULE_ROOT` is set.
 The `<arch>` name is the actual generated module architecture. Generic builds use
-targets such as `linux-rocky9-x86_64_v4`; CPU-specific builds use targets such as
-`linux-rocky9-zen5`.
+targets such as `linux-ubuntu24.04-x86_64_v4`; CPU-specific builds use targets such as
+`linux-ubuntu24.04-zen5`.
 
 The store or configured install tree is shared and package prefixes include
 hashes. Module trees are release-specific until `publish-modules` or `promote`
@@ -226,7 +221,7 @@ spack arch --platform
 | `CHAPAR_INSTALL_TREE_ROOT` | empty | Optional shared Spack install tree root; empty uses `${HPCSIM_ROOT}/<os>/store` |
 | `CHAPAR_INSTALL_TREE_PROJECTION` | mode-dependent | Install-tree projection; shared roots default to architecture/compiler/package/version/hash |
 | `CHAPAR_MODULE_ROOT` | empty | Optional promoted module root containing `<arch>` symlinks to release-local modulefiles |
-| `OS_NAME` | auto-detected | `rocky9` or `rocky10` for release commands |
+| `OS_NAME` | auto-detected | `ubuntu24.04` for release commands |
 | `SPACK_INSTALL_ARGS` | empty | Extra args for `spack install` in release builds |
 | `PUBLISH_CURRENT` | `false` in sbatch helpers | Promote `${HPCSIM_ROOT}/<os>/current` after a successful release build |
 | `PUBLISH_MODULES` | `true` in hpcsim sbatch wrappers | Publish `${CHAPAR_MODULE_ROOT}/<arch>` after a successful release build without changing `current` |
