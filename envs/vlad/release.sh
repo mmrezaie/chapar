@@ -1247,29 +1247,6 @@ if {![file exists "/dev/nvidiactl"] && ![file exists "/proc/driver/nvidia/versio
 EOF
 }
 
-append_intelmpi_module_policy() {
-    local module_file="$1"
-    local marker="# Chapar Intel MPI runtime policy"
-
-    modulefile_has_marker "${module_file}" "${marker}" && return 0
-
-    cat >> "${module_file}" <<'EOF'
-
-# Chapar Intel MPI runtime policy
-# Default to the OFI provider path validated for vlad. Users can override
-# these before loading the module when testing another provider or fabric.
-if {![info exists env(I_MPI_FABRICS)]} {
-    setenv I_MPI_FABRICS {shm:ofi}
-}
-if {![info exists env(I_MPI_OFI_PROVIDER)]} {
-    setenv I_MPI_OFI_PROVIDER {verbs}
-}
-if {![info exists env(FI_PROVIDER)]} {
-    setenv FI_PROVIDER {verbs;ofi_rxm}
-}
-EOF
-}
-
 apply_release_module_runtime_policy() {
     local release_dir="$1"
     local policy_release_dir="${2:-$1}"
@@ -1281,14 +1258,14 @@ apply_release_module_runtime_policy() {
 
     cuda_stub_dir="$(ensure_release_cuda_driver_stub_dir "${release_dir}" "${policy_release_dir}" || true)"
 
-    for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/* "${release_dir}/modulefiles"/*/libfabric/*; do
+    for module_file in "${release_dir}/modulefiles"/*/libfabric/*; do
         [ -f "${module_file}" ] || continue
         needs_cuda_stub="true"
         break
     done
 
     if [ "${needs_cuda_stub}" = "true" ] && [ -z "${cuda_stub_dir}" ]; then
-        echo "WARNING: could not create CUDA driver-stub support directory for Intel MPI/libfabric modules in ${release_dir}"
+        echo "WARNING: could not create CUDA driver-stub support directory for CUDA-aware libfabric modules in ${release_dir}"
         return 1
     fi
 
@@ -1298,12 +1275,7 @@ apply_release_module_runtime_policy() {
         append_openmpi_transport_module_policy "${module_file}"
     done
 
-    for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/*; do
-        [ -f "${module_file}" ] || continue
-        append_intelmpi_module_policy "${module_file}"
-    done
-
-    for module_file in "${release_dir}/modulefiles"/*/intel-oneapi-mpi/* "${release_dir}/modulefiles"/*/libfabric/*; do
+    for module_file in "${release_dir}/modulefiles"/*/libfabric/*; do
         [ -f "${module_file}" ] || continue
         append_cuda_stub_module_policy "${module_file}" "${cuda_stub_dir}"
     done
