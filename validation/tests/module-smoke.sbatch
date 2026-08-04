@@ -73,16 +73,16 @@ elif [ -n "${CHAPAR_MODULE_ROOT:-}" ] && [ -d "$CHAPAR_MODULE_ROOT" ]; then
     fi
 fi
 
-if [ -z "$module_paths_configured" ] && [ -L "/resources/chapar/vlad/rocky10/current" ]; then
-    if use_all_arch_dirs "/resources/chapar/vlad/rocky10/current/modulefiles"; then
+if [ -z "$module_paths_configured" ] && [ -L "/resources/chapar/vlad/ubuntu24.04/current" ]; then
+    if use_all_arch_dirs "/resources/chapar/vlad/ubuntu24.04/current/modulefiles"; then
         module_paths_configured="true"
     fi
 fi
 
 if [ -z "$module_paths_configured" ]; then
-    local_latest=$(ls -t /resources/chapar/vlad/rocky10/releases/ 2>/dev/null | head -1)
+    local_latest=$(ls -t /resources/chapar/vlad/ubuntu24.04/releases/ 2>/dev/null | head -1)
     if [ -n "$local_latest" ]; then
-        use_all_arch_dirs "/resources/chapar/vlad/rocky10/releases/$local_latest/modulefiles"
+        use_all_arch_dirs "/resources/chapar/vlad/ubuntu24.04/releases/$local_latest/modulefiles"
     fi
 fi
 

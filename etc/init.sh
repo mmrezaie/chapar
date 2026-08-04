@@ -70,8 +70,7 @@ _chapar_detect_hpcsim_os() {
                 # shellcheck disable=SC1091
                 . /etc/os-release
                 case "${ID}:${VERSION_ID%%.*}" in
-                    rocky:9|rhel:9|almalinux:9|centos:9) printf '%s\n' rocky9 ;;
-                    rocky:10|rhel:10|almalinux:10|centos:10) printf '%s\n' rocky10 ;;
+                    ubuntu:24) printf '%s\n' ubuntu24.04 ;;
                 esac
             fi
             ;;

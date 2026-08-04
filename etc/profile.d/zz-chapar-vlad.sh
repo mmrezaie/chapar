@@ -3,7 +3,7 @@
 # stable <os>/<arch>/modulefiles symlink, so MODULEPATH shows the layout path
 # (Environment/OS/architecture/modulefiles) rather than a release-id path.
 # Falls back to resolving <arch>/current, then to the legacy <os>/current.
-_chapar_vlad_os_root="/resources/chapar/vlad/rocky10"
+_chapar_vlad_os_root="/resources/chapar/vlad/ubuntu24.04"
 _chapar_vlad_added="false"
 for _chapar_vlad_arch_root in "${_chapar_vlad_os_root}"/linux-*; do
     if [ -d "${_chapar_vlad_arch_root}/modulefiles/" ]; then

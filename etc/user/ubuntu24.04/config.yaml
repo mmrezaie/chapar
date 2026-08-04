@@ -1,4 +1,4 @@
-# Rocky Linux 9 user-scope overrides
+# Ubuntu 24.04 LTS user-scope overrides
 config:
   build_stage:
     - /scratch/spack

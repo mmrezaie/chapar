@@ -152,7 +152,7 @@ Environment:
                         CHAPAR_INSTALL_TREE_ROOT is set.
   CHAPAR_MODULE_ROOT   Optional shared module root. Promotion and publish-modules
                         atomically update <arch> symlinks below this root.
-  OS_NAME              rocky9 or rocky10. Auto-detected when unset.
+  OS_NAME              ubuntu24.04. Auto-detected when unset.
   SPACK_INSTALL_ARGS   Extra arguments passed to spack install.
   CHAPAR_CONCRETIZE_TIMEOUT
                        Optional timeout in seconds for final environment
@@ -317,8 +317,7 @@ detect_os() {
                     # shellcheck disable=SC1091
                     . /etc/os-release
                     case "${ID:-}:${VERSION_ID%%.*}" in
-                        rocky:9|rhel:9|almalinux:9|centos:9) detected="rocky9" ;;
-                        rocky:10|rhel:10|almalinux:10|centos:10) detected="rocky10" ;;
+                        ubuntu:24) detected="ubuntu24.04" ;;
                     esac
                 fi
                 ;;
@@ -326,14 +325,14 @@ detect_os() {
     fi
 
     case "${detected}" in
-        rocky9|rocky10) printf '%s\n' "${detected}" ;;
-        "") die "could not detect OS_NAME; set OS_NAME=rocky9 or rocky10" ;;
+        ubuntu24.04) printf '%s\n' "${detected}" ;;
+        "") die "could not detect OS_NAME; set OS_NAME=ubuntu24.04" ;;
         *) die "unsupported OS_NAME: ${detected}" ;;
     esac
 }
 
 # Derive all path globals from the validated roots and selected OS. Keeping the
-# path calculation in one place avoids accidentally mixing Rocky 9/Rocky 10 stores
+# path calculation in one place avoids accidentally mixing per-OS stores
 # or caches in migration and promotion commands.
 set_paths() {
     OS_NAME="$(detect_os)"
@@ -834,7 +833,7 @@ cuda_target_root() {
 # 4. Build just the missing libfabric packages with CPATH/LIBRARY_PATH pointing
 #    at the CUDA runtime and stub libraries.
 #
-# Keep this workaround scoped to Rocky release builds. Do not solve downstream
+# Keep this workaround scoped to Linux release builds. Do not solve downstream
 # CUDA/NVML link failures by disabling CUDA/GDR variants; those transports are a
 # required vlad policy.
 install_cuda_libfabric_specs() {
@@ -850,7 +849,7 @@ install_cuda_libfabric_specs() {
     local saved_library_path="${LIBRARY_PATH:-}"
 
     case "${OS_NAME}" in
-        rocky9|rocky10) ;;
+        ubuntu24.04) ;;
         *) return 0 ;;
     esac
 
@@ -1529,7 +1528,7 @@ cmd_build() {
 
     concretize_timeout="${CHAPAR_CONCRETIZE_TIMEOUT}"
     case "${OS_NAME}" in
-        rocky9|rocky10)
+        ubuntu24.04)
             case "${concretize_timeout}" in
                 ""|0|*[!0-9]*) ;;
                 *)
@@ -1578,14 +1577,14 @@ cmd_build() {
     read -r -a install_args <<< "${SPACK_INSTALL_ARGS}"
     trust_buildcache_keys
     case "${OS_NAME}" in
-        rocky9|rocky10)
+        ubuntu24.04)
             # GCC 15 is the only vlad compiler stack; bootstrap it with the OS compiler.
             install_release_prerequisite "${scope_dir}" "gcc@15+profiled %gcc" "${install_args[@]}"
             ;;
     esac
 
     case "${OS_NAME}" in
-        rocky9|rocky10)
+        ubuntu24.04)
             # LLVM+Clang provides C/CXX virtuals; preinstall it so concretization can reuse a concrete provider.
             install_release_prerequisite "${scope_dir}" "llvm@21+clang+lld~lldb~flang~polly~ipo build_system=cmake targets=x86,nvptx %gcc" "${install_args[@]}"
             ;;
@@ -1602,8 +1601,8 @@ cmd_build() {
     spack -e "${ENV_PATH}" -C "${scope_dir}" buildcache push --unsigned --update-index "file://${BUILDCACHE_ROOT}" || echo "WARNING: buildcache push had errors (non-vlad bootstrapping packages may not be installed)"
     echo "==> Refreshing vlad root modules"
     refresh_root_modules || echo "WARNING: root module refresh had errors (Spack API may have changed)"
-    if [ -d "${staging_dir}/modulefiles/linux-rocky10-x86_64" ]; then
-        rm -rf "${staging_dir}/modulefiles/linux-rocky10-x86_64"
+    if [ -d "${staging_dir}/modulefiles/linux-ubuntu24.04-x86_64" ]; then
+        rm -rf "${staging_dir}/modulefiles/linux-ubuntu24.04-x86_64"
     fi
 
     # The module architecture decides the release's final home; resolve it

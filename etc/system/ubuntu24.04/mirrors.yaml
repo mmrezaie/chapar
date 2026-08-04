@@ -2,7 +2,7 @@
 # hpcsim and ad-hoc user installs reuse and publish to the same site cache.
 mirrors:
   chapar-buildcache:
-    url: file://${CHAPAR_BUILDCACHE_ROOT}/rocky10
+    url: file://${CHAPAR_BUILDCACHE_ROOT}/ubuntu24.04
     source: false
     binary: true
     signed: false
