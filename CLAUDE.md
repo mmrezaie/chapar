@@ -23,13 +23,8 @@ See `agents/skills/chapar-commit/SKILL.md` for the full commit and push policy.
 ## Project skills
 
 Project skills live in `agents/skills/` — the canonical location, shared with the other
-runtimes via `opencode.json`. They are exposed to Claude Code through per-skill symlinks
-in `.claude/skills/`, so there is exactly one copy of each `SKILL.md` on disk.
+runtimes via `opencode.json`. `.claude/skills` is a single symlink to that directory, so
+there is exactly one copy of each `SKILL.md` on disk and no per-skill wiring to maintain.
 
-When adding a skill, create it under `agents/skills/<name>/` and add the symlink:
-
-```bash
-ln -s ../../agents/skills/<name> .claude/skills/<name>
-```
-
-Then register it in the Project Skills table in `AGENTS.md`.
+When adding a skill, create it under `agents/skills/<name>/` and register it in the
+Project Skills table in `AGENTS.md`. Claude Code picks it up with no symlink step.

@@ -47,7 +47,7 @@
 | `AGENTS.md` | Canonical repository guidance, shared by all agent runtimes |
 | `CLAUDE.md` | Claude Code entry point; imports `AGENTS.md` (Claude Code does not read `AGENTS.md`) |
 | `agents/skills/` | Canonical project skills; loaded by OpenCode/Codex via `opencode.json` |
-| `.claude/skills/` | Per-skill symlinks into `agents/skills/` so Claude Code discovers the same skills |
+| `.claude/skills` | Single symlink to `agents/skills/` so Claude Code discovers the same skills |
 | `.githooks/commit-msg` | Strips AI/agent attribution trailers from commit messages (enable per clone) |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
@@ -107,15 +107,19 @@ with no duplicated copies:
 |---------|-------|--------|
 | OpenCode | `AGENTS.md` | `opencode.json` → `skills.paths: ["agents/skills"]` |
 | Codex / omo | `AGENTS.md` | same `opencode.json` paths |
-| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` with `@AGENTS.md` | `.claude/skills/<name>` symlinks into `agents/skills/<name>` |
+| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` with `@AGENTS.md` | `.claude/skills` → symlink to `agents/skills/` |
 
 Claude Code reads `CLAUDE.md`, not `AGENTS.md`, and discovers skills only under
-`.claude/skills/`. Keep both wirings intact when adding a skill or renaming a rule file,
-otherwise a rule silently stops applying under one harness. When adding a skill:
+`.claude/skills/`. That path is not configurable, so the symlink is the bridge; it is a
+single directory symlink rather than one per skill, which means adding a skill under
+`agents/skills/<name>/` needs no wiring step and cannot drift. Keep the rules wiring
+intact when renaming a rule file, otherwise a rule silently stops applying under one
+harness.
 
-```bash
-ln -s ../../agents/skills/<name> .claude/skills/<name>
-```
+A fully shared directory (for example a single `.agents/`) is not possible today: Claude
+Code hardcodes `.claude/skills`, while OpenCode and Codex take a configured path. Any
+other name would still need this symlink, so `agents/skills/` stays the source of truth.
+`.claude/` otherwise holds only Claude-specific local settings, which are untracked.
 
 Instruction files are context, not enforcement — no harness guarantees compliance. Rules
 that must hold regardless live in `.githooks/`.
