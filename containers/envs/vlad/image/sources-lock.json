@@ -1,0 +1,180 @@
+{
+  "schema": "https://nscaledev.github.io/chapar/schemas/vlad-image-sources-lock/v1",
+  "schema_version": 1,
+  "status": "blocked",
+  "resolved_on": "2026-07-31",
+  "retrieval_time_precision": "day; the command policy did not permit an external clock command",
+  "contract": {
+    "complete_status": "complete",
+    "production_rule": "Consumers must reject this lock unless status is complete, unresolved is empty, and every required source category is present and internally consistent.",
+    "required_categories": [
+      "nvidia_hpc_benchmarks_oci",
+      "spack_repositories",
+      "ubuntu_snapshot",
+      "ubuntu_archive_key",
+      "ubuntu_builder_packages",
+      "ubuntu_final_packages",
+      "builder_tools",
+      "actions_runner_archives",
+      "github_actions"
+    ],
+    "immutable_git_ref": "exactly 40 lowercase hexadecimal characters",
+    "immutable_digest": "sha256 followed by exactly 64 lowercase hexadecimal characters",
+    "uniqueness_rule": "Repository, action, target, package, architecture, and tool identities must be unique within their category.",
+    "oci_chain_rule": "The tag index digest must select exactly one descriptor for each approved OCI platform, and each selected manifest must name the locked config digest.",
+    "floating_input_rule": "Tags, branches, abbreviated commits, latest, unversioned package requests, and references unavailable from their canonical source are forbidden as locked values. Mutable tags may appear only as resolution provenance beside an immutable result."
+  },
+  "verified": {
+    "spack_repositories": [
+      {
+        "id": "spack-core",
+        "repository": "https://github.com/spack/spack.git",
+        "commit": "fff95dd9aed0af7c7a8252adbef5623fcd4187f7",
+        "verification": {
+          "method": "git clone --filter=blob:none --no-checkout followed by git cat-file -t and git show -s",
+          "result": "commit object",
+          "retrieved_on": "2026-07-31"
+        }
+      },
+      {
+        "id": "spack-packages",
+        "repository": "https://github.com/spack/spack-packages.git",
+        "commit": "65f3228ea2533e8413c17661a3a0db3636269631",
+        "verification": {
+          "method": "git clone --filter=blob:none --no-checkout followed by git cat-file -t and git show -s",
+          "result": "commit object",
+          "retrieved_on": "2026-07-31"
+        }
+      }
+    ],
+    "github_actions": [
+      {
+        "id": "actions-checkout-v4",
+        "repository": "https://github.com/actions/checkout.git",
+        "commit": "11d5960a326750d5838078e36cf38b85af677262",
+        "resolved_from": "refs/tags/v4",
+        "workflow_uses": [
+          "actions/checkout"
+        ],
+        "verification": {
+          "method": "git ls-remote canonical repository refs/tags/v4",
+          "retrieved_on": "2026-07-31"
+        }
+      },
+      {
+        "id": "actions-checkout-v5",
+        "repository": "https://github.com/actions/checkout.git",
+        "commit": "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+        "resolved_from": "refs/tags/v5",
+        "workflow_uses": [
+          "actions/checkout"
+        ],
+        "verification": {
+          "method": "git ls-remote canonical repository refs/tags/v5",
+          "retrieved_on": "2026-07-31"
+        }
+      },
+      {
+        "id": "github-codeql-action-v4",
+        "repository": "https://github.com/github/codeql-action.git",
+        "commit": "bce182f857edf1feab116e9795a3393d21977282",
+        "resolved_from": "refs/tags/v4",
+        "workflow_uses": [
+          "github/codeql-action/init",
+          "github/codeql-action/analyze"
+        ],
+        "verification": {
+          "method": "git ls-remote canonical repository refs/tags/v4",
+          "retrieved_on": "2026-07-31"
+        }
+      }
+    ]
+  },
+  "unresolved": [
+    {
+      "category": "nvidia_hpc_benchmarks_oci",
+      "requested_source": "nvcr.io/nvidia/hpc-benchmarks:26.02",
+      "official_urls": [
+        "https://nvcr.io/v2/nvidia/hpc-benchmarks/manifests/26.02",
+        "https://catalog.ngc.nvidia.com/orgs/nvidia/containers/hpc-benchmarks"
+      ],
+      "required_values": [
+        "index digest and descriptor metadata",
+        "linux/amd64 platform descriptor and config digests",
+        "linux/arm64 platform descriptor and config digests"
+      ],
+      "blocker": "Anonymous OCI Distribution requests returned HTTP 401, so the index/platform/config chain could not be authenticated or mechanically resolved. No NGC credential was requested, used, logged, or stored.",
+      "observed_on": "2026-07-31"
+    },
+    {
+      "category": "ubuntu_snapshot",
+      "official_urls": [
+        "https://snapshot.ubuntu.com/ubuntu/",
+        "https://archive.ubuntu.com/ubuntu/",
+        "https://security.ubuntu.com/ubuntu/"
+      ],
+      "required_values": [
+        "Ubuntu 24.04 immutable snapshot timestamp and pockets used by the NVIDIA base",
+        "signed InRelease SHA-256 and verified signing fingerprint",
+        "signed package-index digests"
+      ],
+      "blocker": "The NVIDIA base config and package state are unavailable until its authenticated OCI config/filesystem chain is inspected; official Ubuntu snapshot metadata also could not be retrieved and signature-verified under the available command capabilities.",
+      "observed_on": "2026-07-31"
+    },
+    {
+      "category": "ubuntu_archive_key",
+      "official_urls": [
+        "https://git.launchpad.net/ubuntu/+source/ubuntu-keyring/",
+        "https://keyserver.ubuntu.com/"
+      ],
+      "required_values": [
+        "full archive signing-key fingerprint",
+        "authenticated key material digest"
+      ],
+      "blocker": "Official key material could not be retrieved and cryptographically tied to the selected signed InRelease in this environment.",
+      "observed_on": "2026-07-31"
+    },
+    {
+      "category": "ubuntu_packages",
+      "official_urls": [
+        "https://snapshot.ubuntu.com/ubuntu/"
+      ],
+      "required_values": [
+        "exact per-architecture builder package versions, archive paths, and SHA-256 values",
+        "exact per-architecture final package versions, archive paths, and SHA-256 values"
+      ],
+      "blocker": "The exact builder/final package sets depend on the unavailable inspected NVIDIA base and the selected signed snapshot indexes; recording guessed package names or hashes would not be authenticated.",
+      "observed_on": "2026-07-31"
+    },
+    {
+      "category": "builder_tools",
+      "official_urls": [
+        "https://github.com/docker/buildx/releases",
+        "https://github.com/moby/buildkit/releases",
+        "https://github.com/NVIDIA/enroot/releases",
+        "https://packages.ubuntu.com/noble/squashfs-tools",
+        "https://packages.ubuntu.com/noble/zstd",
+        "https://github.com/anchore/syft/releases",
+        "https://github.com/jqlang/jq/releases",
+        "https://github.com/containers/skopeo/releases"
+      ],
+      "required_values": [
+        "exact native versions, asset or package identities, and SHA-256 values for Docker Buildx, BuildKit, Enroot, squashfs-tools, zstd, Syft, jq, and Skopeo"
+      ],
+      "blocker": "The command policy denied GitHub API and general download/checksum commands, Brave Search lacked BRAVE_API_KEY, and Ubuntu package metadata was unavailable; no release or package checksum was inferred.",
+      "observed_on": "2026-07-31"
+    },
+    {
+      "category": "actions_runner_archives",
+      "official_urls": [
+        "https://github.com/actions/runner/releases"
+      ],
+      "required_values": [
+        "one exact linux-x64 runner archive version, URL, and SHA-256",
+        "one exact linux-arm64 runner archive version, URL, and SHA-256"
+      ],
+      "blocker": "GitHub release API and artifact retrieval commands were denied by command policy, so native archive identities and checksums could not be mechanically verified.",
+      "observed_on": "2026-07-31"
+    }
+  ]
+}

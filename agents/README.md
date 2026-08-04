@@ -15,8 +15,6 @@ with Chapar. OpenCode loads project skills from `agents/skills`.
   `envs/<name>/release.sh`.
 - `skills/chapar-validation` covers the cluster validation suite under
   `validation/` (integrity test and hardware/interconnect tiers).
-- `skills/chapar-incus-ci-triage` covers Rocky self-hosted Incus runner and CI
-  failures.
 - `skills/chapar-cve-checker` covers the security scanner workflow and its
   restricted trust boundary.
 - `skills/chapar-spack-repo-overlay` covers local Spack package recipes and

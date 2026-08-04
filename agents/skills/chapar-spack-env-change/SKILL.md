@@ -48,8 +48,8 @@ The current `hpcsim` environment is intentionally single-file for human review:
 envs/hpcsim/spack.yaml  # root specs, package policy, and module policy
 ```
 
-Do not recreate `common/`, `linux/`, `rocky9/`, or `rocky10/` hpcsim package
-policy directories unless the user explicitly asks for that split.
+Do not recreate `common/`, `linux/`, or per-OS hpcsim package policy
+directories unless the user explicitly asks for that split.
 
 For a future environment with real cross-platform differences, prefer the
 smallest readable layout. Start with one `spack.yaml`; add included config files
@@ -109,8 +109,8 @@ spack -e "${ENV_PATH}" spec <pkg>
 spack -e "${ENV_PATH}" config blame packages
 ```
 
-If local validation is not on Rocky 9 or Rocky 10, state that full validation
-requires the Incus workflow, sbatch wrapper, or Rocky runner.
+If local validation is not on Ubuntu 24.04, state that full validation
+requires an Ubuntu 24.04 builder (Slurm sbatch wrapper or a builder node).
 
 ## Commit Split Guidance
 

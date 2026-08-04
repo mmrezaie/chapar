@@ -1,6 +1,6 @@
 ---
 name: chapar-ci-artifact-watch
-description: Inspect live Chapar CI/CD build progress by reading durable filesystem artifact roots directly instead of waiting for GitHub Actions or GitLab UI logs. Use whenever the user asks what is happening with a running, queued, stuck, timed-out, or slow CI build, especially Rocky 9/Rocky 10 hpcsim builds, package installs, modulefile publication, release roots, buildcache roots, ccache roots, or site-specific mounts such as /resources, /Volumes/resources, ~/resources, or another mounted artifact tree.
+description: Inspect live Chapar CI/CD build progress by reading durable filesystem artifact roots directly instead of waiting for GitHub Actions or GitLab UI logs. Use whenever the user asks what is happening with a running, queued, stuck, timed-out, or slow CI build, especially Ubuntu 24.04 hpcsim builds, package installs, modulefile publication, release roots, buildcache roots, ccache roots, or site-specific mounts such as /resources, /Volumes/resources, ~/resources, or another mounted artifact tree.
 ---
 
 # Chapar CI Artifact Watch
@@ -132,7 +132,7 @@ Use the bundled helper when a quick read-only summary is useful:
 
 ```bash
 python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id>
-python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --os rocky10 --local-root /Volumes/resources
+python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --os ubuntu24.04 --local-root /Volumes/resources
 python agents/skills/chapar-ci-artifact-watch/scripts/summarize_artifacts.py --run-id <id> --ci-root /resources/chapar/hpcsim --local-root /Volumes/resources
 ```
 
@@ -154,8 +154,6 @@ names can change across home, lab, and production deployments.
 
 ## Related Skills
 
-- Use `chapar-incus-ci-triage` after direct artifact inspection identifies a
-  concrete failure class in Incus-backed Rocky CI.
 - Use `chapar-spack-solve-debug` for solver failures or timeout root cause.
 - Use `chapar-buildcache` for cache publication, index, quarantine, or migration
   failures.

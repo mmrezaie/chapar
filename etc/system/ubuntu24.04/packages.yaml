@@ -1,0 +1,32 @@
+# Ubuntu 24.04 LTS external packages.
+# Keep this scope limited to bootstrap compilers, ccache, and libc. Link-time
+# libraries, CUDA, and normal build dependencies should be built by Spack so
+# builders and deployment nodes stay as similar as practical.
+packages:
+  c:
+    require:
+    - one_of: [gcc@15, gcc@13]
+  cxx:
+    require:
+    - one_of: [gcc@15, gcc@13]
+  fortran:
+    require:
+    - one_of: [gcc@15, gcc@13]
+  gcc:
+    externals:
+    - spec: gcc@13 languages:='c,c++,fortran'
+      prefix: /usr
+      extra_attributes:
+        compilers:
+          c: /usr/bin/gcc
+          cxx: /usr/bin/g++
+          fortran: /usr/bin/gfortran
+  ccache:
+    externals:
+    - spec: ccache@4.9.1
+      prefix: /usr
+  glibc:
+    buildable: false
+    externals:
+    - spec: glibc@2.39
+      prefix: /usr

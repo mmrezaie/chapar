@@ -25,7 +25,7 @@ if [ -z "$MODULE_PATH" ]; then
     OS_NAME="${OS_NAME:-$(. /etc/os-release 2>/dev/null && echo "${ID}${VERSION_ID%%.*}")}"
     case "$ENV_NAME" in
         vlad|hpcsim)
-            BASE="/resources/chapar/${ENV_NAME}/${OS_NAME:-rocky10}"
+            BASE="/resources/chapar/${ENV_NAME}/${OS_NAME:-ubuntu24.04}"
             # New layout: <base>/<arch>/current -> releases/<id>; the highest
             # promoted arch wins. Fall back to the legacy <base>/current, then
             # to the newest unpromoted release in either layout.

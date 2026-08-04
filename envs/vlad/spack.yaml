@@ -13,7 +13,7 @@ spack:
   - toolchain_specs:
     # vlad overrides AGENTS.md major-only rule per owner instruction;
     # uses HPC-recommended profiled bootstrap (same as hpcsim's gcc@15+profiled %gcc).
-    # +profiled works on Rocky x86_64; the aarch64 conflict is macOS-specific.
+    # +profiled works on Linux x86_64; the aarch64 conflict is macOS-specific.
     # bootstrap via OS gcc %gcc
     - gcc@15+profiled %gcc
     - cuda@13
@@ -22,7 +22,6 @@ spack:
     - libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
     - pmix@6
     - ucx@1.20.1+cuda+gdrcopy+dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem cuda_arch=75,80,86,87,89,90,90a,100,110,120,121 ^cuda@13
-    - intel-oneapi-mpi@2021.17.0+generic-names+external-libfabric ^libfabric@2+cuda+gdrcopy fabrics=mlx,rxm,verbs ^cuda@13
   - python_specs:
     - python@3.12:3.12+optimizations+tkinter
   - gpu_specs:
@@ -36,7 +35,6 @@ spack:
     - h5bench+exerciser+metadata
     - hpcg+openmp
     - hpl+openmp
-    - intel-mpi-benchmarks@2021.7
     - ior+hdf5+ncmpi
     - mdtest
     - nccl-tests+mpi+cuda cuda_arch=75,80,86,87,89,90,90a,100,110,120,121 ^nccl@2.29.7-1 cuda_arch=75,80,86,87,89,90,90a,100,110,120,121
@@ -87,12 +85,25 @@ spack:
         lapack: [openblas]
         libllvm: [llvm]
         scalapack: [netlib-scalapack]
+      # x86-64-v4 (AVX-512F/BW/CD/DQ/VL) is the deployment floor for the
+      # linux-x86_64-v4 image target. host_compatible: true below means a
+      # builder that cannot execute v4 will not silently produce v4 binaries.
+      #
+      # UNVERIFIED: whether this list is a soft preference or a hard constraint
+      # in the pinned Spack was not confirmed (the spack/ submodule is not
+      # checked out in the authoring clone, and macOS cannot concretize this
+      # env). It matters because vlad also builds on Grace for the
+      # linux-aarch64-gb300 image target: if this is hard, an aarch64 build
+      # fails to concretize instead of falling back to the host's best target,
+      # and this needs an arch-guarded require or a `when: target=x86_64`
+      # include instead. Confirm on the Ubuntu builder before relying on it:
+      #   spack -e envs/vlad config blame packages | grep -A2 target
+      #   spack -e envs/vlad concretize -f
+      target: [x86_64_v4]
     c:
       require:
       - spec: gcc@15
-        when: os=rocky9
-      - spec: gcc@15
-        when: os=rocky10
+        when: os=ubuntu24.04
     ccache:
       buildable: true
       externals: []
@@ -102,9 +113,7 @@ spack:
     cxx:
       require:
       - spec: gcc@15
-        when: os=rocky9
-      - spec: gcc@15
-        when: os=rocky10
+        when: os=ubuntu24.04
     dyninst:
       require:
       - spec: 'cxxflags="-include cstdint"'
@@ -123,9 +132,7 @@ spack:
     fortran:
       require:
       - spec: gcc@15
-        when: os=rocky9
-      - spec: gcc@15
-        when: os=rocky10
+        when: os=ubuntu24.04
     gcc:
       require:
       - spec: +profiled
@@ -153,10 +160,6 @@ spack:
         when: platform=linux
       - spec: ~nvml
       - spec: ~opencl
-        when: platform=linux
-    intel-mpi-benchmarks:
-      require:
-      - spec: '%gcc@15'
         when: platform=linux
     ior:
       require:
@@ -290,6 +293,13 @@ spack:
   view: false
   concretizer:
     unify: when_possible
+    # Environment scope only. etc/system/base/concretizer.yaml keeps
+    # granularity: generic for every other environment; overriding it here
+    # lets vlad concretize to x86_64_v4 without re-concretizing hpcsim.
+    # host_compatible stays true so a non-AVX-512 builder cannot emit v4.
+    targets:
+      granularity: microarchitecture
+      host_compatible: true
     duplicates:
       max_dupes:
         libffi: 2

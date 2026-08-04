@@ -1,4 +1,4 @@
-# hpcsim is the Chapar Rocky Linux simulation environment.
+# hpcsim is the Chapar Ubuntu 24.04 LTS simulation environment.
 #
 # Keep the environment readable in this one file. Site paths, shared cache
 # roots, ccache roots, and publication choices are intentionally not stored
@@ -39,7 +39,7 @@ spack:
     - openblas threads=openmp %gcc
     - parallel-netcdf
   - toolchain_specs:
-    # GCC 15 is the only hpcsim compiler stack for Rocky 9 and Rocky 10.
+    # GCC 15 is the only hpcsim compiler stack for Ubuntu 24.04.
     # The gcc package itself is bootstrapped with the OS compiler.
     - gcc@15+profiled %gcc
     - cuda@13
@@ -161,18 +161,14 @@ spack:
     c:
       require:
       - spec: gcc@15
-        when: os=rocky9
-      - spec: gcc@15
-        when: os=rocky10
+        when: os=ubuntu24.04
     cmake:
       require:
       - ~qtgui
     cxx:
       require:
       - spec: gcc@15
-        when: os=rocky9
-      - spec: gcc@15
-        when: os=rocky10
+        when: os=ubuntu24.04
     darshan-runtime:
       require:
       - spec: '%gcc@15'
@@ -197,9 +193,7 @@ spack:
     fortran:
       require:
       - spec: gcc@15
-        when: os=rocky9
-      - spec: gcc@15
-        when: os=rocky10
+        when: os=ubuntu24.04
     gcc:
       require:
       - spec: +profiled

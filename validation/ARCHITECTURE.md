@@ -8,9 +8,9 @@
 └────────────┬───────────────────────────────┘
              │ triggers
 ┌────────────▼───────────────────────────────┐
-│ GitHub Actions (reusable engine)           │
-│ incus-spack-build.yml                      │
-│ 1. Bootstrap Incus container               │
+│ Build pipeline (CI proposed, manual today) │
+│ see docs/ci-github-actions.md              │
+│ 1. Ubuntu 24.04 builder node               │
 │ 2. Source etc/init.sh                      │
 │ 3. release.sh build <id> [--promote]       │
 │ 4. Run integrity validation                │
@@ -41,7 +41,7 @@
   microarchitecture share one Spack install tree at
   `/resources/chapar/install/linux-<os>-<arch>/`. This avoids redundant builds of
   the same package across environments (e.g., vlad and hpcsim both need `openmpi`
-  for Rocky 10 x86_64_v4 — it is built once). The `{architecture}` projection in
+  for Ubuntu 24.04 x86_64_v4 — it is built once). The `{architecture}` projection in
   Spack's `install_tree` config handles multiple microarchitectures within the same
   tree (x86_64_v3, v4, zen4, etc.) by subdirectories. When a new build targets a
   different target, Spack creates the subdirectory automatically and avoids
@@ -221,36 +221,28 @@ grep -c "ib-link-check" validation/ARCHITECTURE.md
 
 ## 4. CI/CD Pipeline
 
-The CI/CD pipeline uses a reusable workflow pattern:
-
-1. **Caller workflows** (`incus-spack-build-vlad.yml`,
-   `incus-spack-build-hpcsim.yml`) — each triggers on pushes to `envs/<name>/**`
-   and defines env-specific parameters. They delegate to the reusable engine.
-
-2. **Reusable engine** (`incus-spack-build.yml`) — a `workflow_call` template that:
-   - Bootstraps the Incus container with Rocky dependencies (`ci/bootstrap-rocky.sh`)
-   - Verifies environment resources mount (NFS, permissions, write test)
-   - Generates the `<env>-site.env` config for the target environment
-   - Sources `etc/init.sh` to activate the Chapar Spack instance
-   - Runs `ci/container-build.sh` which dispatches to `release.sh build <id>`
-   - Runs integrity validation via `validation/tests/integrity-test.sbatch`
-
-3. **Concurrency**: All callers share the concurrency group
-   `chapar-incus-builders` with `cancel-in-progress: false`, ensuring at most one
-   container build runs at a time.
+There is no CI pipeline in this repository today; builds run manually through
+`envs/<name>/release.sh` (or the `ci/submit-env-build.sh` Slurm wrapper), and
+integrity validation runs manually after every build+promote. The proposed
+GitHub Actions design — self-hosted runner roles, environment builds per
+architecture, container image injection, and validation gates — lives in
+`docs/ci-github-actions.md`. Whatever CI lands must preserve the invariants
+above: every build goes through `release.sh`, and a release is not
+production-ready until integrity validation passes.
 
 ### Auto-promote behavior
 
-| Env | Push auto-promote? | Why |
-|-----|-------------------|-----|
-| vlad | Yes — always promoted | Hardcoded in reusable workflow: `env_name == 'vlad' && 'true'` |
-| hpcsim | No — build only | Only promotes via `workflow_dispatch` with `publish_current=true` |
+| Env | Auto-promote on build? | Why |
+|-----|------------------------|-----|
+| vlad | Yes — promote on every successful build | Validation env; consumers always want the latest passing stack |
+| hpcsim | No — build only | Promotion is an explicit operator decision (`release.sh promote` / `PUBLISH_CURRENT=true`) |
 
 ### Environment propagation
 
-Each caller passes env-specific paths (`env_root`, `buildcache_root`,
-`ccache_root`, `install_tree_root`). The reusable workflow uses these to generate
-the site config and export them to `container-build.sh` → `release.sh`.
+Site-specific paths (`env_root`, `buildcache_root`, `ccache_root`,
+`install_tree_root`) come from the environment's `<name>-site.env`, sourced by
+`etc/init.sh` before `release.sh` runs; CI must generate or install that file
+rather than inventing its own path plumbing.
 
 ## 5. Adding a New Environment
 
@@ -267,23 +259,19 @@ the site config and export them to `container-build.sh` → `release.sh`.
 4. **Create `etc/profile.d/zz-chapar-<name>.sh`** — Profile.d script that
    `module use`s the current release directory's modulefiles. Follow the pattern
    in `zz-chapar-vlad.sh` or `zz-chapar-hpcsim.sh`.
-5. **Create `.github/workflows/incus-spack-build-<name>.yml`** — CI caller
-   workflow. Copy from `incus-spack-build-vlad.yml`, update env name and trigger
-   paths.
-6. **Add integrity test entries** — Add a `<name>)` case in
+5. **Add integrity test entries** — Add a `<name>)` case in
    `validation/tests/integrity-test.sbatch` with `check` calls for each root
    module.
-7. **Document deployment path convention** — Update this architecture document
+6. **Document deployment path convention** — Update this architecture document
    or the env's README with the expected NFS paths.
 
 ### Deployment path conventions
 
 - **NFS root**: `/resources/chapar/<name>/` — must reside on an NFS mount shared
   across cluster nodes.
-- **OS subdirectory**: `/resources/chapar/<name>/<os>/` (e.g. `rocky9`,
-  `rocky10`).
+- **OS subdirectory**: `/resources/chapar/<name>/<os>/` (e.g. `ubuntu24.04`).
 - **Architecture subdirectory**: `<os>/<arch>/` (e.g.
-  `linux-rocky10-x86_64_v3`), derived from the generated release content.
+  `linux-ubuntu24.04-x86_64_v4`), derived from the generated release content.
 - **Release directory**: `<os>/<arch>/releases/<release-id>/` — immutable after
   staging rename. Legacy releases at `<os>/releases/<id>` remain promotable.
 - **`current` symlink**: `<os>/<arch>/current → releases/<release-id>` —

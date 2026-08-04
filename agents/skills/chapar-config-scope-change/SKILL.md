@@ -19,9 +19,9 @@ Chapar uses:
 
 ```text
 etc/system/base/                 # shared machine/site policy
-etc/system/{rocky9,rocky10}      # OS-specific system externals/policy
+etc/system/ubuntu24.04           # OS-specific system externals/policy
 etc/user/base/                   # shared user policy
-etc/user/{rocky9,rocky10}        # OS-specific user paths/modules/cache
+etc/user/ubuntu24.04             # OS-specific user paths/modules/cache
 envs/hpcsim/                     # environment-level hpcsim roots/policy
 ```
 
@@ -35,14 +35,15 @@ envs/hpcsim/spack.yaml
 
 ## Rules
 
-- Model only expected externals: OS/bootstrap compilers, glibc on Rocky, unavoidable platform runtime pieces, ccache where enabled.
+- Model only expected externals: OS/bootstrap compilers, glibc, unavoidable platform runtime pieces, ccache where enabled.
 - Do not model ordinary link-time libraries (OpenSSL, zlib, libpng, curl, OpenBLAS, HDF5, NetCDF) as OS externals unless explicitly justified with matching dev metadata.
 - CUDA should be built by Spack for hpcsim GPU packages, not modeled as a host external.
-- Do not add OS Intel oneAPI compiler/MPI RPMs or GitHub CLI RPMs to hpcsim
-  Rocky builder bootstrap policy. Use Spack for Intel MPI and any future Intel
-  compiler dependency unless the user explicitly changes that policy.
+- Do not add OS Intel oneAPI compiler/MPI packages or GitHub CLI OS packages
+  to hpcsim Ubuntu builder bootstrap policy. Use Spack for Intel MPI and any
+  future Intel compiler dependency unless the user explicitly changes that
+  policy.
 - OS-specific overrides use `include.yaml` with `when:` conditionals.
-- Keep paths per-platform; do not mix Rocky 9/Rocky 10 stores or caches.
+- Keep paths per-OS; do not mix stores or caches across OS names.
 - Site-specific release, buildcache, ccache, group, and public root paths belong
   in ignored `envs/hpcsim/hpcsim-site.env`, not tracked YAML.
 

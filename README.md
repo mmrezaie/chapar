@@ -1,8 +1,9 @@
 # Chapar
 
 Chapar is a reproducible Spack setup for building site-managed HPC software
-environments. The current production environment is `hpcsim` on Rocky Linux 9
-and Rocky Linux 10.
+environments. The current production environment is `hpcsim` on Ubuntu 24.04
+LTS, the NVIDIA-supported LTS used by the Slurm appliances and fleet manager
+on current cluster deployments.
 
 Each user keeps upstream Spack in `~/.local/opt/spack`, following Spack's
 standard source-checkout workflow. Chapar keeps site policy, package choices,
@@ -42,8 +43,15 @@ module layout, and environment definitions outside the Spack repository.
 Clone this repository:
 
 ```bash
-git clone <chapar-repo-url> chapar
+git clone https://github.com/nscaledev/chapar.git chapar
 cd chapar
+```
+
+For an existing checkout, update the operator-local `origin` remote without
+changing any Chapar runtime namespace:
+
+```bash
+git remote set-url origin https://github.com/nscaledev/chapar
 ```
 
 Install upstream Spack once for the current user if it is not already present:
@@ -84,7 +92,7 @@ should follow the same `envs/<name>/spack.yaml` entry-point convention. Stale
 local `envs/skipper*` directories from older workflows are ignored and can be
 removed; they are not referenced by the current CI, release helper, or Spack
 scopes. The top-level `envs/hpcsim/spack.yaml` contains the hpcsim root specs,
-package requirements, and module policy for Rocky 9 and Rocky 10.
+package requirements, and module policy for Ubuntu 24.04.
 
 For local validation with the active Spack scopes:
 
@@ -102,19 +110,19 @@ helper. They build packages into the configured install tree and write modules
 into a release-specific staging tree:
 
 ```bash
-bash envs/hpcsim/release.sh build rocky9-20260610
-bash envs/hpcsim/release.sh module-use rocky9-20260610
-bash envs/hpcsim/release.sh promote rocky9-20260610
+bash envs/hpcsim/release.sh build ubuntu2404-20260610
+bash envs/hpcsim/release.sh module-use ubuntu2404-20260610
+bash envs/hpcsim/release.sh promote ubuntu2404-20260610
 ```
 
-On the hpcsim Rocky Slurm builders, use the OS-specific sbatch wrapper directly.
-The Rocky 9 wrapper contains the default partition set, timestamped release ID,
+On the hpcsim Slurm builders, use the OS-specific sbatch wrapper directly.
+The wrapper contains the default partition set, timestamped release ID,
 buildcache publication, module-publication policy, and exclusive-node CPU
 detection. It reserves one exclusive node and uses that node's allocated CPU
 count for `spack install`:
 
 ```bash
-sbatch ci/sbatch-hpcsim-release-rocky9.sh
+sbatch ci/sbatch-env-build.sh
 ```
 
 The wrapper defaults to `PUBLISH_CURRENT=false` and `PUBLISH_MODULES=true`, so a
@@ -125,8 +133,9 @@ count. The submit helper remains available when you want to choose values on the
 command line:
 
 ```bash
-ci/submit-hpcsim-release.sh \
-  --os rocky9 \
+ci/submit-env-build.sh \
+  --env hpcsim \
+  --os ubuntu24.04 \
   --partition <partition> \
   --publish-current false \
   --publish-modules true
@@ -155,22 +164,22 @@ CHAPAR_MODULE_ROOT=/share/base/modulefiles
 ```
 
 With an empty `CHAPAR_INSTALL_TREE_ROOT`, package prefixes stay under the padded
-per-OS store such as `/share/base/rocky9/store`. Run `publish-modules` to update
-`/share/base/modulefiles/linux-rocky9-x86_64_v4` as a symlink to the selected
+per-OS store such as `/share/base/ubuntu24.04/store`. Run `publish-modules` to update
+`/share/base/modulefiles/linux-ubuntu24.04-x86_64_v4` as a symlink to the selected
 release's module tree without changing `${HPCSIM_ROOT}/<os>/<arch>/current`.
 The published architecture name comes from the generated release module
-directory. A generic Rocky 9 build publishes `linux-rocky9-x86_64_v4`; a
-CPU-specific build publishes its concrete target such as `linux-rocky9-zen5`.
+directory. A generic build publishes `linux-ubuntu24.04-x86_64_v4`; a
+CPU-specific build publishes its concrete target such as `linux-ubuntu24.04-zen5`.
 
-Supported OS names are `rocky9` and `rocky10`. The helper auto-detects the OS,
+The supported OS name is `ubuntu24.04`. The helper auto-detects the OS,
 or you can set `OS_NAME` explicitly:
 
 ```bash
-OS_NAME=rocky9 bash envs/hpcsim/release.sh build rocky9-20260610
+OS_NAME=ubuntu24.04 bash envs/hpcsim/release.sh build ubuntu2404-20260610
 ```
 
 When `RELEASE_ID` is not set, the hpcsim-specific sbatch wrappers default to
-`<os>-YYYYMMDDHHMMSS`, for example `rocky9-20260611172030`. The generic
+`<os>-YYYYMMDDHHMMSS`, for example `ubuntu24.04-20260611172030`. The generic
 environment sbatch wrapper defaults to `<env>-<os>-YYYYMMDD`.
 
 ## Loading Modules
@@ -181,7 +190,7 @@ current hpcsim module tree is added when a promoted `${HPCSIM_ROOT}/<os>/<arch>/
 print the exact command for a specific release:
 
 ```bash
-bash envs/hpcsim/release.sh module-use rocky9-20260610
+bash envs/hpcsim/release.sh module-use ubuntu2404-20260610
 ```
 
 The helper resolves the release directory before printing `module use`. That
@@ -243,13 +252,11 @@ Buildcache and ccache output are per OS and intentionally live outside the
 hpcsim release root:
 
 ```text
-$CHAPAR_BUILDCACHE_ROOT/rocky9
-$CHAPAR_BUILDCACHE_ROOT/rocky10
-$CHAPAR_CCACHE_ROOT/rocky9
-$CHAPAR_CCACHE_ROOT/rocky10
+$CHAPAR_BUILDCACHE_ROOT/ubuntu24.04
+$CHAPAR_CCACHE_ROOT/ubuntu24.04
 ```
 
-The `chapar-buildcache` mirror is configured in Chapar's Rocky system scopes
+The `chapar-buildcache` mirror is configured in Chapar's Ubuntu system scope
 with `CHAPAR_BUILDCACHE_ROOT`, not in `envs/hpcsim/spack.yaml`, so hpcsim
 releases and ordinary user installs can reuse the same configured cache. The
 release helper also exports `CCACHE_DIR=${CHAPAR_CCACHE_ROOT}/<os>` and keeps
@@ -279,7 +286,7 @@ Push explicitly only when repairing or backfilling a buildcache outside the
 release path:
 
 ```bash
-ci/push-buildcache.sh --env-path envs/hpcsim --os rocky9
+ci/push-buildcache.sh --env-path envs/hpcsim --os ubuntu24.04
 ```
 
 ## Configuration Model
@@ -289,7 +296,7 @@ Chapar uses normal Spack configuration scopes:
 - `etc/system`: shared policy for a machine or site.
 - `etc/system/base`: common providers, source mirrors, concretizer policy, repos, and
   other shared settings.
-- `etc/system/rocky9`, `etc/system/rocky10`: OS-specific bootstrap compiler,
+- `etc/system/ubuntu24.04`: OS-specific bootstrap compiler,
   libc, ccache externals, and the shared buildcache mirror rooted at
   `CHAPAR_BUILDCACHE_ROOT`.
 - `etc/user`: per-user paths and optional user-local settings.
@@ -301,7 +308,7 @@ OS overlay first and then to shared `base` config.
 
 ## External Package Policy
 
-Rocky overlays intentionally avoid modeling ordinary link-time libraries such as
+OS overlays intentionally avoid modeling ordinary link-time libraries such as
 OpenSSL, zlib, libpng, curl, OpenBLAS, HDF5, or NetCDF as OS externals. Spack
 should build those unless a site-specific external is explicitly modeled with
 matching development metadata.
@@ -309,24 +316,15 @@ matching development metadata.
 Expected externals are:
 
 - OS/bootstrap compilers.
-- `glibc` on Rocky.
+- `glibc` on Linux.
 - CUDA should be built by Spack for hpcsim GPU packages, not modeled as a host external.
 - `ccache` where the platform enables Spack ccache support.
 
 ## CI
 
-Rocky builds use existing self-hosted Incus runners with labels `chapar,rocky9`
-and `chapar,rocky10`. The workflow matrix can build Rocky 9 and Rocky 10 in parallel
-because concurrency is scoped per OS.
-
-Manual workflow inputs include `env_name`, `env_path`, `build_action`,
-`build_mode`, `release_id`, `publish_current`, `publish_buildcache`,
-`spack_ref`, `spack_install_args`, `env_root`, `buildcache_root`, and
-`ccache_root`. The legacy `hpcsim_root` input remains as an alias for hpcsim
-jobs when `env_root` is empty.
-The default `spack_ref` is pinned to keep concretization and buildcache hashes
-stable across rebuilds; override it only when intentionally testing a Spack
-update.
+This repository is the nscale-internal development line and carries no GitHub
+Actions workflows. CI builds run from the public branch; the helper scripts
+under `ci/` remain available for manual and Slurm-driven builds.
 
 ## Build Parallelism
 
