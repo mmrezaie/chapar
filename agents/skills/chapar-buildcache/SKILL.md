@@ -21,7 +21,7 @@ policy is project-wide and should remain usable by future environments.
   builds use the cache.
 - Keep layout marker checks aligned with `INSTALL_TREE_PADDED_LENGTH` and
   `BUILDCACHE_LAYOUT_VERSION` where those helpers are used.
-- Preserve per-OS cache roots; do not cross-copy Rocky 9/Rocky 10 caches
+- Preserve per-OS cache roots; do not cross-copy caches between OS names
   unless explicitly validated by the user.
 - Future environments should reuse the per-OS Chapar cache and ccache roots
   unless the user explicitly designs a separate cache namespace.
@@ -36,9 +36,7 @@ policy is project-wide and should remain usable by future environments.
 docs/buildcache.md
 envs/hpcsim/release.sh              # current hpcsim release/cache helper
 ci/push-buildcache.sh
-.github/workflows/incus-spack-build.yml
-etc/system/rocky9/mirrors.yaml
-etc/system/rocky10/mirrors.yaml
+etc/system/ubuntu24.04/mirrors.yaml
 envs/hpcsim/hpcsim-site.env.example
 ```
 
@@ -58,7 +56,7 @@ spack -e "${ENV_PATH}" config blame mirrors
 For hpcsim release-helper cache status:
 
 ```bash
-OS_NAME=rocky9 bash envs/hpcsim/release.sh status
+OS_NAME=ubuntu24.04 bash envs/hpcsim/release.sh status
 ```
 
 ## Index and Payload Checks

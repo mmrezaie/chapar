@@ -64,8 +64,8 @@ spack -e "${ENV_PATH}" spec <pkg> %gcc@15
 ## Scope Placement Rules
 
 For hpcsim, root specs and package requirements belong in
-`envs/hpcsim/spack.yaml`. Use `when:` conditionals only for real Rocky 9/Rocky 10
-differences. Future environments may use included scopes, but inspect their own
+`envs/hpcsim/spack.yaml`. Use `when: os=ubuntu24.04` conditionals only for
+real platform differences. Future environments may use included scopes, but inspect their own
 layout before moving policy.
 
 ## Concretization Checks
@@ -91,8 +91,8 @@ release/build helper should generate that scope.
 
 - C/C++/Fortran provider conflict: inspect `c`, `cxx`, and `fortran` virtual
   package requirements in the relevant scope.
-- Compiler provider conflict: hpcsim should use the Spack-built GCC 15 stack for
-  Rocky 9 and Rocky 10, with the OS GCC used only to bootstrap GCC 15.
+- Compiler provider conflict: hpcsim should use the Spack-built GCC 15 stack on
+  Ubuntu 24.04, with the OS GCC used only to bootstrap GCC 15.
 - CUDA-aware MPI stack: use `chapar-cuda-gdr-transport`; do not disable `+cuda`,
   GDRCopy, UCX, Open MPI, or libfabric capability to pass a build.
 - Python root conflicts: if hpcsim has multiple Python minor-version roots, keep

@@ -77,9 +77,9 @@ cp .githooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 
 Copy rather than symlink into `.githooks/`: a symlink dangles on any branch where the
 file is not tracked, and git treats a broken-symlink hook as absent, so commits would
-silently keep their trailers. Do not install via `git config core.hooksPath .githooks`
-either — that also activates `.githooks/pre-commit`, which requires a local Incus
-container and will fail commits on machines without one.
+silently keep their trailers. Prefer copying individual hooks over
+`git config core.hooksPath .githooks`, which activates every hook that later lands in
+`.githooks/` sight unseen.
 
 Do not bypass it with `git commit --no-verify`, and do not disable or weaken the hook.
 Prefer writing the message correctly in the first place — the hook is a safety net, not
@@ -88,9 +88,9 @@ the mechanism.
 Example:
 
 ```text
-Add Rocky 10 hpcsim release support
+Add Ubuntu 24.04 hpcsim release support
 
-The hpcsim environment now targets Rocky 9 and Rocky 10 with one Spack-built GCC 15 compiler stack. Keeping the package policy in one manifest avoids review drift across per-OS directories while release-time scopes continue to isolate stores and module trees by OS.
+The hpcsim environment targets Ubuntu 24.04 LTS with one Spack-built GCC 15 compiler stack. Keeping the package policy in one manifest avoids review drift across per-OS directories while release-time scopes continue to isolate stores and module trees by OS.
 
 The site-local roots and shared cache paths are loaded from ignored envs/hpcsim/hpcsim-site.env so cluster-specific mount points do not leak into tracked config.
 
