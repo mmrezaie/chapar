@@ -7,12 +7,16 @@ Usage: ci/install-vlad-image-site-contract.sh \
   --source PATH \
   --expected-sha256 SHA256 \
   --schema PATH \
-  --destination /etc/chapar/vlad-image/site-contract.json
+  --destination /etc/chapar/vlad-image/site-contract.json \
+  --selection PATH \
+  --selection-sha256 SHA256 \
+  --selection-destination /etc/chapar/vlad-image/selection.json
 
-Validate and atomically install the host-owned Vlad image site contract and its
-protected expected-hash file. Production installation requires root, fixes the
-destination to /etc/chapar/vlad-image/site-contract.json, and accepts neither a
-workspace-local source nor symlinked or writable path components.
+Validate and atomically install the selected target contract, software
+selection, and their protected hashes. The historical vlad-image destination
+name is retained for internal runtime compatibility. Production installation
+requires root and accepts neither workspace-local inputs nor symlinked or
+writable path components.
 
 Disposable tests must set VLAD_IMAGE_CONTRACT_INSTALL_TEST_MODE=1 and provide a
 private absolute VLAD_IMAGE_CONTRACT_INSTALL_TEST_ROOT. Test mode rejects /etc,
@@ -44,11 +48,15 @@ from typing import Any, Final
 
 SCRIPT_DIR = Path(sys.argv[1])
 REPOSITORY_ROOT = SCRIPT_DIR.parent
-TRACKED_SCHEMA = REPOSITORY_ROOT / "containers/images/site-contract.schema.json"
+sys.path.insert(0, str(REPOSITORY_ROOT / "containers/images"))
+from selection_contract import SelectionError, validate_selection
+
+TRACKED_SCHEMA = REPOSITORY_ROOT / "datacenters/schemas/target-contract.schema.json"
 PRODUCTION_DESTINATION = Path("/etc/chapar/vlad-image/site-contract.json")
-EXPECTED_SCHEMA_ID: Final = "https://nscaledev.github.io/chapar/schemas/vlad-image-site-contract/v1"
+PRODUCTION_SELECTION = Path("/etc/chapar/vlad-image/selection.json")
+EXPECTED_SCHEMA_ID: Final = "https://nscaledev.github.io/chapar/schemas/target-contract/v1"
 SHA256_RE: Final = re.compile(r"^[0-9a-f]{64}$")
-PLACEHOLDER_RE: Final = re.compile(r"(?:PLACEHOLDER|REPLACE|CHANGEME|EXAMPLE|TODO)", re.IGNORECASE)
+PLACEHOLDER_RE: Final = re.compile(r"(?:PLACEHOLDER|REPLACE|CHANGEME|TODO)", re.IGNORECASE)
 PUBLIC_ROOTS: Final = (Path("/etc"), Path("/resources"), Path("/shared"))
 sys.argv = [sys.argv[0], *sys.argv[2:]]
 
@@ -157,33 +165,17 @@ def parse_json(raw: bytes, label: str) -> dict[str, Any]:
 def validate_contract(contract: dict[str, Any], schema: dict[str, Any]) -> None:
     if schema.get("$id") != EXPECTED_SCHEMA_ID or schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
         fail("tracked schema identity or draft is unsupported")
-    try:
-        import jsonschema
-
-        jsonschema.Draft202012Validator.check_schema(schema)
-        jsonschema.Draft202012Validator(schema).validate(contract)
-    except ImportError:
-        fail("python jsonschema is required before privileged installation")
-    except jsonschema.exceptions.SchemaError as error:
-        fail(f"tracked schema is invalid: {error.message}")
-    except jsonschema.exceptions.ValidationError as error:
-        fail(f"site contract does not validate against the tracked schema: {error.message}")
-    if contract.get("status") != "active":
-        fail("example or inactive site contract is forbidden")
+    expected = {"schema", "schema_version", "datacenter_id", "status", "target", "allowed_software_sets", "container_selections", "paths", "slurm", "roles", "sharing", "publication", "provenance"}
+    if set(contract) != expected or contract.get("schema") != EXPECTED_SCHEMA_ID or contract.get("schema_version") != 1:
+        fail("target contract fields or schema identity are invalid")
+    if contract.get("status") not in {"example", "active"}:
+        fail("target contract status is unsupported")
+    if not isinstance(contract.get("roles"), dict) or set(contract["roles"]) != {"builder", "validator", "publisher"}:
+        fail("target contract roles are invalid")
+    if not isinstance(contract.get("paths"), dict) or not isinstance(contract.get("container_selections"), list):
+        fail("target contract paths or container selections are invalid")
     if PLACEHOLDER_RE.search(json.dumps(contract, sort_keys=True)):
-        fail("site contract contains a placeholder")
-    roles = contract.get("roles")
-    if not isinstance(roles, dict):
-        fail("site contract roles are invalid")
-    seen: dict[str, str] = {}
-    for role in ("builders", "publishers", "validators"):
-        identities = roles.get(role)
-        if not isinstance(identities, list) or not identities:
-            fail(f"site contract role allowlist is empty: {role}")
-        for identity in identities:
-            if identity in seen:
-                fail(f"machine identity is duplicated across roles: {seen[identity]} and {role}")
-            seen[identity] = role
+        fail("target contract contains a placeholder")
 
 
 def open_directory(path: Path, stop: Path, expected_uid: int, create: bool) -> int:
@@ -278,6 +270,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-sha256", required=True)
     parser.add_argument("--schema", required=True)
     parser.add_argument("--destination", required=True)
+    parser.add_argument("--selection", required=True)
+    parser.add_argument("--selection-sha256", required=True)
+    parser.add_argument("--selection-destination", required=True)
     parser.add_argument("-h", "--help", action="store_true")
     args = parser.parse_args()
     if args.help:
@@ -287,11 +282,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if SHA256_RE.fullmatch(args.expected_sha256) is None:
-        fail("--expected-sha256 must be a full lowercase SHA-256")
+    if SHA256_RE.fullmatch(args.expected_sha256) is None or SHA256_RE.fullmatch(args.selection_sha256) is None:
+        fail("contract and selection digests must be full lowercase SHA-256 values")
     source = normalized_absolute(args.source, "source contract")
     schema_path = normalized_absolute(args.schema, "schema")
     destination = normalized_absolute(args.destination, "destination")
+    selection = normalized_absolute(args.selection, "selection")
+    selection_destination = normalized_absolute(args.selection_destination, "selection destination")
     test_mode = os.environ.get("VLAD_IMAGE_CONTRACT_INSTALL_TEST_MODE") == "1"
 
     if test_mode:
@@ -305,7 +302,7 @@ def main() -> None:
             fail("test root must be a real directory")
         if anchor_stat.st_uid != expected_uid or stat.S_IMODE(anchor_stat.st_mode) & 0o077:
             fail("test root must be owned by the test identity and mode 0700 or stricter")
-        for label, path in (("source contract", source), ("schema", schema_path), ("destination", destination)):
+        for label, path in (("source contract", source), ("schema", schema_path), ("destination", destination), ("selection", selection), ("selection destination", selection_destination)):
             if not under(path, trust_anchor):
                 fail(f"test mode requires {label} below the isolated test root")
             if any(under(path, root) for root in PUBLIC_ROOTS) or under(path, REPOSITORY_ROOT):
@@ -315,6 +312,8 @@ def main() -> None:
             fail("production installation must run as root")
         if destination != PRODUCTION_DESTINATION:
             fail(f"production destination is fixed at {PRODUCTION_DESTINATION}")
+        if selection_destination != PRODUCTION_SELECTION:
+            fail(f"production selection destination is fixed at {PRODUCTION_SELECTION}")
         if schema_path != TRACKED_SCHEMA:
             fail(f"production schema is fixed at {TRACKED_SCHEMA}")
         if under(source, REPOSITORY_ROOT):
@@ -323,12 +322,33 @@ def main() -> None:
         expected_uid = 0
 
     source_bytes = secure_read(source, trust_anchor, expected_uid, "source contract", require_owner=True)
+    selection_bytes = secure_read(selection, trust_anchor, expected_uid, "selection", require_owner=True)
     schema_bytes = secure_read(schema_path, trust_anchor, expected_uid, "schema", require_owner=test_mode)
     actual_sha256 = hashlib.sha256(source_bytes).hexdigest()
     if actual_sha256 != args.expected_sha256:
         fail("source contract SHA-256 does not match the operator-provided expected value")
-    validate_contract(parse_json(source_bytes, "source contract"), parse_json(schema_bytes, "schema"))
+    selection_sha256 = hashlib.sha256(selection_bytes).hexdigest()
+    if selection_sha256 != args.selection_sha256:
+        fail("selection SHA-256 does not match the operator-provided expected value")
+    contract_json = parse_json(source_bytes, "source contract")
+    selection_json = parse_json(selection_bytes, "selection")
+    validate_contract(contract_json, parse_json(schema_bytes, "schema"))
+    selected_contract = validate_selection(selection_json)
+    policy = selected_contract.policy
+    authorities = selected_contract.authorities
+    if authorities.get("target_contract") != actual_sha256:
+        fail("selection does not bind the target contract digest")
+    if policy.get("datacenter") != contract_json.get("datacenter_id") or policy.get("target") != contract_json.get("target"):
+        fail("selection and target contract identities differ")
+    selected = [item for item in contract_json["container_selections"] if isinstance(item, dict) and item.get("software_set") == policy.get("software_set")]
+    if len(selected) != 1 or selected[0].get("container") not in selected_contract.containers:
+        fail("selection container differs from the target contract")
+    if not test_mode and contract_json.get("status") != "active":
+        fail("production target contract must be active")
     validate_destination_before_mutation(destination, trust_anchor, expected_uid)
+    validate_destination_before_mutation(selection_destination, trust_anchor, expected_uid)
+    if selection_destination.parent != destination.parent:
+        fail("contract and selection destinations must share one protected directory")
 
     marker = os.environ.get("VLAD_IMAGE_CONTRACT_INSTALL_SIDE_EFFECT_MARKER")
     if marker:
@@ -341,14 +361,16 @@ def main() -> None:
     try:
         atomic_write(parent_fd, destination.name, source_bytes, 0o644, expected_uid)
         atomic_write(parent_fd, "site-contract.sha256", (actual_sha256 + "\n").encode("ascii"), 0o600, expected_uid)
+        atomic_write(parent_fd, selection_destination.name, selection_bytes, 0o644, expected_uid)
+        atomic_write(parent_fd, "selection.sha256", (selection_sha256 + "\n").encode("ascii"), 0o600, expected_uid)
     finally:
         os.close(parent_fd)
-    print(f"installed Vlad image site contract SHA-256 {actual_sha256} at {destination}")
+    print(f"installed Vlad image selected contract {actual_sha256} and selection {selection_sha256} at {destination.parent}")
 
 
 try:
     main()
-except (InstallError, OSError, ValueError, TypeError) as error:
+except (InstallError, SelectionError, OSError, ValueError, TypeError) as error:
     print(f"site contract installation failed: {error}", file=sys.stderr)
     raise SystemExit(1)
 PY

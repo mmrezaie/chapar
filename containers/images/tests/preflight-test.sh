@@ -3,8 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PREFLIGHT="${ROOT_DIR}/containers/images/preflight.sh"
-SCHEMA="${ROOT_DIR}/containers/images/site-contract.schema.json"
-EXAMPLE="${ROOT_DIR}/containers/images/site-contract.example.json"
 TMP_BASE="$(mktemp -d "${TMPDIR:-/tmp}/vlad-image-preflight.XXXXXX")"
 TMP_BASE="$(cd "${TMP_BASE}" && pwd -P)"
 # The fixture deliberately chmods image roots to 0555 to exercise the
@@ -16,7 +14,10 @@ trap 'chmod -R u+rwX "${TMP_BASE}" 2>/dev/null || true; rm -rf "${TMP_BASE}"' EX
 FIXTURE="${TMP_BASE}/fixture"
 TOOLS="${FIXTURE}/tools"
 CONTRACT="${FIXTURE}/site-contract.json"
+SELECTION="${FIXTURE}/selection.json"
 SOURCE_LOCK="${FIXTURE}/sources-lock.json"
+TARGETS="${FIXTURE}/targets.json"
+CONTAINERS="${FIXTURE}/containers.json"
 INVENTORY="${FIXTURE}/inventory.json"
 FILESYSTEMS="${FIXTURE}/filesystems.json"
 MACHINE_ID="${FIXTURE}/machine-id"
@@ -27,23 +28,32 @@ CANDIDATE_ROOT="${FIXTURE}/candidates"
 VALIDATION_ROOT="${FIXTURE}/validation"
 IMAGE_ROOT="${FIXTURE}/images"
 SIDE_EFFECT_MARKER="${FIXTURE}/privileged-side-effect"
+GENERIC_NAMESPACE="fixture-dc/hpcsim/${TARGET}"
+GENERIC_CANDIDATE="${CANDIDATE_ROOT}/${GENERIC_NAMESPACE}/fixture-run"
+GENERIC_VALIDATION="${VALIDATION_ROOT}/${GENERIC_NAMESPACE}/fixture-release"
+GENERIC_IMAGE="${IMAGE_ROOT}/${GENERIC_NAMESPACE}/fixture-release"
+ARM_NAMESPACE="fixture-dc/vlad/linux-aarch64-gb300"
+ARM_CANDIDATE="${CANDIDATE_ROOT}/${ARM_NAMESPACE}/fixture-run"
+ARM_VALIDATION="${VALIDATION_ROOT}/${ARM_NAMESPACE}/fixture-release"
 
 mkdir -p "${TOOLS}" \
-  "${CANDIDATE_ROOT}/${TARGET}/${IMAGE_ID}" \
-  "${CANDIDATE_ROOT}/linux-aarch64-gb300/${IMAGE_ID}/${IMAGE_SHA}" \
-  "${VALIDATION_ROOT}/linux-aarch64-gb300/${IMAGE_ID}/${IMAGE_SHA}" \
-  "${IMAGE_ROOT}/${TARGET}"
+  "${GENERIC_CANDIDATE}/${IMAGE_ID}" \
+  "${ARM_CANDIDATE}/${IMAGE_ID}/${IMAGE_SHA}" \
+  "${ARM_VALIDATION}/${IMAGE_ID}/${IMAGE_SHA}" \
+  "${GENERIC_IMAGE}"
 chmod 0700 "${FIXTURE}"
-chmod 0555 "${IMAGE_ROOT}" "${IMAGE_ROOT}/${TARGET}" "${CANDIDATE_ROOT}/linux-aarch64-gb300/${IMAGE_ID}/${IMAGE_SHA}"
+chmod 0555 "${IMAGE_ROOT}" "${GENERIC_IMAGE}" "${ARM_CANDIDATE}/${IMAGE_ID}/${IMAGE_SHA}"
 printf '%s\n' '0123456789abcdef0123456789abcdef' >"${MACHINE_ID}"
 printf '%s\n' 'fixture-boot-id' >"${FIXTURE}/boot-id"
+cp "${ROOT_DIR}/containers/images/targets.json" "${TARGETS}"
+cp "${ROOT_DIR}/containers/images/containers.json" "${CONTAINERS}"
 
 for tool in docker docker-buildx buildctl enroot mksquashfs unsquashfs skopeo syft jq zstd python3 sha256sum srun getfacl lscpu nvidia-smi; do
   printf '#!/usr/bin/env bash\ncase "$*" in *version*|*-version*|*--version*) printf "1.0.0\\n"; exit 0 ;; esac\nprintf "invoked" >"%s"\nexit 0\n' "${SIDE_EFFECT_MARKER}" >"${TOOLS}/${tool}"
   chmod 0755 "${TOOLS}/${tool}"
 done
 
-python3 - "${ROOT_DIR}/containers/images/sources-lock.json" "${SOURCE_LOCK}" "${MACHINE_ID}" "${CONTRACT}" "${INVENTORY}" "${FILESYSTEMS}" "${FIXTURE}" "${TOOLS}" <<'PY'
+python3 - "${ROOT_DIR}/containers/images/sources-lock.json" "${SOURCE_LOCK}" "${MACHINE_ID}" "${CONTRACT}" "${SELECTION}" "${INVENTORY}" "${FILESYSTEMS}" "${FIXTURE}" "${TOOLS}" <<'PY'
 import hashlib
 import json
 import sys
@@ -108,7 +118,7 @@ def packages(prefix):
     ]
 source["verified"]["ubuntu_builder_packages"] = packages("fixture-builder")
 source["verified"]["ubuntu_final_packages"] = packages("fixture-final")
-tool_dir = Path(sys.argv[8])
+tool_dir = Path(sys.argv[9])
 tool_binaries = {
     "docker-buildx": ["docker", "docker-buildx"],
     "buildkit": ["buildctl"],
@@ -149,35 +159,45 @@ source["verified"]["actions_runner_archives"] = [
      "url": "https://github.com/actions/runner/releases/download/v2.999.0/actions-runner-linux-arm64-2.999.0.tar.gz", "sha256": "d" * 64},
 ]
 Path(sys.argv[2]).write_text(json.dumps(source))
-machine_hash = hashlib.sha256(Path(sys.argv[3]).read_bytes()).hexdigest()
 contract = {
-    "schema": "https://nscaledev.github.io/chapar/schemas/vlad-image-site-contract/v1",
+    "schema": "https://nscaledev.github.io/chapar/schemas/target-contract/v1",
     "schema_version": 1,
-    "status": "active",
+    "datacenter_id": "fixture-dc",
+    "status": "example",
+    "target": "linux-x86_64-generic",
+    "allowed_software_sets": ["hpcsim"],
+    "container_selections": [{"software_set": "hpcsim", "container": "ubuntu-hpcsim"}],
+    "paths": {
+        "durable_writable": {
+            "container_outputs": str(Path(sys.argv[8]) / "images"),
+            "receipts": str(Path(sys.argv[8]) / "validation"),
+        },
+        "temporary": {"image_staging": str(Path(sys.argv[8]) / "candidates")},
+    },
+    "slurm": {"partition": "x86v1", "constraint": "physical_v1", "account": "fixture", "qos": "normal"},
     "roles": {
-        "builders": [machine_hash],
-        "publishers": ["b" * 64],
-        "validators": ["c" * 64],
+        "builder": "fixture-builder",
+        "publisher": "fixture-publisher",
+        "validator": "fixture-validator",
     },
-    "targets": {
-        "linux-x86_64-generic": {
-            "hardware_class": "physical-x86-64-v1",
-            "partition": "x86v1",
-            "constraint": "physical_v1",
-        },
-        "linux-x86_64-v4": {
-            "hardware_class": "physical-x86-64-v4",
-            "partition": "x86v4",
-            "constraint": "physical_v4",
-        },
-        "linux-aarch64-gb300": {
-            "hardware_class": "gb300",
-            "partition": "gb300",
-            "constraint": "gb300_nodes",
-        },
-    },
+    "sharing": {}, "publication": {}, "provenance": {},
 }
 Path(sys.argv[4]).write_text(json.dumps(contract))
+contract_digest = hashlib.sha256(Path(sys.argv[4]).read_bytes()).hexdigest()
+fixture = Path(sys.argv[8])
+targets = json.loads(Path(sys.argv[1]).with_name("targets.json").read_text())["targets"]
+target_digest = hashlib.sha256(Path(sys.argv[1]).with_name("targets.json").read_bytes()).hexdigest()
+container_digest = hashlib.sha256(Path(sys.argv[1]).with_name("containers.json").read_bytes()).hexdigest()
+path_names = ("release_root", "release_final", "release_staging", "modulefiles", "install_tree", "writable_buildcache", "ccache", "container_outputs", "receipts", "evidence", "spack_build_stage", "image_staging", "validation_work", "resolver_work")
+paths = {name: str(fixture / "selection-paths" / name) for name in path_names}
+namespace = Path("fixture-dc/hpcsim/linux-x86_64-generic")
+paths.update({
+    "image_staging": str(fixture / "candidates" / namespace / "fixture-run"),
+    "receipts": str(fixture / "validation" / namespace / "fixture-release"),
+    "container_outputs": str(fixture / "images" / namespace / "fixture-release"),
+})
+selection = {"schema": "https://nscaledev.github.io/chapar/schemas/software-selection/v1", "schema_version": 1, "policy": {"datacenter": "fixture-dc", "software_set": "hpcsim", "target": "linux-x86_64-generic"}, "invocation": {"release_id": "fixture-release", "run_id": "fixture-run"}, "target_facts": targets["linux-x86_64-generic"], "containers": ["ubuntu-hpcsim"], "selected_roots": [{"id": "fixture", "spec": "fixture@1", "classification": "runtime"}], "excluded_roots": [], "paths": paths, "authorities": {"software_catalog": "a" * 64, "target_registry": target_digest, "container_registry": container_digest, "datacenter_contract": "d" * 64, "target_contract": contract_digest}, "artifacts": {"target_policy_sha256": "e" * 64, "effective_manifest_sha256": "f" * 64}, "versions": {"selection_schema": 1, "target_registry_schema": 1, "container_registry_schema": 1, "resolver": "fixture-1", "resolver_sha256": "1" * 64, "pydantic": "2", "PyYAML": "6"}, "deferred_proofs": ["fixture proof"]}
+Path(sys.argv[5]).write_text(json.dumps(selection))
 inventory = {
     "partitions": [
         {"partition": "x86v1", "constraints": ["physical_v1"], "available": True},
@@ -205,8 +225,7 @@ inventory = {
         "elf_isa_level": "x86-64-v1",
     },
 }
-Path(sys.argv[5]).write_text(json.dumps(inventory))
-fixture = Path(sys.argv[7])
+Path(sys.argv[6]).write_text(json.dumps(inventory))
 filesystem = {
     "paths": {
         str(fixture / "candidates"): {"fstype": "nfs4", "device": "0:42", "acl": ["user::rwx", "group::r-x", "mask::r-x", "other::---"], "fsync_ok": True},
@@ -214,16 +233,20 @@ filesystem = {
         str(fixture / "images"): {"fstype": "nfs4", "device": "0:44", "acl": ["user::rwx", "group::r-x", "mask::r-x", "other::---"], "fsync_ok": True},
     }
 }
-Path(sys.argv[6]).write_text(json.dumps(filesystem))
+Path(sys.argv[7]).write_text(json.dumps(filesystem))
 PY
-chmod 0600 "${CONTRACT}"
+chmod 0600 "${CONTRACT}" "${SELECTION}"
 
 export VLAD_PREFLIGHT_TEST_MODE=1
 export VLAD_PREFLIGHT_TEST_ROOT="${FIXTURE}"
 export VLAD_PREFLIGHT_TEST_SIDE_EFFECT_MARKER="${SIDE_EFFECT_MARKER}"
-export VLAD_PREFLIGHT_TEST_CONTRACT_UID="$(id -u)"
+VLAD_PREFLIGHT_TEST_CONTRACT_UID="$(id -u)"
+export VLAD_PREFLIGHT_TEST_CONTRACT_UID
 export VLAD_PREFLIGHT_TEST_SOURCES_LOCK="${SOURCE_LOCK}"
+export VLAD_PREFLIGHT_TEST_TARGETS="${TARGETS}"
+export VLAD_PREFLIGHT_TEST_CONTAINERS="${CONTAINERS}"
 export VLAD_PREFLIGHT_TEST_UNAME_M=x86_64
+export VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-builder
 export VLAD_PREFLIGHT_TEST_MACHINE_ID="${MACHINE_ID}"
 export VLAD_PREFLIGHT_TEST_BOOT_ID="${FIXTURE}/boot-id"
 export VLAD_PREFLIGHT_TEST_INVENTORY="${INVENTORY}"
@@ -241,15 +264,32 @@ print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
 PY
 }
 
+refresh_contract_binding() {
+  python3 - "${SELECTION}" "${CONTRACT}" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+selection_path = Path(sys.argv[1])
+contract_path = Path(sys.argv[2])
+selection = json.loads(selection_path.read_text())
+selection["authorities"]["target_contract"] = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+selection_path.write_text(json.dumps(selection, sort_keys=True))
+PY
+  chmod 0600 "${SELECTION}"
+}
+
 refresh_build_args() {
+  refresh_contract_binding
   BUILD_ARGS=(
     --target "${TARGET}"
     --image-id "${IMAGE_ID}"
-    --candidate-root "${CANDIDATE_ROOT}"
-    --validation-root "${VALIDATION_ROOT}"
-    --image-root "${IMAGE_ROOT}"
-    --site-contract "${CONTRACT}"
-    --site-contract-sha256 "$(hash_file "${CONTRACT}")"
+    --base ubuntu-hpcsim
+    --selection "${SELECTION}"
+    --selection-sha256 "$(hash_file "${SELECTION}")"
+    --target-contract "${CONTRACT}"
+    --target-contract-sha256 "$(hash_file "${CONTRACT}")"
     --mode build
   )
 }
@@ -273,14 +313,8 @@ expect_failure() {
   printf 'PASS: %s failed closed (%s) before side effects\n' "${name}" "${status}"
 }
 
-python3 -m json.tool "${SCHEMA}" >/dev/null
-python3 -m json.tool "${EXAMPLE}" >/dev/null
-python3 - "${SCHEMA}" "${EXAMPLE}" <<'PY'
-import json
-import sys
-import jsonschema
-jsonschema.Draft202012Validator(json.load(open(sys.argv[1]))).validate(json.load(open(sys.argv[2])))
-PY
+python3 -m json.tool "${CONTRACT}" >/dev/null
+python3 -m json.tool "${SELECTION}" >/dev/null
 
 refresh_build_args
 cp "${INVENTORY}" "${TMP_BASE}/outside-inventory.json"
@@ -323,6 +357,7 @@ expect_failure insufficient-space env VLAD_PREFLIGHT_TEST_FREE_BYTES=1 "${PREFLI
 cp "${FILESYSTEMS}" "${FILESYSTEMS}.good"
 python3 - "${FILESYSTEMS}" <<'PY'
 import json, sys
+from pathlib import Path
 path = sys.argv[1]
 value = json.load(open(path))
 value["paths"][next(iter(value["paths"]))]["fstype"] = "apfs"
@@ -411,7 +446,7 @@ python3 - "${CONTRACT}" <<'PY'
 import json, sys
 path = sys.argv[1]
 value = json.load(open(path))
-value["roles"]["publishers"] = list(value["roles"]["builders"])
+value["roles"]["publisher"] = value["roles"]["builder"]
 json.dump(value, open(path, "w"))
 PY
 refresh_build_args
@@ -421,7 +456,7 @@ chmod 0600 "${CONTRACT}"
 
 printf '%s\n' 'fedcba9876543210fedcba9876543210' >"${MACHINE_ID}"
 refresh_build_args
-expect_failure invalid-role "${PREFLIGHT}" "${BUILD_ARGS[@]}"
+expect_failure invalid-role env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=intruder "${PREFLIGHT}" "${BUILD_ARGS[@]}"
 printf '%s\n' '0123456789abcdef0123456789abcdef' >"${MACHINE_ID}"
 
 cp "${INVENTORY}" "${INVENTORY}.good"
@@ -436,17 +471,29 @@ refresh_build_args
 expect_failure invalid-constraint "${PREFLIGHT}" "${BUILD_ARGS[@]}"
 mv "${INVENTORY}.good" "${INVENTORY}"
 
+cp "${SELECTION}" "${SELECTION}.public"
+python3 - "${SELECTION}.public" <<'PY'
+import json, sys
+path = sys.argv[1]
+value = json.load(open(path))
+value["paths"]["image_staging"] = "/resources/chapar/vlad/image-candidates"
+json.dump(value, open(path, "w"))
+PY
+chmod 0600 "${SELECTION}.public"
 PUBLIC_ARGS=("${BUILD_ARGS[@]}")
-PUBLIC_ARGS[5]="/resources/chapar/vlad/image-candidates"
+PUBLIC_ARGS[7]="${SELECTION}.public"
+PUBLIC_ARGS[9]="$(hash_file "${SELECTION}.public")"
 expect_failure public-root-test-mode "${PREFLIGHT}" "${PUBLIC_ARGS[@]}"
+rm "${SELECTION}.public"
 
 expect_failure production-blocked-lock env VLAD_PREFLIGHT_TEST_MODE=0 "${PREFLIGHT}" \
   --target "${TARGET}" \
   --image-id "${IMAGE_ID}" \
-  --candidate-root /nonexistent/vlad-candidates \
-  --validation-root /nonexistent/vlad-validation \
-  --image-root /nonexistent/vlad-images \
-  --site-contract-sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --base ubuntu-hpcsim \
+  --selection "${SELECTION}" \
+  --selection-sha256 "$(hash_file "${SELECTION}")" \
+  --target-contract "${CONTRACT}" \
+  --target-contract-sha256 "$(hash_file "${CONTRACT}")" \
   --mode build
 
 MALFORMED_ARGS=("${BUILD_ARGS[@]}")
@@ -478,15 +525,34 @@ mv "${CONTRACT}.good" "${CONTRACT}"
 chmod 0600 "${CONTRACT}"
 
 cp "${CONTRACT}" "${CONTRACT}.build"
-python3 - "${CONTRACT}" "${MACHINE_ID}" <<'PY'
-import hashlib, json, sys
+cp "${SELECTION}" "${SELECTION}.build"
+python3 - "${CONTRACT}" "${SELECTION}" "${FIXTURE}" <<'PY'
+import json, sys
+from pathlib import Path
 path = sys.argv[1]
 value = json.load(open(path))
-identity = hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
-value["roles"]["builders"] = ["a" * 64]
-value["roles"]["validators"] = [identity]
+value["target"] = "linux-aarch64-gb300"
+value["allowed_software_sets"] = ["vlad"]
+value["container_selections"] = [{"software_set": "vlad", "container": "nvidia-vlad"}]
+value["slurm"]["partition"] = "gb300"
+value["slurm"]["constraint"] = "gb300_nodes"
+value["roles"]["validator"] = "fixture-validator"
 json.dump(value, open(path, "w"))
+selection_path = sys.argv[2]
+selection = json.load(open(selection_path))
+selection["policy"] = {"datacenter": "fixture-dc", "software_set": "vlad", "target": "linux-aarch64-gb300"}
+selection["containers"] = ["nvidia-vlad"]
+selection["target_facts"] = {"oci_platform": "linux/arm64", "native_arch": "aarch64", "spack_target": "aarch64", "llvm_targets": ["aarch64", "nvptx"], "cuda_arch": ["103"]}
+namespace = Path("fixture-dc/vlad/linux-aarch64-gb300")
+selection["paths"].update({
+    "image_staging": str(Path(sys.argv[3]) / "candidates" / namespace / "fixture-run"),
+    "receipts": str(Path(sys.argv[3]) / "validation" / namespace / "fixture-release"),
+    "container_outputs": str(Path(sys.argv[3]) / "images" / namespace / "fixture-release"),
+})
+json.dump(selection, open(selection_path, "w"))
 PY
+chmod 0600 "${CONTRACT}" "${SELECTION}"
+refresh_contract_binding
 python3 - "${INVENTORY}" <<'PY'
 import json, sys
 path = sys.argv[1]
@@ -496,15 +562,15 @@ json.dump(value, open(path, "w"))
 PY
 rm -f "${SIDE_EFFECT_MARKER}"
 set +e
-env VLAD_PREFLIGHT_TEST_UNAME_M=aarch64 "${PREFLIGHT}" \
+env VLAD_PREFLIGHT_TEST_UNAME_M=aarch64 VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-validator "${PREFLIGHT}" \
   --target linux-aarch64-gb300 \
   --image-id "${IMAGE_ID}" \
   --sha256 "${IMAGE_SHA}" \
-  --candidate-root "${CANDIDATE_ROOT}" \
-  --validation-root "${VALIDATION_ROOT}" \
-  --image-root "${IMAGE_ROOT}" \
-  --site-contract "${CONTRACT}" \
-  --site-contract-sha256 "$(hash_file "${CONTRACT}")" \
+  --base nvidia-vlad \
+  --selection "${SELECTION}" \
+  --selection-sha256 "$(hash_file "${SELECTION}")" \
+  --target-contract "${CONTRACT}" \
+  --target-contract-sha256 "$(hash_file "${CONTRACT}")" \
   --mode runtime >"${FIXTURE}/runtime-optional.out" 2>"${FIXTURE}/runtime-optional.err"
 OPTIONAL_STATUS=$?
 set -e
@@ -515,7 +581,8 @@ fi
 printf 'PASS: documented absent runtime GPU returned 77 without side effects\n'
 
 mv "${CONTRACT}.build" "${CONTRACT}"
-chmod 0600 "${CONTRACT}"
+mv "${SELECTION}.build" "${SELECTION}"
+chmod 0600 "${CONTRACT}" "${SELECTION}"
 
 refresh_build_args
 rm -f "${SIDE_EFFECT_MARKER}"
@@ -529,66 +596,64 @@ import json, sys
 value = json.load(open(sys.argv[1]))
 assert value["status"] == "pass"
 assert value["mode"] == "build"
-assert value["site_contract_sha256"] == sys.argv[2]
+assert value["target_contract_sha256"] == sys.argv[2]
 assert "roles" not in value and "targets" not in value
 PY
-printf 'PASS: CLI-shaped disposable build preflight emitted hash-only contract evidence\n'
+printf 'PASS: CLI-shaped disposable build preflight emitted selected-contract evidence\n'
 
 mkdir -p \
-  "${CANDIDATE_ROOT}/${TARGET}/${IMAGE_ID}/${IMAGE_SHA}" \
-  "${VALIDATION_ROOT}/${TARGET}/${IMAGE_ID}/${IMAGE_SHA}"
+  "${GENERIC_CANDIDATE}/${IMAGE_ID}/${IMAGE_SHA}" \
+  "${GENERIC_VALIDATION}/${IMAGE_ID}/${IMAGE_SHA}"
 chmod 0555 \
-  "${CANDIDATE_ROOT}/${TARGET}/${IMAGE_ID}/${IMAGE_SHA}"
-chmod 0750 "${VALIDATION_ROOT}/${TARGET}/${IMAGE_ID}/${IMAGE_SHA}"
-python3 - "${CONTRACT}" "${MACHINE_ID}" <<'PY'
-import hashlib, json, sys
+  "${GENERIC_CANDIDATE}/${IMAGE_ID}/${IMAGE_SHA}"
+chmod 0750 "${GENERIC_VALIDATION}/${IMAGE_ID}/${IMAGE_SHA}"
+python3 - "${CONTRACT}" <<'PY'
+import json, sys
 path = sys.argv[1]
 value = json.load(open(path))
-identity = hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
-value["roles"]["builders"] = ["a" * 64]
-value["roles"]["validators"] = [identity]
+value["roles"]["validator"] = "fixture-validator"
 json.dump(value, open(path, "w"))
 PY
 chmod 0600 "${CONTRACT}"
-"${PREFLIGHT}" \
+refresh_contract_binding
+env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-validator "${PREFLIGHT}" \
   --target "${TARGET}" \
   --image-id "${IMAGE_ID}" \
   --sha256 "${IMAGE_SHA}" \
-  --candidate-root "${CANDIDATE_ROOT}" \
-  --validation-root "${VALIDATION_ROOT}" \
-  --image-root "${IMAGE_ROOT}" \
-  --site-contract "${CONTRACT}" \
-  --site-contract-sha256 "$(hash_file "${CONTRACT}")" \
+  --base ubuntu-hpcsim \
+  --selection "${SELECTION}" \
+  --selection-sha256 "$(hash_file "${SELECTION}")" \
+  --target-contract "${CONTRACT}" \
+  --target-contract-sha256 "$(hash_file "${CONTRACT}")" \
   --mode runtime >"${FIXTURE}/runtime-pass.json"
 
-python3 - "${CONTRACT}" "${MACHINE_ID}" <<'PY'
-import hashlib, json, sys
+python3 - "${CONTRACT}" <<'PY'
+import json, sys
 path = sys.argv[1]
 value = json.load(open(path))
-identity = hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
-value["roles"]["validators"] = ["c" * 64]
-value["roles"]["publishers"] = [identity]
+value["roles"]["publisher"] = "fixture-publisher"
 json.dump(value, open(path, "w"))
 PY
 chmod 0600 "${CONTRACT}"
-chmod 0555 "${VALIDATION_ROOT}/${TARGET}/${IMAGE_ID}/${IMAGE_SHA}"
-chmod 0750 "${IMAGE_ROOT}/${TARGET}"
-mkdir -p "${IMAGE_ROOT}/${TARGET}/releases"
-chmod 0750 "${IMAGE_ROOT}/${TARGET}/releases"
+refresh_contract_binding
+chmod 0555 "${GENERIC_VALIDATION}/${IMAGE_ID}/${IMAGE_SHA}"
+chmod 0750 "${GENERIC_IMAGE}"
+mkdir -p "${GENERIC_IMAGE}/releases"
+chmod 0750 "${GENERIC_IMAGE}/releases"
 PUBLISHER_ARGS=(
   --target "${TARGET}"
   --image-id "${IMAGE_ID}"
   --sha256 "${IMAGE_SHA}"
-  --candidate-root "${CANDIDATE_ROOT}"
-  --validation-root "${VALIDATION_ROOT}"
-  --image-root "${IMAGE_ROOT}"
-  --site-contract "${CONTRACT}"
-  --site-contract-sha256 "$(hash_file "${CONTRACT}")"
+  --base ubuntu-hpcsim
+  --selection "${SELECTION}"
+  --selection-sha256 "$(hash_file "${SELECTION}")"
+  --target-contract "${CONTRACT}"
+  --target-contract-sha256 "$(hash_file "${CONTRACT}")"
   --mode publisher
 )
-chmod 0770 "${IMAGE_ROOT}/${TARGET}/releases"
-expect_failure publisher-group-write-mode "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
-chmod 0750 "${IMAGE_ROOT}/${TARGET}/releases"
+chmod 0770 "${GENERIC_IMAGE}/releases"
+expect_failure publisher-group-write-mode env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
+chmod 0750 "${GENERIC_IMAGE}/releases"
 
 cp "${FILESYSTEMS}" "${FILESYSTEMS}.good"
 python3 - "${FILESYSTEMS}" "${IMAGE_ROOT}" <<'PY'
@@ -598,7 +663,7 @@ value = json.load(open(path))
 value["paths"][sys.argv[2]]["acl"] = ["user::rwx", "group::r-x", "group:untrusted:rwx", "mask::rwx", "other::---"]
 json.dump(value, open(path, "w"))
 PY
-expect_failure publisher-named-acl-write "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
+expect_failure publisher-named-acl-write env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
 mv "${FILESYSTEMS}.good" "${FILESYSTEMS}"
 
 cp "${FILESYSTEMS}" "${FILESYSTEMS}.good"
@@ -609,7 +674,7 @@ value = json.load(open(path))
 value["paths"][sys.argv[2]]["acl"] = ["user::rwx", "group::r-x", "mask::r-x", "other::---", "default:group:untrusted:rwx"]
 json.dump(value, open(path, "w"))
 PY
-expect_failure publisher-default-acl-write "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
+expect_failure publisher-default-acl-write env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
 mv "${FILESYSTEMS}.good" "${FILESYSTEMS}"
 
 cp "${FILESYSTEMS}" "${FILESYSTEMS}.good"
@@ -620,7 +685,7 @@ value = json.load(open(path))
 value["paths"][sys.argv[2]]["acl"] = ["user::rwx", "group::", "mask::r-x", "other::---"]
 json.dump(value, open(path, "w"))
 PY
-expect_failure publisher-malformed-acl "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
+expect_failure publisher-malformed-acl env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
 mv "${FILESYSTEMS}.good" "${FILESYSTEMS}"
 
 cp "${FILESYSTEMS}" "${FILESYSTEMS}.good"
@@ -631,7 +696,7 @@ value = json.load(open(path))
 value["paths"][sys.argv[2]]["fsync_ok"] = False
 json.dump(value, open(path, "w"))
 PY
-expect_failure publisher-fsync-failure "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
+expect_failure publisher-fsync-failure env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
 mv "${FILESYSTEMS}.good" "${FILESYSTEMS}"
 
 cp "${FILESYSTEMS}" "${FILESYSTEMS}.good"
@@ -642,15 +707,15 @@ value = json.load(open(path))
 value["paths"][sys.argv[2]]["fsync_fail_at"] = "after-rename"
 json.dump(value, open(path, "w"))
 PY
-expect_failure publisher-fsync-cleanup "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
-if compgen -G "${IMAGE_ROOT}/${TARGET}/releases/.preflight-fsync.*" >/dev/null; then
+expect_failure publisher-fsync-cleanup env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}"
+if compgen -G "${GENERIC_IMAGE}/releases/.preflight-fsync.*" >/dev/null; then
   printf 'FAIL: failed publisher durability probe left temporary files\n' >&2
   exit 1
 fi
 mv "${FILESYSTEMS}.good" "${FILESYSTEMS}"
 
-"${PREFLIGHT}" "${PUBLISHER_ARGS[@]}" >"${FIXTURE}/publisher-pass.json"
-if compgen -G "${IMAGE_ROOT}/${TARGET}/releases/.preflight-fsync.*" >/dev/null; then
+env VLAD_PREFLIGHT_TEST_ROLE_IDENTITY=fixture-publisher "${PREFLIGHT}" "${PUBLISHER_ARGS[@]}" >"${FIXTURE}/publisher-pass.json"
+if compgen -G "${GENERIC_IMAGE}/releases/.preflight-fsync.*" >/dev/null; then
   printf 'FAIL: publisher durability probe left temporary files\n' >&2
   exit 1
 fi
@@ -663,5 +728,5 @@ assert runtime["mode"] == "runtime"
 assert publisher["mode"] == "publisher"
 PY
 printf 'PASS: runtime and publisher capability boundaries accepted isolated fixtures\n'
-printf 'PASS: site schema/example parse and example validates\n'
+printf 'PASS: selected target-contract and selection parse strictly\n'
 printf 'PASS: preflight focused fixture suite complete\n'

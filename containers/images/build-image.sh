@@ -7,7 +7,8 @@ Usage: containers/images/build-image.sh \
   --base nvidia-vlad --target linux-x86_64-v4 \
   --release-dir /resources/chapar/<env>/<os>/<arch>/releases/<release-id> \
   --image-id <image-id> \
-  --candidate-root /resources/chapar/vlad-image/candidates \
+  --datacenter-contract /etc/chapar/datacenter.json \
+  --target-contract /etc/chapar/target-contract.json \
   [--enroot-build-root DIR] [--keep-container] [--plan-only]
 
 Layer a promoted Chapar environment release into a digest-locked base image and
@@ -15,16 +16,16 @@ export an Enroot squashfs (.sqsh) that Pyxis consumes via
 `srun --container-image=<path>`. Each selected container pairs one base image
 with one Chapar environment and its own target list:
 
-  --base nvidia-vlad   NVIDIA HPC-benchmarks 26.02 (default) + the vlad env.
-                        Targets: linux-x86_64-v4, linux-aarch64-gb300.
+  --base nvidia-vlad   NVIDIA HPC-benchmarks 26.02 + the selected vlad set.
+                        Targets: linux-x86_64-v4,
+                        linux-aarch64-gb300.
   --base ubuntu-hpcsim Plain Ubuntu 24.04 + the hpcsim env. hpcsim policy
                         builds its own CUDA/GDR stack via Spack rather than
                         relying on an NVIDIA-branded OS image, so the base
                         stays vendor-neutral. Targets: linux-x86_64-generic.
 
-The release directory's own metadata.txt must match the selected base's
-environment (env_path) — pointing --base nvidia-vlad at an hpcsim release, or
-vice versa, fails closed rather than producing a mismatched image.
+The immutable release metadata, selection, effective manifest, target policy,
+and release-local lock must match the selected contract and global registries.
 
 What is injected: the environment's explicit root specs plus their transitive
 link/run dependency closure, each copied to the SAME absolute prefix it was
@@ -56,7 +57,7 @@ case "${1:-}" in
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-exec python3 - "${SCRIPT_DIR}" "$@" <<'PY'
+PYTHONPATH="${SCRIPT_DIR}" exec python3 - "${SCRIPT_DIR}" "$@" <<'PY'
 from __future__ import annotations
 
 import argparse
@@ -72,46 +73,17 @@ from typing import Any, Final
 
 SCRIPT_DIR = Path(sys.argv[1]).resolve()
 sys.argv = [sys.argv[0], *sys.argv[2:]]
+from registry import Container, Sources
+from release_contract import ContractError, ReleaseRequest, verify_release
 
 TARGETS_PATH = SCRIPT_DIR / "targets.json"
+CONTAINERS_PATH = SCRIPT_DIR / "containers.json"
 SOURCES_PATH = SCRIPT_DIR / "sources-lock.json"
+CATALOG_PATH = SCRIPT_DIR.parents[1] / "envs" / "software" / "spack.yaml"
 LOCK_VALIDATOR = SCRIPT_DIR / "tests" / "validate-locks.sh"
-
-# Each selected container is one (base image, Chapar environment) pairing.
-# `targets` is an allow-list checked against containers/images/targets.json --
-# a base is not required to support every registered target (hpcsim has no
-# aarch64 policy, so ubuntu-hpcsim only ever builds linux-x86_64-generic).
-# Every base must be digest-locked in sources-lock.json under its own
-# lock_category before a real (non --plan-only) build can run; never import a
-# base by tag.
-BASES: Final = {
-    "nvidia-vlad": {
-        "image": "nvcr.io/nvidia/hpc-benchmarks",
-        "tag": "26.02",
-        "lock_category": "nvidia_hpc_benchmarks_oci",
-        "env": "vlad",
-        "env_path": "envs/vlad",
-        "targets": ("linux-x86_64-v4", "linux-aarch64-gb300"),
-    },
-    "ubuntu-hpcsim": {
-        "image": "ubuntu",
-        "tag": "24.04",
-        "lock_category": "ubuntu_base_oci",
-        "env": "hpcsim",
-        "env_path": "envs/hpcsim",
-        "targets": ("linux-x86_64-generic",),
-    },
-}
-# Where the generated modulefiles land inside the image. Deliberately outside
-# /resources so the module tree is image-owned while the store keeps its
-# build-time absolute path.
-IMAGE_MODULE_ROOT: Final = "/opt/chapar/modulefiles"
 PROFILE_SCRIPT: Final = "/etc/profile.d/zz-chapar-image.sh"
 DIGEST_RE: Final = re.compile(r"^sha256:[0-9a-f]{64}$")
 ID_RE: Final = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
-# Link/run edges carry the runtime closure. Build-only deps (cmake, ninja,
-# autoconf, ...) are intentionally dropped -- they are not needed to execute the
-# roots and they are a large fraction of the store.
 RUNTIME_DEPTYPES: Final = frozenset({"link", "run"})
 
 
@@ -170,51 +142,48 @@ def require_tool(name: str) -> str:
 
 # ---------------------------------------------------------------- base image --
 
-def resolve_base_descriptor(base: dict[str, str], target: str) -> str:
+def resolve_base_descriptor(base: Container, target: str, lock: Sources) -> tuple[str, str]:
     """Return the immutable per-platform descriptor digest for `target`.
 
     Fails closed unless the lock is complete. Copying fleet-manager's
     `docker://nvcr.io#<image>:<tag>` tag import would violate the lock's
     floating_input_rule, so the digest must come from the lock.
     """
-    lock = load_json(SOURCES_PATH, "source lock")
-    status = lock.get("status")
-    unresolved = lock.get("unresolved") or []
-    if status != "complete" or unresolved:
-        categories = ", ".join(sorted({str(item.get("category")) for item in unresolved})) or "none listed"
+    if lock.status != "complete":
         fail(
             "source lock is not usable for an image build: status="
-            f"{status!r}, unresolved categories: {categories}. "
-            f"Resolve the {base['image']}:{base['tag']} index and per-platform "
+            f"{lock.status!r}. "
+            f"Resolve the {base.base_image} OCI index and per-platform "
             "descriptors on a builder with skopeo and nvcr.io access, then "
             f"re-run {LOCK_VALIDATOR} --require-complete."
         )
     try:
-        oci = lock["verified"][base["lock_category"]]
+        oci = lock.verified[base.source_lock_category]
         platform = oci["platforms"][target]
         descriptor = platform["descriptor_digest"]
     except (KeyError, TypeError):
         fail(
             f"source lock has no verified platform descriptor for base "
-            f"{base['image']}:{base['tag']} (category {base['lock_category']}) "
+            f"{base.base_image} (category {base.source_lock_category}) "
             f"and target {target}"
         )
-    if oci.get("image") != base["image"] or oci.get("tag") != base["tag"]:
-        fail(f"source lock {base['lock_category']} identity is not the approved {base['image']}:{base['tag']} source")
+    tag = oci.get("tag")
+    if oci.get("image") != base.base_image or not isinstance(tag, str) or not tag:
+        fail(f"source lock {base.source_lock_category} identity differs from the container registry")
     if not isinstance(descriptor, str) or DIGEST_RE.fullmatch(descriptor) is None:
         fail(f"platform descriptor for {target} is not an immutable sha256 digest")
-    return descriptor
+    return descriptor, tag
 
 
-def import_base(base: dict[str, str], descriptor: str, cache_dir: Path, target: str) -> Path:
+def import_base(base: Container, tag: str, descriptor: str, cache_dir: Path, target: str) -> Path:
     """Import the digest-pinned base into a local .sqsh, atomically.
 
     skopeo copies by digest into an OCI archive first, then enroot imports that
     archive. Going through skopeo keeps the digest exact and avoids depending on
     enroot's registry URI supporting `@sha256:` forms.
     """
-    slug = base["image"].rsplit("/", 1)[-1]
-    out = cache_dir / f"{slug}+{base['tag']}-{target}.sqsh"
+    slug = base.base_image.rsplit("/", 1)[-1]
+    out = cache_dir / f"{slug}+{tag}-{target}.sqsh"
     if out.exists():
         print(f"==> base already imported: {out.name}")
         return out
@@ -225,8 +194,8 @@ def import_base(base: dict[str, str], descriptor: str, cache_dir: Path, target: 
     archive = cache_dir / f".oci-archive.{os.getpid()}.tar"
     for stale in (partial, archive):
         stale.unlink(missing_ok=True)
-    print(f"==> copying {base['image']}@{descriptor}")
-    run([skopeo, "copy", f"docker://{base['image']}@{descriptor}", f"oci-archive:{archive}"], "skopeo copy")
+    print(f"==> copying {base.base_image}@{descriptor}")
+    run([skopeo, "copy", f"docker://{base.base_image}@{descriptor}", f"oci-archive:{archive}"], "skopeo copy")
     print("==> importing base into enroot")
     run([enroot, "import", "-o", str(partial), f"oci-archive://{archive}"], "enroot import")
     archive.unlink(missing_ok=True)
@@ -236,24 +205,6 @@ def import_base(base: dict[str, str], descriptor: str, cache_dir: Path, target: 
 
 
 # ------------------------------------------------------------ release closure --
-
-def read_metadata(release_dir: Path) -> dict[str, str]:
-    path = release_dir / "metadata.txt"
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError as error:
-        fail(f"release metadata is unreadable: {error}")
-    metadata: dict[str, str] = {}
-    for line in lines:
-        if ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        metadata[key.strip()] = value.strip()
-    for required in ("release_id", "os", "arch", "store", "env_path"):
-        if not metadata.get(required):
-            fail(f"release metadata is missing required field: {required}")
-    return metadata
-
 
 def runtime_closure(release_dir: Path) -> list[str]:
     """Return the dag hashes of the explicit roots plus their link/run closure.
@@ -315,6 +266,8 @@ def resolve_prefixes(store: Path, hashes: list[str]) -> list[Path]:
     """
     if not store.is_dir():
         fail(f"release store root is not a directory: {store}")
+    if store.resolve() != store:
+        fail(f"release store root contains a symlink component: {store}")
     # Padded install trees (release.sh detect_padded_length) nest the real
     # prefixes under a chain of __spack_path_placeholder__ directories; the
     # metadata's store field records the unpadded root. Descend to the deepest
@@ -323,6 +276,8 @@ def resolve_prefixes(store: Path, hashes: list[str]) -> list[Path]:
         store = store / "__spack_path_placeholder__"
     index: dict[str, list[Path]] = {}
     for entry in store.iterdir():
+        if entry.is_symlink():
+            fail(f"release store contains a symlinked prefix: {entry}")
         suffix = entry.name.rsplit("-", 1)[-1]
         if entry.is_dir():
             index.setdefault(suffix, []).append(entry)
@@ -350,7 +305,7 @@ def rootfs_path(data_path: Path, container: str, absolute_target: Path) -> Path:
     return data_path / container / str(absolute_target).lstrip("/")
 
 
-def inject(data_path: Path, container: str, prefixes: list[Path], release_dir: Path, arch: str, base: dict[str, str]) -> None:
+def inject(data_path: Path, container: str, prefixes: list[Path], modules_root: Path, arch: str, module_root: str, software_set: str) -> None:
     print(f"==> injecting {len(prefixes)} prefixes at their build-time paths")
     for prefix in prefixes:
         destination = rootfs_path(data_path, container, prefix)
@@ -361,10 +316,10 @@ def inject(data_path: Path, container: str, prefixes: list[Path], release_dir: P
         # under a restrictive umask breaks non-owner execution under Pyxis.
         run(["cp", "-a", str(prefix), str(destination)], f"injecting {prefix.name}")
 
-    modules_source = release_dir / "modulefiles" / arch
+    modules_source = modules_root / arch
     if not modules_source.is_dir():
         fail(f"release has no modulefiles for arch {arch}: {modules_source}")
-    modules_destination = rootfs_path(data_path, container, Path(IMAGE_MODULE_ROOT)) / arch
+    modules_destination = rootfs_path(data_path, container, Path(module_root)) / arch
     modules_destination.parent.mkdir(parents=True, exist_ok=True)
     if not modules_destination.exists():
         run(["cp", "-a", str(modules_source), str(modules_destination)], "injecting modulefiles")
@@ -376,18 +331,18 @@ def inject(data_path: Path, container: str, prefixes: list[Path], release_dir: P
     profile = rootfs_path(data_path, container, Path(PROFILE_SCRIPT))
     profile.parent.mkdir(parents=True, exist_ok=True)
     profile.write_text(
-        f"# Chapar {base['env']} release, layered into this image.\n"
+        f"# Chapar {software_set} release, layered into this image.\n"
         "# Deliberately does not alter PATH or LD_LIBRARY_PATH. Run\n"
-        f"# `module avail` then `module load <name>` to use the {base['env']} stack.\n"
-        f'if command -v module >/dev/null 2>&1 && [ -d "{IMAGE_MODULE_ROOT}/{arch}" ]; then\n'
-        f'    module use "{IMAGE_MODULE_ROOT}/{arch}"\n'
+        f"# `module avail` then `module load <name>` to use the {software_set} stack.\n"
+        f'if command -v module >/dev/null 2>&1 && [ -d "{module_root}/{arch}" ]; then\n'
+        f'    module use "{module_root}/{arch}"\n'
         "fi\n",
         encoding="utf-8",
     )
     profile.chmod(0o644)
 
 
-def verify(enroot: str, container: str, arch: str, spack_target: str, base_id: str) -> None:
+def verify(enroot: str, container: str, arch: str, spack_target: str, base_id: str, module_root: str) -> None:
     print("==> verifying injected tree inside the rootfs")
     if not arch.endswith(spack_target):
         fail(
@@ -420,10 +375,10 @@ def verify(enroot: str, container: str, arch: str, spack_target: str, base_id: s
     # base image's /etc/bash.bashrc from tripping over an unset prompt.
     script = (
         f'set -eu\n'
-        f'test -d "{IMAGE_MODULE_ROOT}/{arch}"\n'
+        f'test -d "{module_root}/{arch}"\n'
         f'test -r "{PROFILE_SCRIPT}"\n'
         f'{base_check}'
-        f'count=$(find "{IMAGE_MODULE_ROOT}/{arch}" -type f | wc -l)\n'
+        f'count=$(find "{module_root}/{arch}" -type f | wc -l)\n'
         f'[ "$count" -gt 0 ]\n'
         f'echo "verified: $count modulefiles, base payload intact"\n'
     )
@@ -440,57 +395,67 @@ def verify(enroot: str, container: str, arch: str, spack_target: str, base_id: s
 def main() -> int:
     parser = argparse.ArgumentParser(description="Layer a Chapar environment release into a digest-locked base image")
     parser.add_argument("--target", required=True)
-    parser.add_argument("--base", default="nvidia-vlad", choices=tuple(BASES))
+    parser.add_argument("--base", required=True)
     parser.add_argument("--release-dir", required=True)
+    parser.add_argument("--datacenter-contract", required=True)
+    parser.add_argument("--target-contract", required=True)
     parser.add_argument("--image-id", required=True)
-    parser.add_argument("--candidate-root")
     parser.add_argument("--enroot-build-root")
     parser.add_argument("--keep-container", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
     args = parser.parse_args()
 
-    targets = load_json(TARGETS_PATH, "target registry")["targets"]
-    if args.target not in targets:
-        fail(f"unknown target {args.target!r}; known: {', '.join(sorted(targets))}")
-    target_spec = targets[args.target]
     if ID_RE.fullmatch(args.image_id) is None:
         fail("image id must be a short lowercase identifier")
-    if not args.plan_only and not args.candidate_root:
-        fail("--candidate-root is required unless --plan-only is given")
-
-    base = BASES[args.base]
-    if args.target not in base["targets"]:
-        fail(
-            f"base {args.base!r} does not support target {args.target!r}; "
-            f"it supports: {', '.join(base['targets'])}"
-        )
-
     release_dir = absolute(args.release_dir, "release dir")
     if not release_dir.is_dir():
         fail(f"release dir is not a directory: {release_dir}")
-    metadata = read_metadata(release_dir)
-    arch = metadata["arch"]
-    store = absolute(metadata["store"], "release store")
-    if metadata["env_path"] != base["env_path"]:
-        fail(
-            f"release at {release_dir} was built from {metadata['env_path']!r}, "
-            f"but base {args.base!r} is for {base['env_path']!r} ({base['env']}). "
-            "Point --release-dir at a release of the matching environment."
+    datacenter_contract = absolute(args.datacenter_contract, "datacenter contract")
+    target_contract = absolute(args.target_contract, "target contract")
+    try:
+        plan = verify_release(
+            ReleaseRequest(
+                release_dir,
+                args.base,
+                args.target,
+                CATALOG_PATH,
+                TARGETS_PATH,
+                CONTAINERS_PATH,
+                SOURCES_PATH,
+                datacenter_contract,
+                target_contract,
+            )
         )
+    except ContractError as error:
+        fail(str(error))
+    base = plan.container
+    target_spec = plan.target
+    store = absolute(plan.roots["install_tree"], "release install tree")
+    module_tree = absolute(plan.roots["modulefiles"], "release modulefiles")
+    if module_tree.is_symlink():
+        fail("release module destination cannot be a symlink")
+    module_arches = sorted(path.name for path in module_tree.iterdir() if path.is_dir()) if module_tree.is_dir() else []
+    if len(module_arches) != 1:
+        fail("release must contain exactly one module destination")
+    arch = module_arches[0]
+    if not arch.endswith(plan.target.spack_target):
+        fail("release module architecture does not match selected target")
 
-    descriptor = resolve_base_descriptor(base, args.target)
+    descriptor, tag = resolve_base_descriptor(base, args.target, plan.sources)
     closure = runtime_closure(release_dir)
     prefixes = resolve_prefixes(store, closure)
 
-    artifact_name = f"{args.base}+{base['tag']}-{args.target}.sqsh"
+    artifact_name = f"{args.base}+{tag}-{args.target}.sqsh"
     if args.plan_only:
-        print(f"target:        {args.target} ({target_spec['oci_platform']}, spack_target={target_spec['spack_target']})")
-        print(f"base id:       {args.base} (env={base['env']})")
-        print(f"release:       {metadata['release_id']} arch={arch}")
-        print(f"base:          {base['image']}@{descriptor}")
+        print(f"target:        {args.target} ({target_spec.oci_platform}, spack_target={target_spec.spack_target})")
+        print(f"base id:       {args.base} (software_set={plan.identity['software_set']})")
+        print(f"release:       {plan.identity['release_id']} run={plan.identity['run_id']} arch={arch}")
+        print(f"selection:     {plan.selection_sha256}")
+        print(f"release lock:  {plan.lock_sha256}")
+        print(f"base:          {base.base_image}@{descriptor}")
         print(f"store:         {store}")
         print(f"closure:       {len(prefixes)} runtime prefixes of {len(closure)} closure specs")
-        print(f"modules:       {IMAGE_MODULE_ROOT}/{arch} (opt-in via module load)")
+        print(f"modules:       {base.module_destination}/{arch} (opt-in via module load)")
         print(f"artifact:      {artifact_name}")
         for prefix in prefixes[:10]:
             print(f"    inject {prefix}")
@@ -498,8 +463,8 @@ def main() -> int:
             print(f"    ... and {len(prefixes) - 10} more")
         return 0
 
-    candidate_root = absolute(args.candidate_root, "candidate root")
-    work = candidate_root / args.target / args.image_id
+    candidate_root = absolute(plan.paths["image_staging"], "selected image staging root")
+    work = candidate_root / args.image_id
     if not work.is_dir():
         fail(f"target/image-qualified candidate work root must exist and be writable: {work}")
 
@@ -512,13 +477,13 @@ def main() -> int:
     os.environ["ENROOT_TEMP_PATH"] = str(build_root / "temp")
     os.environ["ENROOT_RUNTIME_PATH"] = str(build_root / "runtime")
 
-    base_sqsh = import_base(base, descriptor, build_root / "cache", args.target)
+    base_sqsh = import_base(base, tag, descriptor, build_root / "cache", args.target)
     container = f"chaparbuild-{args.base}-{args.target}-{os.getpid()}"
     subprocess.run([enroot, "remove", "-f", container], capture_output=True, check=False)
     run([enroot, "create", "--name", container, str(base_sqsh)], "enroot create")
     try:
-        inject(build_root / "data", container, prefixes, release_dir, arch, base)
-        verify(enroot, container, arch, target_spec["spack_target"], args.base)
+        inject(build_root / "data", container, prefixes, module_tree, arch, base.module_destination, plan.identity["software_set"])
+        verify(enroot, container, arch, target_spec.spack_target, args.base, base.module_destination)
         out = work / artifact_name
         partial = out.with_suffix(f".sqsh.partial.{os.getpid()}")
         partial.unlink(missing_ok=True)

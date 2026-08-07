@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 - "${SCRIPT_DIR}" "$@" <<'PY'
+PYTHONPATH="${SCRIPT_DIR}" exec python3 - "${SCRIPT_DIR}" "$@" <<'PY'
 from __future__ import annotations
 
 import argparse
@@ -10,23 +10,28 @@ import errno
 import hashlib
 import json
 import os
+import pwd
 import re
 import shutil
 import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any, Final
 
 SCRIPT_DIR = Path(sys.argv[1]).resolve()
 sys.argv = [sys.argv[0], *sys.argv[2:]]
+from registry import RegistryError, parse_containers, parse_sources, parse_targets
+from selection_contract import SelectionError, validate_selection
+
 TARGETS_PATH = SCRIPT_DIR / "targets.json"
+CONTAINERS_PATH = SCRIPT_DIR / "containers.json"
 SOURCES_PATH = SCRIPT_DIR / "sources-lock.json"
 LOCK_VALIDATOR = SCRIPT_DIR / "tests" / "validate-locks.sh"
-CONTRACT_SCHEMA = "https://nscaledev.github.io/chapar/schemas/vlad-image-site-contract/v1"
-DEFAULT_CONTRACT = "/etc/chapar/vlad-image/site-contract.json"
+TARGET_CONTRACT_SCHEMA = "https://nscaledev.github.io/chapar/schemas/target-contract/v1"
 PUBLIC_ROOTS = (Path("/resources"), Path("/shared"), Path("/etc"))
 SHA256_RE: Final = re.compile(r"^[0-9a-f]{64}$")
 DIGEST_RE: Final = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -34,33 +39,6 @@ COMMIT_RE: Final = re.compile(r"^[0-9a-f]{40}$")
 ID_RE: Final = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 TOKEN_RE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 CONSTRAINT_RE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.&|!()+:-]{0,127}$")
-PLACEHOLDER_RE: Final = re.compile(r"(?:PLACEHOLDER|REPLACE|CHANGEME|EXAMPLE|TODO)", re.IGNORECASE)
-EXPECTED_TARGETS: Final = {
-    "linux-x86_64-generic": {
-        "oci_platform": "linux/amd64",
-        "native_arch": "x86_64",
-        "spack_target": "x86_64",
-        "llvm_targets": ["x86", "nvptx"],
-        "cuda_arch": ["75", "80", "86", "87", "89", "90", "90a", "100", "103", "110", "120", "121"],
-        "hardware_class": "physical-x86-64-v1",
-    },
-    "linux-x86_64-v4": {
-        "oci_platform": "linux/amd64",
-        "native_arch": "x86_64",
-        "spack_target": "x86_64_v4",
-        "llvm_targets": ["x86", "nvptx"],
-        "cuda_arch": ["75", "80", "86", "87", "89", "90", "90a", "100", "103", "110", "120", "121"],
-        "hardware_class": "physical-x86-64-v4",
-    },
-    "linux-aarch64-gb300": {
-        "oci_platform": "linux/arm64",
-        "native_arch": "aarch64",
-        "spack_target": "aarch64",
-        "llvm_targets": ["aarch64", "nvptx"],
-        "cuda_arch": ["103"],
-        "hardware_class": "gb300",
-    },
-}
 # Minimum CPUID/ELF x86-64 psABI level each x86 target may run on. The generic
 # target deliberately stays at the portable baseline; the v4 target requires
 # AVX-512F/BW/CD/DQ/VL evidence from both the CPU and the built binaries.
@@ -77,14 +55,7 @@ BUILD_TOOLS: Final = {
     "linux-x86_64-v4": ("enroot", "squashfs-tools", "zstd", "syft", "jq", "skopeo"),
     "linux-aarch64-gb300": ("enroot", "squashfs-tools", "zstd", "syft", "jq", "skopeo"),
 }
-# Which locked OCI category and registry image each selected container's base
-# comes from. Kept in sync with containers/images/build-image.sh's BASES dict;
-# preflight only needs the two fields it probes with here.
-BASES: Final = {
-    "nvidia-vlad": {"lock_category": "nvidia_hpc_benchmarks_oci", "image": "nvcr.io/nvidia/hpc-benchmarks"},
-    "ubuntu-hpcsim": {"lock_category": "ubuntu_base_oci", "image": "ubuntu"},
-}
-ROLE_BY_MODE: Final = {"build": "builders", "runtime": "validators", "publisher": "publishers"}
+ROLE_BY_MODE: Final = {"build": "builder", "runtime": "validator", "publisher": "publisher"}
 RUNTIME_FEATURES: Final = {
     "linux-x86_64-generic": ("physical_x86_64_v1", "pmix", "pyxis", "munge", "shared_image"),
     "linux-x86_64-v4": ("physical_x86_64_v4", "pmix", "pyxis", "munge", "shared_image"),
@@ -118,14 +89,21 @@ def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def load_json(path: Path, label: str) -> dict[str, Any]:
+def load_json_bytes(payload: bytes, label: str) -> dict[str, Any]:
     try:
-        loaded = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        fail(f"cannot read valid {label} JSON: {path}: {error}")
+        loaded = json.loads(payload, object_pairs_hook=unique_object)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        fail(f"cannot read valid {label} JSON: {error}")
     if not isinstance(loaded, dict):
         fail(f"{label} must be a JSON object")
     return loaded
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        return load_json_bytes(path.read_bytes(), label)
+    except OSError as error:
+        fail(f"cannot read valid {label} JSON: {path}: {error}")
 
 
 def under(path: Path, parent: Path) -> bool:
@@ -229,89 +207,48 @@ def read_secure_contract(path: Path, expected_uid: int, test_mode: bool) -> byte
         fail(f"cannot securely open site contract: {error}")
 
 
-def validate_targets(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    if set(document) != {"schema", "schema_version", "targets"} or document.get("schema_version") != 1:
-        fail("target registry has unknown fields or unsupported schema")
-    targets = document.get("targets")
-    if not isinstance(targets, dict) or set(targets) != set(EXPECTED_TARGETS):
-        fail("target registry must contain exactly the two approved targets")
-    for name, expected in EXPECTED_TARGETS.items():
-        target = targets[name]
-        approved = {key: value for key, value in expected.items() if key != "hardware_class"}
-        if target != approved:
-            fail(f"target mapping mismatch: {name}")
-    return targets
-
-
-def validate_source_lock(path: Path, timeout_seconds: int) -> dict[str, Any]:
-    environment = os.environ.copy()
-    environment["SOURCES_PATH_OVERRIDE"] = str(path)
+def read_regular_once(path: Path, label: str) -> bytes:
+    if not path.is_absolute() or ".." in path.parts:
+        fail(f"{label} must be absolute without traversal")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    directory_flags = flags | getattr(os, "O_DIRECTORY", 0)
     try:
-        completed = subprocess.run(
-            ["bash", str(LOCK_VALIDATOR), "--require-complete"],
-            check=False,
-            text=True,
-            capture_output=True,
-            timeout=timeout_seconds,
-            env=environment,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        fail(f"source-lock validator failed or timed out: {error}")
+        directory = os.open(path.anchor, directory_flags)
+        try:
+            for component in path.parts[1:-1]:
+                child = os.open(component, directory_flags, dir_fd=directory)
+                os.close(directory)
+                directory = child
+            descriptor = os.open(path.name, flags, dir_fd=directory)
+            with os.fdopen(descriptor, "rb") as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    fail(f"{label} must be a regular file")
+                return stream.read()
+        finally:
+            os.close(directory)
+    except OSError as error:
+        fail(f"cannot securely read {label}: {error}")
+
+
+def validate_source_lock(payload: bytes, timeout_seconds: int) -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="chapar-source-lock.") as directory:
+        sealed = Path(directory) / "sources-lock.json"
+        sealed.write_bytes(payload)
+        sealed.chmod(0o400)
+        environment = os.environ.copy()
+        environment["SOURCES_PATH_OVERRIDE"] = str(sealed)
+        try:
+            completed = subprocess.run(
+                ["bash", str(LOCK_VALIDATOR), "--require-complete"],
+                check=False, text=True, capture_output=True,
+                timeout=timeout_seconds, env=environment,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            fail(f"source-lock validator failed or timed out: {error}")
     if completed.returncode != 0:
         detail = completed.stderr.strip().splitlines()[-1] if completed.stderr.strip() else "closed source-lock validation failed"
         fail(f"source lock is blocked or invalid: {detail}")
-    return load_json(path, "source lock")
-
-
-def validate_contract(document: dict[str, Any]) -> dict[str, Any]:
-    if set(document) != {"schema", "schema_version", "status", "roles", "targets"}:
-        fail("site contract contains missing or unknown top-level fields")
-    if document.get("schema") != CONTRACT_SCHEMA or document.get("schema_version") != 1:
-        fail("site contract schema identity is unsupported")
-    if document.get("status") != "active":
-        fail("example or inactive site contract is forbidden")
-    if PLACEHOLDER_RE.search(json.dumps(document, sort_keys=True)):
-        fail("site contract contains a placeholder")
-    roles = document.get("roles")
-    if not isinstance(roles, dict) or set(roles) != {"builders", "publishers", "validators"}:
-        fail("site contract roles must contain exactly builders, publishers, and validators")
-    all_identities: dict[str, str] = {}
-    for role, identities in roles.items():
-        if not isinstance(identities, list) or not identities:
-            fail(f"site contract role allowlist is empty: {role}")
-        if len(identities) != len(set(identities)):
-            fail(f"site contract role allowlist has duplicates: {role}")
-        for identity in identities:
-            if not isinstance(identity, str) or SHA256_RE.fullmatch(identity) is None:
-                fail(f"invalid machine-id SHA-256 in role: {role}")
-            if identity in all_identities:
-                fail(f"machine identity is duplicated across roles: {all_identities[identity]} and {role}")
-            all_identities[identity] = role
-    target_contracts = document.get("targets")
-    if not isinstance(target_contracts, dict) or set(target_contracts) != set(EXPECTED_TARGETS):
-        fail("site contract must contain exactly both approved targets")
-    for name, expected in EXPECTED_TARGETS.items():
-        target = target_contracts[name]
-        if not isinstance(target, dict) or set(target) != {"hardware_class", "partition", "constraint"}:
-            fail(f"site target contains missing or unknown fields: {name}")
-        if target.get("hardware_class") != expected["hardware_class"]:
-            fail(f"site target hardware contract mismatch: {name}")
-        if not isinstance(target.get("partition"), str) or TOKEN_RE.fullmatch(target["partition"]) is None:
-            fail(f"invalid Slurm partition for target: {name}")
-        if not isinstance(target.get("constraint"), str) or CONSTRAINT_RE.fullmatch(target["constraint"]) is None:
-            fail(f"invalid Slurm constraint for target: {name}")
-    return document
-
-
-def machine_identity(path: Path) -> str:
-    try:
-        raw = path.read_bytes()
-    except OSError as error:
-        fail(f"cannot read stable machine identity: {error}")
-    text = raw.decode("ascii", errors="strict").strip()
-    if re.fullmatch(r"[0-9a-f]{32}", text) is None:
-        fail("machine-id must contain exactly 32 lowercase hexadecimal characters")
-    return hashlib.sha256(raw).hexdigest()
+    return load_json_bytes(payload, "source lock")
 
 
 def command_path(name: str, test_mode: bool) -> str | None:
@@ -583,16 +520,16 @@ def probe_publisher_durability(path: Path, record: dict[str, Any], test_mode: bo
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fail-closed native Vlad HPL image host preflight")
-    parser.add_argument("--target", required=True, choices=tuple(EXPECTED_TARGETS))
-    parser.add_argument("--base", default="nvidia-vlad", choices=tuple(BASES))
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--base", required=True)
     parser.add_argument("--image-id", required=True)
     parser.add_argument("--sha256")
-    parser.add_argument("--candidate-root", required=True)
-    parser.add_argument("--validation-root", required=True)
-    parser.add_argument("--image-root", required=True)
-    parser.add_argument("--site-contract", default=DEFAULT_CONTRACT)
-    parser.add_argument("--site-contract-sha256", default=os.environ.get("VLAD_IMAGE_SITE_CONTRACT_SHA256"))
+    parser.add_argument("--selection", required=True)
+    parser.add_argument("--selection-sha256", required=True)
+    parser.add_argument("--target-contract", required=True)
+    parser.add_argument("--target-contract-sha256", required=True)
     parser.add_argument("--mode", required=True, choices=("build", "runtime", "publisher"))
+    parser.add_argument("--plan-only", action="store_true")
     return parser.parse_args()
 
 
@@ -606,8 +543,10 @@ def main() -> int:
             "VLAD_PREFLIGHT_TEST_ROOT",
             "VLAD_PREFLIGHT_TEST_SIDE_EFFECT_MARKER",
             "VLAD_PREFLIGHT_TEST_CONTRACT_UID",
+            "VLAD_PREFLIGHT_TEST_ROLE_IDENTITY",
             "VLAD_PREFLIGHT_TEST_SOURCES_LOCK",
             "VLAD_PREFLIGHT_TEST_TARGETS",
+            "VLAD_PREFLIGHT_TEST_CONTAINERS",
             "VLAD_PREFLIGHT_TEST_UNAME_M",
             "VLAD_PREFLIGHT_TEST_MACHINE_ID",
             "VLAD_PREFLIGHT_TEST_BOOT_ID",
@@ -615,6 +554,11 @@ def main() -> int:
             "VLAD_PREFLIGHT_TEST_FILESYSTEMS",
             "VLAD_PREFLIGHT_TEST_TOOL_DIR",
             "VLAD_PREFLIGHT_TEST_FREE_BYTES",
+            "VLAD_PREFLIGHT_TEST_SWAP_SELECTION",
+            "VLAD_PREFLIGHT_TEST_SWAP_CONTRACT",
+            "VLAD_PREFLIGHT_TEST_SWAP_SOURCE_LOCK",
+            "VLAD_PREFLIGHT_TEST_SWAP_TARGETS",
+            "VLAD_PREFLIGHT_TEST_SWAP_CONTAINERS",
         }
         unknown_test_variables = sorted(name for name in os.environ if name.startswith("VLAD_PREFLIGHT_TEST_") and name not in allowed_test_variables)
         if unknown_test_variables:
@@ -625,23 +569,97 @@ def main() -> int:
         fail("--sha256 must be a full lowercase SHA-256")
     if args.mode in {"runtime", "publisher"} and args.sha256 is None:
         fail(f"--sha256 is required in {args.mode} mode")
-    if args.site_contract_sha256 is None or SHA256_RE.fullmatch(args.site_contract_sha256) is None:
-        fail("--site-contract-sha256 is required and must be a full lowercase SHA-256")
-
+    if SHA256_RE.fullmatch(args.selection_sha256) is None or SHA256_RE.fullmatch(args.target_contract_sha256) is None:
+        fail("selection and target-contract digests must be full lowercase SHA-256 values")
+    selection_path = validate_absolute_path(args.selection, "selection")
+    target_contract_path = validate_absolute_path(args.target_contract, "target contract")
+    expected_uid = int(os.environ.get("VLAD_PREFLIGHT_TEST_CONTRACT_UID", "0")) if test_mode else 0
+    selection_bytes = read_secure_contract(selection_path, expected_uid, test_mode)
+    contract_bytes = read_secure_contract(target_contract_path, expected_uid, test_mode)
+    if hashlib.sha256(selection_bytes).hexdigest() != args.selection_sha256:
+        fail("selection SHA-256 mismatch")
+    if hashlib.sha256(contract_bytes).hexdigest() != args.target_contract_sha256:
+        fail("target contract SHA-256 mismatch")
+    if test_mode:
+        for variable, destination in (
+            ("VLAD_PREFLIGHT_TEST_SWAP_SELECTION", selection_path),
+            ("VLAD_PREFLIGHT_TEST_SWAP_CONTRACT", target_contract_path),
+        ):
+            replacement = os.environ.get(variable)
+            if replacement:
+                replacement_path = validate_test_path(
+                    validate_absolute_path(replacement, variable), variable, test_root
+                )
+                os.replace(replacement_path, destination)
+    selection_document = load_json_bytes(selection_bytes, "selection")
+    contract = load_json_bytes(contract_bytes, "target contract")
+    selection = validate_selection(selection_document)
+    contract_fields = {
+        "schema", "schema_version", "datacenter_id", "status", "target",
+        "allowed_software_sets", "container_selections", "paths", "slurm",
+        "roles", "sharing", "publication", "provenance",
+    }
+    if set(contract) != contract_fields:
+        fail("target contract contains missing or unknown top-level fields")
+    if contract.get("schema") != TARGET_CONTRACT_SCHEMA or contract.get("schema_version") != 1:
+        fail("target contract schema identity is unsupported")
+    policy = selection.policy
+    selection_paths = selection.paths
+    authorities = selection.authorities
+    roles = contract.get("roles")
+    if not isinstance(roles, dict) or set(roles) != set(ROLE_BY_MODE.values()):
+        fail("target contract roles must contain exactly builder, validator, and publisher")
+    if any(not isinstance(value, str) or not value for value in roles.values()) or len(set(roles.values())) != len(roles):
+        fail("target contract role identities must be distinct non-empty usernames")
+    if policy.get("target") != args.target or args.base not in selection.containers:
+        fail("selection does not bind requested target and container")
+    if authorities.get("target_contract") != args.target_contract_sha256:
+        fail("selection target-contract digest mismatch")
+    if contract.get("datacenter_id") != policy.get("datacenter") or contract.get("target") != args.target:
+        fail("target contract identity differs from selection")
+    if policy.get("software_set") not in contract.get("allowed_software_sets", []):
+        fail("target contract does not allow selected software set")
+    selected = [item for item in contract.get("container_selections", []) if isinstance(item, dict) and item.get("software_set") == policy.get("software_set")]
+    if len(selected) != 1 or selected[0].get("container") != args.base:
+        fail("target contract does not select requested container")
+    contract_paths = contract.get("paths")
+    if not isinstance(contract_paths, dict):
+        fail("target contract paths are missing")
+    durable = contract_paths.get("durable_writable")
+    temporary = contract_paths.get("temporary")
+    if not isinstance(durable, dict) or not isinstance(temporary, dict):
+        fail("target contract writable path roots are missing")
+    namespace = Path(policy["datacenter"], policy["software_set"], policy["target"])
+    release_id = selection.invocation["release_id"]
+    run_id = selection.invocation["run_id"]
+    expected_image_paths = {
+        "candidate_root": Path(str(temporary.get("image_staging", ""))) / namespace / run_id,
+        "validation_root": Path(str(durable.get("receipts", ""))) / namespace / release_id,
+        "image_root": Path(str(durable.get("container_outputs", ""))) / namespace / release_id,
+    }
+    selected_image_paths = {
+        "candidate_root": Path(selection_paths["image_staging"]),
+        "validation_root": Path(selection_paths["receipts"]),
+        "image_root": Path(selection_paths["container_outputs"]),
+    }
+    if selected_image_paths != expected_image_paths:
+        fail("selection image paths differ from target contract")
     paths = {
-        "candidate_root": validate_absolute_path(args.candidate_root, "candidate root"),
-        "validation_root": validate_absolute_path(args.validation_root, "validation root"),
-        "image_root": validate_absolute_path(args.image_root, "image root"),
-        "site_contract": validate_absolute_path(args.site_contract, "site contract"),
+        "candidate_root": validate_absolute_path(str(expected_image_paths["candidate_root"]), "candidate root"),
+        "validation_root": validate_absolute_path(str(expected_image_paths["validation_root"]), "validation root"),
+        "image_root": validate_absolute_path(str(expected_image_paths["image_root"]), "image root"),
+        "site_contract": target_contract_path,
+        "selection": selection_path,
     }
     for label, path in paths.items():
         validate_not_workspace(path, label)
         if test_mode:
             validate_test_path(path, label, test_root)
-    if not test_mode and paths["site_contract"] != Path(DEFAULT_CONTRACT):
-        fail("production site contract path is fixed and cannot be overridden")
+    if not test_mode and contract.get("status") != "active":
+        fail("production target contract must be active")
 
     targets_path = TARGETS_PATH
+    containers_path = CONTAINERS_PATH
     sources_path = SOURCES_PATH
     if test_mode:
         marker_raw = os.environ.get("VLAD_PREFLIGHT_TEST_SIDE_EFFECT_MARKER")
@@ -649,56 +667,103 @@ def main() -> int:
             fail("test mode requires VLAD_PREFLIGHT_TEST_SIDE_EFFECT_MARKER")
         validate_test_path(validate_absolute_path(marker_raw, "test side-effect marker"), "test side-effect marker", test_root)
         target_override = os.environ.get("VLAD_PREFLIGHT_TEST_TARGETS")
+        container_override = os.environ.get("VLAD_PREFLIGHT_TEST_CONTAINERS")
         source_override = os.environ.get("VLAD_PREFLIGHT_TEST_SOURCES_LOCK")
         if target_override:
             targets_path = validate_absolute_path(target_override, "test target registry")
             validate_test_path(targets_path, "test target registry", test_root)
+        if container_override:
+            containers_path = validate_absolute_path(container_override, "test container registry")
+            validate_test_path(containers_path, "test container registry", test_root)
         if not source_override:
             fail("test mode requires VLAD_PREFLIGHT_TEST_SOURCES_LOCK")
         sources_path = validate_absolute_path(source_override, "test source lock")
         validate_test_path(sources_path, "test source lock", test_root)
 
-        for variable, label in (
-            ("VLAD_PREFLIGHT_TEST_MACHINE_ID", "test machine ID"),
+        required_test_paths = () if args.plan_only else (
             ("VLAD_PREFLIGHT_TEST_BOOT_ID", "test boot ID"),
             ("VLAD_PREFLIGHT_TEST_INVENTORY", "test inventory"),
             ("VLAD_PREFLIGHT_TEST_FILESYSTEMS", "test filesystem inventory"),
             ("VLAD_PREFLIGHT_TEST_TOOL_DIR", "test tool directory"),
-        ):
+        )
+        for variable, label in required_test_paths:
             value = os.environ.get(variable)
             if value is None:
                 fail(f"test mode requires {variable}")
             validate_test_path(validate_absolute_path(value, label), label, test_root)
 
-    targets = validate_targets(load_json(targets_path, "target registry"))
+    targets_bytes = read_regular_once(targets_path, "target registry")
+    containers_bytes = read_regular_once(containers_path, "container registry")
+    source_bytes = read_regular_once(sources_path, "source lock")
+    if test_mode:
+        for variable, destination in (
+            ("VLAD_PREFLIGHT_TEST_SWAP_TARGETS", targets_path),
+            ("VLAD_PREFLIGHT_TEST_SWAP_CONTAINERS", containers_path),
+            ("VLAD_PREFLIGHT_TEST_SWAP_SOURCE_LOCK", sources_path),
+        ):
+            replacement = os.environ.get(variable)
+            if replacement:
+                replacement_path = validate_test_path(
+                    validate_absolute_path(replacement, variable), variable, test_root
+                )
+                os.replace(replacement_path, destination)
+    targets = parse_targets(targets_bytes)
+    sources = parse_sources(source_bytes)
+    containers = parse_containers(containers_bytes, targets, sources)
+    if hashlib.sha256(targets_bytes).hexdigest() != authorities.get("target_registry"):
+        fail("selection target-registry authority digest mismatch")
+    if hashlib.sha256(containers_bytes).hexdigest() != authorities.get("container_registry"):
+        fail("selection container-registry authority digest mismatch")
     timeout_seconds = int(os.environ.get("VLAD_PREFLIGHT_PROBE_TIMEOUT_SECONDS", "30"))
     if not 1 <= timeout_seconds <= 300:
         fail("probe timeout must be between 1 and 300 seconds")
-    source_lock = validate_source_lock(sources_path, timeout_seconds)
+    if args.plan_only:
+        source_lock = load_json_bytes(source_bytes, "source lock")
+        if source_lock.get("status") != "complete" or source_lock.get("unresolved"):
+            fail("source lock is blocked or incomplete")
+    else:
+        source_lock = validate_source_lock(source_bytes, timeout_seconds)
     native_arch = os.environ.get("VLAD_PREFLIGHT_TEST_UNAME_M") if test_mode else os.uname().machine
-    if native_arch != EXPECTED_TARGETS[args.target]["native_arch"]:
-        fail(f"native architecture mismatch: target requires {EXPECTED_TARGETS[args.target]['native_arch']}, host is {native_arch}")
+    target_fact = targets.get(args.target)
+    base_fact = containers.get(args.base)
+    if target_fact is None or base_fact is None:
+        fail("selected target or container is absent from authenticated registries")
+    if args.target not in base_fact.allowed_targets:
+        fail("selected container does not allow requested target")
+    if native_arch != target_fact.native_arch:
+        fail(f"native architecture mismatch: target requires {target_fact.native_arch}, host is {native_arch}")
 
-    expected_uid = int(os.environ.get("VLAD_PREFLIGHT_TEST_CONTRACT_UID", "0")) if test_mode else 0
-    contract_bytes = read_secure_contract(paths["site_contract"], expected_uid, test_mode)
     actual_contract_sha256 = hashlib.sha256(contract_bytes).hexdigest()
-    if actual_contract_sha256 != args.site_contract_sha256:
-        fail("site contract SHA-256 does not match the protected expected value")
-    contract = validate_contract(json.loads(contract_bytes, object_pairs_hook=unique_object))
-
-    machine_id_path = Path(os.environ.get("VLAD_PREFLIGHT_TEST_MACHINE_ID", "/etc/machine-id")) if test_mode else Path("/etc/machine-id")
     role = ROLE_BY_MODE[args.mode]
-    identity = machine_identity(machine_id_path)
-    if identity not in contract["roles"][role]:
-        fail(f"stable machine identity is not allowlisted for role: {role}")
+    role_identity = os.environ.get("VLAD_PREFLIGHT_TEST_ROLE_IDENTITY") if test_mode else pwd.getpwuid(os.geteuid()).pw_name
+    if roles.get(role) != role_identity:
+        fail(f"execution identity does not own selected contract role: {role}")
+
+    if args.plan_only:
+        print(json.dumps({
+            "schema": "https://nscaledev.github.io/chapar/schemas/vlad-image-preflight-plan/v1",
+            "datacenter": policy.get("datacenter"),
+            "software_set": policy.get("software_set"),
+            "target": args.target,
+            "container": args.base,
+            "role": role,
+            "role_identity": role_identity,
+            "selection_sha256": args.selection_sha256,
+            "target_contract_sha256": actual_contract_sha256,
+            "paths": {key: str(value) for key, value in paths.items() if key not in {"site_contract", "selection"}},
+            "slurm": contract.get("slurm"),
+        }, sort_keys=True, separators=(",", ":")))
+        return 0
 
     inventory = load_inventory(test_mode, test_root, timeout_seconds)
-    target_contract = contract["targets"][args.target]
+    target_contract = contract.get("slurm")
+    if not isinstance(target_contract, dict):
+        fail("target contract Slurm placement is missing")
     if not inventory_has_pair(inventory, target_contract["partition"], target_contract["constraint"]):
         fail("validated target partition/constraint pair is absent from live Slurm inventory")
 
-    qualified_candidate = paths["candidate_root"] / args.target / args.image_id
-    selected_image_root = paths["image_root"] / args.target
+    qualified_candidate = paths["candidate_root"] / args.image_id
+    selected_image_root = paths["image_root"]
     capabilities: dict[str, Any] = {}
     if args.mode == "build":
         tools = verify_pinned_tools(source_lock, BUILD_TOOLS[args.target], native_arch, test_mode, timeout_seconds)
@@ -714,16 +779,15 @@ def main() -> int:
         if free_bytes < minimum_free:
             fail("candidate work root has insufficient free space")
         if not test_mode:
-            base = BASES[args.base]
-            descriptor = source_lock["verified"][base["lock_category"]]["platforms"][args.target]["descriptor_digest"]
-            run_probe([tools["skopeo"], "inspect", f"docker://{base['image']}@{descriptor}"], timeout_seconds)
+            descriptor = source_lock["verified"][base_fact.source_lock_category]["platforms"][args.target]["descriptor_digest"]
+            run_probe([tools["skopeo"], "inspect", f"docker://{base_fact.base_image}@{descriptor}"], timeout_seconds)
         capabilities = {"candidate_filesystem": candidate_fs.get("fstype"), "free_bytes": free_bytes, "required_tools": sorted(tools)}
     elif args.mode == "runtime":
         runtime_tools = ("srun", "enroot", "python3", "lscpu") if args.target in X86_ISA_LEVEL else ("srun", "enroot", "python3", "nvidia-smi")
         tools = require_tools(runtime_tools, test_mode)
         tools.update(verify_pinned_tools(source_lock, ("enroot",), native_arch, test_mode, timeout_seconds))
         sealed_candidate = qualified_candidate / args.sha256
-        receipt_root = paths["validation_root"] / args.target / args.image_id / args.sha256
+        receipt_root = paths["validation_root"] / args.image_id / args.sha256
         require_directory(sealed_candidate, "SHA-qualified sealed candidate", writable=False)
         require_directory(receipt_root, "run-scoped receipt root", writable=True)
         require_nfs(sealed_candidate, test_mode, test_root, timeout_seconds)
@@ -754,17 +818,12 @@ def main() -> int:
     else:
         tools = require_tools(("python3", "getfacl"), test_mode)
         sealed_candidate = qualified_candidate / args.sha256
-        receipts = paths["validation_root"] / args.target / args.image_id / args.sha256
+        receipts = paths["validation_root"] / args.image_id / args.sha256
         releases = selected_image_root / "releases"
         require_directory(sealed_candidate, "SHA-qualified sealed candidate", writable=False)
         require_directory(receipts, "validation receipt root", writable=False)
-        require_directory(paths["image_root"], "final image root", writable=False)
         require_directory(selected_image_root, "selected final image root", writable=True)
         require_directory(releases, "selected final releases root", writable=True)
-        for other_target in set(EXPECTED_TARGETS) - {args.target}:
-            other_root = paths["image_root"] / other_target
-            if other_root.exists():
-                require_directory(other_root, "unselected final image root", writable=False)
         candidate_fs = require_nfs(sealed_candidate, test_mode, test_root, timeout_seconds)
         validation_fs = require_nfs(receipts, test_mode, test_root, timeout_seconds)
         image_fs = require_nfs(selected_image_root, test_mode, test_root, timeout_seconds)
@@ -796,10 +855,13 @@ def main() -> int:
         "image_sha256": args.sha256,
         "native_arch": native_arch,
         "role": role,
-        "machine_id_sha256": identity,
+        "role_identity": role_identity,
         "hostname_diagnostic": socket.gethostname(),
         "boot_id_diagnostic": boot_id,
-        "site_contract_sha256": actual_contract_sha256,
+        "target_contract_sha256": actual_contract_sha256,
+        "selection_sha256": args.selection_sha256,
+        "datacenter": policy.get("datacenter"),
+        "software_set": policy.get("software_set"),
         "slurm": {"partition": target_contract["partition"], "constraint": target_contract["constraint"]},
         "paths": {key: str(value) for key, value in paths.items() if key != "site_contract"},
         "capabilities": capabilities,
@@ -813,7 +875,7 @@ try:
 except OptionalRuntimeFeatureMissing as error:
     print(f"preflight skip: {error}", file=sys.stderr)
     raise SystemExit(77)
-except (PreflightError, ValueError, TypeError, UnicodeError, KeyError, IndexError) as error:
+except (PreflightError, RegistryError, SelectionError, ValueError, TypeError, UnicodeError, KeyError, IndexError) as error:
     print(f"preflight failed: {error}", file=sys.stderr)
     raise SystemExit(1)
 PY
