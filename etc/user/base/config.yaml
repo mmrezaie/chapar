@@ -2,15 +2,11 @@ config:
   build_jobs: 16
   concurrent_packages: 16
   install_tree:
-    root: $CHAPAR_HOME_ROOT/store
+    root: $CHAPAR_INSTALL_TREE_ROOT
     projections:
-      all: "{architecture}/{compiler.name}-{compiler.version}/{name}-{version}"
-  template_dirs:
-    - $CHAPAR_HOME_ROOT/templates
-  license_dir: $CHAPAR_HOME_ROOT/licenses
+      all: "{name}-{version}-{hash}"
   build_stage:
-    - $tempdir/$user/spack-stage
-    - $user_cache_path/stage
+    - $CHAPAR_SPACK_BUILD_STAGE
   test_stage: $user_cache_path/test
   source_cache: $user_cache_path/source
   misc_cache: $user_cache_path/cache
