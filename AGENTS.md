@@ -3,6 +3,7 @@
 ## Rules
 
 - **Branch scope:** This repository is the nscale-internal development line. It carries no `.github/workflows/` — how environment builds run in CI is not yet decided; `docs/ci-github-actions.md` holds the proposed GitHub Actions design and must be agreed before any workflow files are added. Deployment targets Ubuntu 24.04 LTS (the NVIDIA-supported LTS used by the Slurm appliances and fleet manager on current clusters).
+- **Git worktrees:** Keep the primary checkout at the repository root. Every linked local worktree for this repository belongs under `foobar/<worktree-name>/`; do not create sibling checkouts elsewhere in the workspace. Inspect `git worktree list --porcelain` before adding, moving, removing, or switching worktrees. Use `make worktree <name>` for new idea branches, and use `git worktree move` only after confirming an existing worktree is clean and its destination under `foobar/` is unused. A branch already checked out in a linked worktree cannot also be checked out at the primary root; open that `foobar/` worktree instead, or remove it only with explicit user approval before switching the root checkout.
 - NEVER modify `spack/` submodule. All local policy lives in `etc/` and `envs/`.
 - Do not add or override package recipes in `spack_repo/` unless the user explicitly asks to add a package there.
 - NEVER edit generated/lock files (`.spack-env/`, lockfiles, caches).
@@ -48,6 +49,7 @@
 | `CLAUDE.md` | Claude Code entry point; imports `AGENTS.md` (Claude Code does not read `AGENTS.md`) |
 | `agents/skills/` | Canonical project skills; loaded by OpenCode/Codex via `opencode.json` |
 | `.claude/skills` | Single symlink to `agents/skills/` so Claude Code discovers the same skills |
+| `foobar/` | Ignored container for every linked local Git worktree; keep only its README and `.gitignore` tracked |
 | `.githooks/commit-msg` | Strips AI/agent attribution trailers from commit messages (enable per clone) |
 | `etc/init.sh` | Shell initializer (source to bind to this checkout) |
 | `etc/link-scopes.sh` | Symlink configs into `/etc/spack` / `~/.spack` |
@@ -82,6 +84,7 @@ otherwise read the skill's `SKILL.md` before changing files.
 | Spack concretization failures, solver timeouts, provider conflicts, or config layering debug | `agents/skills/chapar-spack-solve-debug/SKILL.md` |
 | Persistent Spack scope changes under `etc/system` or `etc/user` | `agents/skills/chapar-config-scope-change/SKILL.md` |
 | Commits, pushes, branch prep, or PR prep | `agents/skills/chapar-commit/SKILL.md` |
+| Git worktree creation, relocation, removal, branch-switch conflicts, or workspace layout | `agents/skills/chapar-worktree/SKILL.md` |
 | hpcsim release helper changes in `envs/hpcsim/release.sh` | `agents/skills/chapar-release-helper/SKILL.md` |
 | Buildcache layout, migration, quarantine, index refresh, or publication | `agents/skills/chapar-buildcache/SKILL.md` |
 | Vlad Pyxis image pipeline — base injection, sources lock, site contract, preflight, image runner provisioning | `agents/skills/chapar-vlad-image/SKILL.md` |

@@ -21,6 +21,8 @@ with Chapar. OpenCode loads project skills from `agents/skills`.
   patches under `spack_repo/chapar_plus`.
 - `skills/chapar-opencode-skills` covers OpenCode config, skill path migration,
   and agent playbook maintenance.
+- `skills/chapar-worktree` covers the required `foobar/` location for linked
+  local Git worktrees and safe handling of branch/worktree checkout conflicts.
 - `skills/brave-search`, `skills/vscode`: Generic skills copied from
   [`badlogic/pi-skills`](https://github.com/badlogic/pi-skills).
 - `skills/skill-creator`: Generic skill copied from
