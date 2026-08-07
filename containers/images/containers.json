@@ -1,0 +1,40 @@
+{
+  "schema": "https://nscaledev.github.io/chapar/schemas/vlad-image-containers/v1",
+  "schema_version": 1,
+  "containers": {
+    "nvidia-vlad": {
+      "base_image": "nvcr.io/nvidia/hpc-benchmarks",
+      "source_lock_category": "nvidia_hpc_benchmarks_oci",
+      "accepted_software_sets": ["vlad"],
+      "allowed_targets": ["linux-x86_64-v4", "linux-aarch64-gb300"],
+      "module_destination": "/opt/chapar/modulefiles",
+      "injection_requirements": {
+        "closure_deptypes": ["link", "run"],
+        "preserve_base_environment": true,
+        "prefix_policy": "build-time-absolute"
+      },
+      "runtime_requirements": {
+        "activation": "module-use-opt-in",
+        "require_module_command": true,
+        "required_roles": ["builders", "validators", "publishers"]
+      }
+    },
+    "ubuntu-hpcsim": {
+      "base_image": "ubuntu",
+      "source_lock_category": "ubuntu_base_oci",
+      "accepted_software_sets": ["hpcsim"],
+      "allowed_targets": ["linux-x86_64-generic"],
+      "module_destination": "/opt/chapar/modulefiles",
+      "injection_requirements": {
+        "closure_deptypes": ["link", "run"],
+        "preserve_base_environment": true,
+        "prefix_policy": "build-time-absolute"
+      },
+      "runtime_requirements": {
+        "activation": "module-use-opt-in",
+        "require_module_command": true,
+        "required_roles": ["builders", "validators", "publishers"]
+      }
+    }
+  }
+}
