@@ -41,9 +41,31 @@
 - Never run a direct Spack install. Builds use the selection-bound
   `envs/software/release.sh` versioned release flow only after platform
   approval. Offline work uses `plan` only.
+- Run `release.sh` from a clean shell. `etc/init.sh` is for interactive use: it
+  exports the `CHAPAR_*` path variables that `reject_ambient_authority` refuses.
+  `release.sh` derives every path from `--selection` and pins its own
+  `SPACK_SYSTEM_CONFIG_PATH`, user config, and user cache.
 
 The canonical disposable render/resolver/plan command sequence is in
 `README.md`. Other docs and skills link to it instead of copying it.
+
+## OS independence
+
+**OS scopes declare what the OS provides; the catalog declares policy.**
+`etc/system/<os>/packages.yaml` is limited to the bootstrap compiler external,
+libc, and the requirement that lets a bootstrap install use that compiler.
+Everything else is Spack-built, so an environment does not depend on what a
+given image happens to ship. The catalog names no OS.
+
+`release.sh` bootstraps ccache with the OS external compiler before installing
+the staged `gcc` root, so ccache accelerates the compiler build and no builder
+needs a system ccache. Spack resolves ccache from PATH with
+`which_string(..., required=True)`, so `config:ccache` is written `false` for
+that first pass and `true` afterwards.
+
+Two ccache installs are therefore expected and correct: the bootstrap copy built
+with the OS compiler, which is a build tool, and the shared catalog root built
+with `gcc@15`, which is the delivered module.
 
 ## Path and legacy-state policy
 
