@@ -41,9 +41,15 @@ export CCACHE_DIR="${CHAPAR_CCACHE_DIR}"
 : "${CCACHE_COMPILERCHECK:=content}"
 export CCACHE_TEMPDIR CCACHE_UMASK CCACHE_COMPILERCHECK
 
+# The helper's `module-use` runs `module use` in its own process, so calling it
+# here would verify the selection and then discard the MODULEPATH change with the
+# subshell. CHAPAR_MODULE_ROOT comes from the same verified exports above.
 if type module >/dev/null 2>&1; then
-    "${_chapar_selection_helper}" module-use \
-        "${CHAPAR_SELECTION_PATH}" "${CHAPAR_SELECTION_SHA256}" "${CHAPAR_TARGET_CONTRACT_PATH}" || return 1
+    if [ -d "${CHAPAR_MODULE_ROOT}" ]; then
+        module use "${CHAPAR_MODULE_ROOT}"
+    else
+        echo "WARNING: no published modulefiles for this selection: ${CHAPAR_MODULE_ROOT}" >&2
+    fi
 fi
 
 unset _chapar_etc_dir _chapar_root _chapar_selection_helper _chapar_exports
