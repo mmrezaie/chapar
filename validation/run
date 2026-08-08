@@ -2,7 +2,57 @@
 set -euo pipefail
 
 VALIDATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+selection=""
+contract=""
+selection_digest=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --selection) selection="${2:-}"; shift 2 ;;
+    --selection-digest) selection_digest="${2:-}"; shift 2 ;;
+    --contract) contract="${2:-}"; shift 2 ;;
+    --*) echo "Unknown option: $1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
 cmd="${1:-help}"
+
+if [ -n "${ENV_NAME:-}" ]; then
+  echo "ERROR: ENV_NAME is obsolete; pass --selection and --contract" >&2
+  exit 2
+fi
+
+require_selection() {
+  if [ -z "$selection" ] || [ -z "$selection_digest" ] || [ -z "$contract" ]; then
+    echo "ERROR: --selection, --selection-digest, and --contract are required" >&2
+    exit 2
+  fi
+}
+
+render_plan() {
+  python3 "$VALIDATION_DIR/selection.py" plan \
+    --selection "$selection" --selection-digest "$selection_digest" --contract "$contract" --test "$1"
+}
+
+submit_test() {
+  local name="$1"
+  local test_file="$VALIDATION_DIR/tests/${name}.sbatch"
+  local placement
+  local sealed
+  sealed="$(mktemp -d "${TMPDIR:-/tmp}/chapar-validation.XXXXXX")"
+  chmod 0700 "$sealed"
+  trap 'rm -rf -- "${sealed:-}"' RETURN
+  placement="$(python3 "$VALIDATION_DIR/selection.py" shell --selection "$selection" --selection-digest "$selection_digest" --contract "$contract" --test "$name" --seal-dir "$sealed")"
+  local sealed_selection="$sealed/selection.json"
+  local sealed_contract="$sealed/contract.json"
+  local results_root partition constraint account qos
+  IFS=$'\t' read -r _ _ _ _ results_root partition constraint account qos <<< "$placement"
+  if [ -n "${SLURM_JOB_ID:-}" ]; then
+    CHAPAR_SELECTION="$sealed_selection" CHAPAR_SELECTION_DIGEST="$selection_digest" CHAPAR_TARGET_CONTRACT="$sealed_contract" RESULTS_ROOT="$results_root" bash "$test_file"
+  else
+    sbatch --wait --partition "$partition" --constraint "$constraint" --account "$account" --qos "$qos" \
+      --export="CHAPAR_SELECTION=$sealed_selection,CHAPAR_SELECTION_DIGEST=$selection_digest,CHAPAR_TARGET_CONTRACT=$sealed_contract,RESULTS_ROOT=$results_root" "$test_file"
+  fi
+}
 
 case "$cmd" in
   list)
@@ -15,6 +65,7 @@ case "$cmd" in
     done
     ;;
   all)
+    require_selection
     # Exit code 77 means SKIP (test requirements not met on this node);
     # it is reported but does not fail the run.
     failed=0
@@ -22,15 +73,11 @@ case "$cmd" in
       name=$(basename "$f" .sbatch)
       printf "\n=== %s ===\n" "$name"
       if [ "${CHAPAR_DRY_RUN:-0}" = "1" ]; then
-        echo "[dry-run] Would submit: $f"
+        render_plan "$name"
         continue
       fi
       rc=0
-      if [ -n "${SLURM_JOB_ID:-}" ]; then
-        bash "$f" || rc=$?
-      else
-        sbatch --wait "$f" || rc=$?
-      fi
+      submit_test "$name" || rc=$?
       if [ "$rc" = "77" ]; then
         echo "SKIP: $name (requirements not met on this node)" >&2
       elif [ "$rc" != "0" ]; then
@@ -42,12 +89,11 @@ case "$cmd" in
     ;;
   help|--help|-h)
     echo "Usage: ./validation/run <test>"
+    echo "       ./validation/run --selection <selection.json> --selection-digest <sha256> --contract <contract.json> <test>"
     echo "       ./validation/run list"
     echo "       ./validation/run all"
     echo ""
     echo "Environment variables:"
-    echo "  CHAPAR_MODULE_<NAME>   Override module for <name> (e.g., CHAPAR_MODULE_CUDA=cuda/12.8)"
-    echo "  CHAPAR_PARTITION       Slurm partition"
     echo "  CHAPAR_NODES           Override node count for multi-node tests"
     echo "  CHAPAR_TIME            Override time limit"
     echo "  CHAPAR_KEEP_MODULES=1  Skip module purge (use pre-loaded environment)"
@@ -59,6 +105,7 @@ case "$cmd" in
     echo "  MPI_RDMA_ITERS         Iterations for MPI RDMA tests (default: 100)"
     ;;
   *)
+    require_selection
     test_file="$VALIDATION_DIR/tests/${cmd}.sbatch"
     if [ ! -f "$test_file" ]; then
       echo "Unknown test: $cmd" >&2
@@ -66,13 +113,9 @@ case "$cmd" in
       exit 2
     fi
     if [ "${CHAPAR_DRY_RUN:-0}" = "1" ]; then
-      echo "[dry-run] Would submit: $test_file"
+      render_plan "$cmd"
       exit 0
     fi
-    if [ -n "${SLURM_JOB_ID:-}" ]; then
-      exec bash "$test_file"
-    else
-      exec sbatch --wait "$test_file"
-    fi
+    submit_test "$cmd"
     ;;
 esac

@@ -11,8 +11,8 @@ modules:
 
   default:
     roots:
-      tcl: $CHAPAR_HOME_ROOT/modulefiles
-      lmod: $CHAPAR_HOME_ROOT/modulefiles/lmod
+      tcl: $CHAPAR_MODULE_ROOT
+      lmod: $CHAPAR_MODULE_ROOT/lmod
 
     enable: [tcl]
 

@@ -57,6 +57,8 @@ REPOSITORY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
 SOURCES_LOCK="${REPOSITORY_ROOT}/containers/images/sources-lock.json"
 SITE_CONTRACT="/etc/chapar/vlad-image/site-contract.json"
 EXPECTED_HASH_FILE="/etc/chapar/vlad-image/site-contract.sha256"
+SELECTION="/etc/chapar/vlad-image/selection.json"
+SELECTION_HASH_FILE="/etc/chapar/vlad-image/selection.sha256"
 MACHINE_ID_FILE="/etc/machine-id"
 OS_RELEASE_FILE="/usr/lib/os-release"
 TEST_MODE="${VLAD_IMAGE_RUNNER_TEST_MODE:-0}"
@@ -66,12 +68,14 @@ if [ "${TEST_MODE}" = 1 ]; then
     SOURCES_LOCK="${VLAD_IMAGE_RUNNER_TEST_SOURCES_LOCK:-}"
     SITE_CONTRACT="${VLAD_IMAGE_RUNNER_TEST_SITE_CONTRACT:-}"
     EXPECTED_HASH_FILE="${VLAD_IMAGE_RUNNER_TEST_EXPECTED_HASH_FILE:-}"
+    SELECTION="${VLAD_IMAGE_RUNNER_TEST_SELECTION:-}"
+    SELECTION_HASH_FILE="${VLAD_IMAGE_RUNNER_TEST_SELECTION_HASH_FILE:-}"
     MACHINE_ID_FILE="${VLAD_IMAGE_RUNNER_TEST_MACHINE_ID:-}"
     OS_RELEASE_FILE="${VLAD_IMAGE_RUNNER_TEST_OS_RELEASE:-}"
 fi
 
-PREFLIGHT_JSON="$(python3 - "${REPOSITORY_ROOT}" "${TEST_MODE}" "${TEST_ROOT}" \
-    "${SOURCES_LOCK}" "${SITE_CONTRACT}" "${EXPECTED_HASH_FILE}" "${MACHINE_ID_FILE}" \
+PREFLIGHT_JSON="$(PYTHONPATH="${REPOSITORY_ROOT}/containers/images" python3 - "${REPOSITORY_ROOT}" "${TEST_MODE}" "${TEST_ROOT}" \
+    "${SOURCES_LOCK}" "${SITE_CONTRACT}" "${EXPECTED_HASH_FILE}" "${SELECTION}" "${SELECTION_HASH_FILE}" "${MACHINE_ID_FILE}" \
     "${OS_RELEASE_FILE}" "${ROLE}" "${TARGET}" "${CREDENTIAL_FILE}" "${REMOVAL_TOKEN_FILE}" \
     "${RUNNER_NAME}" "${RUNTIME_MAX_SECONDS}" "${VLAD_IMAGE_RUNNER_SIDE_EFFECT_MARKER:-}" <<'PY'
 from __future__ import annotations
@@ -92,6 +96,8 @@ from typing import Any, Final
     sources_raw,
     contract_raw,
     expected_hash_raw,
+    selection_raw,
+    selection_hash_raw,
     machine_id_raw,
     os_release_raw,
     role,
@@ -103,6 +109,10 @@ from typing import Any, Final
     marker_raw,
 ) = sys.argv[1:]
 repository_root = Path(repository_root_raw)
+from registry import parse_targets
+from selection_contract import validate_selection
+
+REGISTRY_TARGETS = parse_targets(repository_root / "containers/images/targets.json")
 test_mode = test_mode_raw == "1"
 SHA256_RE: Final = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE: Final = re.compile(r"^[0-9a-f]{40}$")
@@ -110,12 +120,7 @@ VERSION_RE: Final = re.compile(r"^[0-9]+(?:\.[0-9]+){1,3}(?:-[0-9A-Za-z.]+)?$")
 NAME_RE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 PLACEHOLDER_RE: Final = re.compile(r"(?:PLACEHOLDER|REPLACE|CHANGEME|EXAMPLE|TODO)", re.IGNORECASE)
 EXPECTED_REPOSITORY = "https://github.com/nscaledev/chapar"
-EXPECTED_TARGETS: Final = {
-    "linux-x86_64-generic": ("x86_64", "x64", "amd64"),
-    "linux-x86_64-v4": ("x86_64", "x64", "amd64"),
-    "linux-aarch64-gb300": ("aarch64", "arm64", "arm64"),
-}
-ROLE_KEYS: Final = {"builder": "builders", "validator": "validators", "publisher": "publishers"}
+ROLE_KEYS: Final = {"builder": "builder", "validator": "validator", "publisher": "publisher"}
 PUBLIC_ROOTS: Final = (Path("/etc"), Path("/resources"), Path("/shared"))
 
 
@@ -210,7 +215,7 @@ def load_json(raw: bytes, label: str) -> dict[str, Any]:
 if role not in ROLE_KEYS:
     fail("--role must be exactly builder, validator, or publisher")
 if role == "builder":
-    if target not in EXPECTED_TARGETS:
+    if target not in REGISTRY_TARGETS:
         fail("builder requires one approved --target")
 else:
     if target:
@@ -228,6 +233,8 @@ paths = {
     "sources lock": absolute(sources_raw, "sources lock"),
     "site contract": absolute(contract_raw, "site contract"),
     "expected hash": absolute(expected_hash_raw, "expected hash"),
+    "selection": absolute(selection_raw, "selection"),
+    "selection expected hash": absolute(selection_hash_raw, "selection expected hash"),
     "machine ID": absolute(machine_id_raw, "machine ID"),
     "OS release": absolute(os_release_raw, "OS release"),
     "credential": absolute(credential_raw, "credential file"),
@@ -341,7 +348,7 @@ native_map = {"x86_64": ("x64", "amd64"), "amd64": ("x64", "amd64"), "aarch64": 
 if host_machine not in native_map:
     fail(f"unsupported native architecture: {host_machine}")
 runner_arch, architecture_label = native_map[host_machine]
-if role == "builder" and EXPECTED_TARGETS[target][0] != ("x86_64" if runner_arch == "x64" else "aarch64"):
+if role == "builder" and REGISTRY_TARGETS[target].native_arch != ("x86_64" if runner_arch == "x64" else "aarch64"):
     fail(f"native architecture mismatch for target: {target}")
 archive = archives[runner_arch]
 if archive["architecture"] != runner_arch:
@@ -376,31 +383,30 @@ contract_bytes = secure_read(paths["site contract"], anchor, expected_uid, "site
 if hashlib.sha256(contract_bytes).hexdigest() != protected_hash:
     fail("site contract does not match the protected expected hash")
 site = load_json(contract_bytes, "site contract")
-if set(site) != {"schema", "schema_version", "status", "roles", "targets"} or site.get("status") != "active":
-    fail("site contract is example, inactive, incomplete, or has unknown fields")
-if PLACEHOLDER_RE.search(json.dumps(site, sort_keys=True)):
-    fail("site contract contains a placeholder")
-roles = site.get("roles")
-if not isinstance(roles, dict) or set(roles) != set(ROLE_KEYS.values()):
-    fail("site contract roles are invalid")
-seen: set[str] = set()
-for role_key, identities in roles.items():
-    if not isinstance(identities, list) or not identities:
-        fail(f"site contract role is empty: {role_key}")
-    for identity in identities:
-        if not isinstance(identity, str) or SHA256_RE.fullmatch(identity) is None or identity in seen:
-            fail("site contract contains an invalid or cross-role duplicate machine identity")
-        seen.add(identity)
-machine_bytes = secure_read(paths["machine ID"], anchor, expected_uid, "machine ID", 0o644 if not test_mode else 0o600)
+if not test_mode and site.get("status") != "active":
+    fail("production target contract must be active")
+selection_hash_bytes = secure_read(paths["selection expected hash"], anchor, expected_uid, "protected selection hash", 0o600)
 try:
-    machine_text = machine_bytes.decode("ascii").strip()
+    selection_hash = selection_hash_bytes.decode("ascii").strip()
 except UnicodeError:
-    fail("machine ID is not ASCII")
-if re.fullmatch(r"[0-9a-f]{32}", machine_text) is None:
-    fail("machine ID must be exactly 32 lowercase hexadecimal characters")
-machine_hash = hashlib.sha256(machine_bytes).hexdigest()
-if machine_hash not in roles[ROLE_KEYS[role]]:
-    fail(f"machine identity is not allowlisted for role: {role}")
+    fail("protected selection hash is not ASCII")
+selection_bytes = secure_read(paths["selection"], anchor, expected_uid, "selection", 0o644)
+if SHA256_RE.fullmatch(selection_hash) is None or hashlib.sha256(selection_bytes).hexdigest() != selection_hash:
+    fail("selection does not match the protected expected hash")
+selection = validate_selection(load_json(selection_bytes, "selection"))
+policy = selection.policy
+authorities = selection.authorities
+if authorities.get("target_contract") != protected_hash:
+    fail("selection does not bind installed target contract")
+if policy.get("datacenter") != site.get("datacenter_id") or policy.get("target") != site.get("target"):
+    fail("selection and target contract identities differ")
+if role == "builder" and policy.get("target") != target:
+    fail("builder target differs from selected contract")
+roles = site.get("roles")
+if not isinstance(roles, dict) or set(roles) != set(ROLE_KEYS):
+    fail("site contract roles are invalid")
+if roles.get(ROLE_KEYS[role]) != f"chapar-vlad-{role}":
+    fail(f"selected contract role identity mismatch: {role}")
 
 package_category = "ubuntu_builder_packages" if role == "builder" else "ubuntu_final_packages"
 package_sets = verified.get(package_category)
@@ -450,8 +456,11 @@ print(json.dumps({
     "labels": labels,
     "archive": archive,
     "packages": packages,
-    "machine_id_sha256": machine_hash,
+    "role_identity": roles[ROLE_KEYS[role]],
     "site_contract_sha256": protected_hash,
+    "selection_sha256": selection_hash,
+    "datacenter": policy.get("datacenter"),
+    "software_set": policy.get("software_set"),
     "runtime_max_seconds": runtime_max,
     "os_release_path": str(os_release_path),
     "side_effect_marker": str(canonical_marker) if canonical_marker is not None else None,

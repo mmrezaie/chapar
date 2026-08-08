@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 INSTALLER="${ROOT_DIR}/ci/install-vlad-image-site-contract.sh"
 REGISTER="${ROOT_DIR}/ci/register-vlad-image-runner.sh"
-TRACKED_SCHEMA="${ROOT_DIR}/containers/images/site-contract.schema.json"
+TRACKED_SCHEMA="${ROOT_DIR}/datacenters/schemas/target-contract.schema.json"
 TRACKED_LOCK="${ROOT_DIR}/containers/images/sources-lock.json"
 TMP_BASE="$(mktemp -d "${TMPDIR:-/tmp}/vlad-image-provisioning.XXXXXX")"
 TMP_BASE="$(cd "${TMP_BASE}" && pwd -P)"
@@ -18,8 +18,10 @@ trap cleanup EXIT HUP INT TERM
 FIXTURE="${TMP_BASE}/fixture"
 SOURCE_DIR="${FIXTURE}/source"
 DESTINATION="${FIXTURE}/installed/site-contract.json"
+SELECTION_DESTINATION="${FIXTURE}/installed/selection.json"
 SCHEMA="${FIXTURE}/site-contract.schema.json"
 ACTIVE_CONTRACT="${SOURCE_DIR}/site-contract.json"
+SELECTION="${SOURCE_DIR}/selection.json"
 EXAMPLE_CONTRACT="${SOURCE_DIR}/site-contract.example.json"
 MACHINE_ID="${FIXTURE}/machine-id"
 OS_RELEASE="${FIXTURE}/os-release"
@@ -40,46 +42,39 @@ printf '%s\n' fixture-registration-token >"${CREDENTIAL}"
 printf '%s\n' fixture-runner-removal-token >"${REMOVAL_TOKEN}"
 chmod 0600 "${MACHINE_ID}" "${OS_RELEASE}" "${CREDENTIAL}" "${REMOVAL_TOKEN}"
 
-python3 - "${MACHINE_ID}" "${ACTIVE_CONTRACT}" "${EXAMPLE_CONTRACT}" "${TRACKED_LOCK}" "${COMPLETE_LOCK}" "${BLOCKED_LOCK}" <<'PY'
+python3 - "${MACHINE_ID}" "${ACTIVE_CONTRACT}" "${EXAMPLE_CONTRACT}" "${SELECTION}" "${TRACKED_LOCK}" "${COMPLETE_LOCK}" "${BLOCKED_LOCK}" <<'PY'
 import hashlib
 import json
 import sys
 from pathlib import Path
 
-machine_id, active_path, example_path, tracked_lock, complete_path, blocked_path = map(Path, sys.argv[1:])
-identity = hashlib.sha256(machine_id.read_bytes()).hexdigest()
+machine_id, active_path, example_path, selection_path, tracked_lock, complete_path, blocked_path = map(Path, sys.argv[1:])
 active = {
-    "schema": "https://nscaledev.github.io/chapar/schemas/vlad-image-site-contract/v1",
+    "schema": "https://nscaledev.github.io/chapar/schemas/target-contract/v1",
     "schema_version": 1,
-    "status": "active",
+    "datacenter_id": "fixture-dc",
+    "status": "example",
+    "target": "linux-x86_64-generic",
+    "allowed_software_sets": ["hpcsim"],
+    "container_selections": [{"software_set": "hpcsim", "container": "ubuntu-hpcsim"}],
+    "paths": {},
+    "slurm": {"partition": "x86v4", "constraint": "physical_v4", "account": "fixture", "qos": "normal"},
     "roles": {
-        "builders": [identity],
-        "publishers": ["b" * 64],
-        "validators": ["c" * 64],
+        "builder": "chapar-vlad-builder",
+        "publisher": "chapar-vlad-publisher",
+        "validator": "chapar-vlad-validator",
     },
-    "targets": {
-        "linux-x86_64-generic": {
-            "hardware_class": "physical-x86-64-v1",
-            "partition": "x86v1",
-            "constraint": "physical_v1",
-        },
-        "linux-x86_64-v4": {
-            "hardware_class": "physical-x86-64-v4",
-            "partition": "x86v4",
-            "constraint": "physical_v4",
-        },
-        "linux-aarch64-gb300": {
-            "hardware_class": "gb300",
-            "partition": "gb300",
-            "constraint": "gb300_nodes",
-        },
-    },
+    "sharing": {}, "publication": {}, "provenance": {},
 }
 active_path.write_text(json.dumps(active), encoding="utf-8")
 example = json.loads(json.dumps(active))
-example["status"] = "example"
-example["targets"]["linux-x86_64-generic"]["partition"] = "REPLACE_WITH_PARTITION"
+example["datacenter_id"] = "REPLACE_WITH_DATACENTER"
 example_path.write_text(json.dumps(example), encoding="utf-8")
+contract_digest = hashlib.sha256(active_path.read_bytes()).hexdigest()
+path_names = ("release_root", "release_final", "release_staging", "modulefiles", "install_tree", "writable_buildcache", "ccache", "container_outputs", "receipts", "evidence", "spack_build_stage", "image_staging", "validation_work", "resolver_work")
+paths = {name: str(machine_id.parent / "selection-paths" / name) for name in path_names}
+selection = {"schema": "https://nscaledev.github.io/chapar/schemas/software-selection/v1", "schema_version": 1, "policy": {"datacenter": "fixture-dc", "software_set": "hpcsim", "target": "linux-x86_64-generic"}, "invocation": {"release_id": "fixture-release", "run_id": "fixture-run"}, "target_facts": {"oci_platform": "linux/amd64", "native_arch": "x86_64", "spack_target": "x86_64", "llvm_targets": ["x86", "nvptx"], "cuda_arch": ["75", "80", "86", "87", "89", "90", "90a", "100", "103", "110", "120", "121"]}, "containers": ["ubuntu-hpcsim"], "selected_roots": [{"id": "fixture", "spec": "fixture@1", "classification": "runtime"}], "excluded_roots": [], "paths": paths, "authorities": {"software_catalog": "a" * 64, "target_registry": "b" * 64, "container_registry": "c" * 64, "datacenter_contract": "d" * 64, "target_contract": contract_digest}, "artifacts": {"target_policy_sha256": "e" * 64, "effective_manifest_sha256": "f" * 64}, "versions": {"selection_schema": 1, "target_registry_schema": 1, "container_registry_schema": 1, "resolver": "fixture-1", "resolver_sha256": "1" * 64, "pydantic": "2", "PyYAML": "6"}, "deferred_proofs": ["fixture proof"]}
+selection_path.write_text(json.dumps(selection), encoding="utf-8")
 
 source = json.loads(tracked_lock.read_text(encoding="utf-8"))
 source["status"] = "complete"
@@ -135,7 +130,7 @@ complete_path.write_text(json.dumps(source), encoding="utf-8")
 source["status"] = "blocked"
 blocked_path.write_text(json.dumps(source), encoding="utf-8")
 PY
-chmod 0600 "${ACTIVE_CONTRACT}" "${EXAMPLE_CONTRACT}" "${COMPLETE_LOCK}" "${BLOCKED_LOCK}"
+chmod 0600 "${ACTIVE_CONTRACT}" "${EXAMPLE_CONTRACT}" "${SELECTION}" "${COMPLETE_LOCK}" "${BLOCKED_LOCK}"
 
 hash_file() {
     python3 - "$1" <<'PY'
@@ -172,6 +167,9 @@ install_args() {
         --expected-sha256 "$(hash_file "${ACTIVE_CONTRACT}")"
         --schema "${SCHEMA}"
         --destination "${DESTINATION}"
+        --selection "${SELECTION}"
+        --selection-sha256 "$(hash_file "${SELECTION}")"
+        --selection-destination "${SELECTION_DESTINATION}"
     )
 }
 
@@ -216,6 +214,40 @@ EXAMPLE_ARGS=(
 )
 expect_failure_without_marker installer-example-contract "${INSTALL_MARKER}" "${INSTALLER}" "${EXAMPLE_ARGS[@]}"
 
+installed_snapshot() {
+    for path in "${DESTINATION}" "$(dirname "${DESTINATION}")/site-contract.sha256" "${SELECTION_DESTINATION}" "$(dirname "${DESTINATION}")/selection.sha256"; do
+        shasum -a 256 "${path}"
+    done
+}
+
+printf 'old-contract\n' >"${DESTINATION}"
+printf 'old-contract-hash\n' >"$(dirname "${DESTINATION}")/site-contract.sha256"
+printf 'old-selection\n' >"${SELECTION_DESTINATION}"
+printf 'old-selection-hash\n' >"$(dirname "${DESTINATION}")/selection.sha256"
+chmod 0644 "${DESTINATION}" "${SELECTION_DESTINATION}"
+chmod 0600 "$(dirname "${DESTINATION}")/site-contract.sha256" "$(dirname "${DESTINATION}")/selection.sha256"
+INSTALL_DESTINATION_BEFORE="$(installed_snapshot)"
+cp "${SELECTION}" "${SELECTION}.good"
+python3 - "${SELECTION}" <<'PY'
+import json, sys
+p = sys.argv[1]; value = json.load(open(p)); value["unknown_field"] = "rejected"; open(p, "w").write(json.dumps(value))
+PY
+install_args
+expect_failure_without_marker installer-selection-unknown-top "${INSTALL_MARKER}" "${INSTALLER}" "${INSTALL_ARGS[@]}"
+[[ "${INSTALL_DESTINATION_BEFORE}" == "$(installed_snapshot)" ]]
+mv "${SELECTION}.good" "${SELECTION}"
+cp "${SELECTION}" "${SELECTION}.good"
+python3 - "${SELECTION}" <<'PY'
+import json, sys
+p = sys.argv[1]; value = json.load(open(p)); value["versions"]["unknown_field"] = "rejected"; open(p, "w").write(json.dumps(value))
+PY
+install_args
+expect_failure_without_marker installer-selection-unknown-nested "${INSTALL_MARKER}" "${INSTALLER}" "${INSTALL_ARGS[@]}"
+[[ "${INSTALL_DESTINATION_BEFORE}" == "$(installed_snapshot)" ]]
+mv "${SELECTION}.good" "${SELECTION}"
+printf 'PASS: invalid selections left all four atomic installer destinations byte-identical\n'
+rm "${DESTINATION}" "$(dirname "${DESTINATION}")/site-contract.sha256" "${SELECTION_DESTINATION}" "$(dirname "${DESTINATION}")/selection.sha256"
+
 install_args
 rm -f "${INSTALL_MARKER}"
 "${INSTALLER}" "${INSTALL_ARGS[@]}" >"${FIXTURE}/installer-manual-qa.out"
@@ -245,7 +277,11 @@ rm -f "${INSTALL_MARKER}"
 export VLAD_IMAGE_RUNNER_TEST_MODE=1
 export VLAD_IMAGE_RUNNER_TEST_ROOT="${TMP_BASE}"
 export VLAD_IMAGE_RUNNER_TEST_SITE_CONTRACT="${DESTINATION}"
-export VLAD_IMAGE_RUNNER_TEST_EXPECTED_HASH_FILE="$(dirname "${DESTINATION}")/site-contract.sha256"
+VLAD_IMAGE_RUNNER_TEST_EXPECTED_HASH_FILE="$(dirname "${DESTINATION}")/site-contract.sha256"
+export VLAD_IMAGE_RUNNER_TEST_EXPECTED_HASH_FILE
+export VLAD_IMAGE_RUNNER_TEST_SELECTION="${SELECTION_DESTINATION}"
+VLAD_IMAGE_RUNNER_TEST_SELECTION_HASH_FILE="$(dirname "${DESTINATION}")/selection.sha256"
+export VLAD_IMAGE_RUNNER_TEST_SELECTION_HASH_FILE
 export VLAD_IMAGE_RUNNER_TEST_MACHINE_ID="${MACHINE_ID}"
 export VLAD_IMAGE_RUNNER_TEST_UNAME_M=x86_64
 export VLAD_IMAGE_RUNNER_SIDE_EFFECT_MARKER="${RUNNER_MARKER}"
@@ -273,6 +309,27 @@ expect_failure_without_marker runner-blocked-lock "${RUNNER_MARKER}" "${REGISTER
 
 export VLAD_IMAGE_RUNNER_TEST_SOURCES_LOCK="${COMPLETE_LOCK}"
 expect_failure_without_marker runner-wrong-architecture "${RUNNER_MARKER}" env VLAD_IMAGE_RUNNER_TEST_UNAME_M=aarch64 "${REGISTER}" "${RUNNER_ARGS[@]}"
+
+cp "${SELECTION_DESTINATION}" "${SELECTION_DESTINATION}.good"
+cp "$(dirname "${DESTINATION}")/selection.sha256" "$(dirname "${DESTINATION}")/selection.sha256.good"
+python3 - "${SELECTION_DESTINATION}" <<'PY'
+import json, sys
+p = sys.argv[1]; value = json.load(open(p)); value["unknown_field"] = "rejected"; open(p, "w").write(json.dumps(value))
+PY
+hash_file "${SELECTION_DESTINATION}" >"$(dirname "${DESTINATION}")/selection.sha256"
+expect_failure_without_marker runner-selection-unknown-top "${RUNNER_MARKER}" "${REGISTER}" "${RUNNER_ARGS[@]}"
+mv "${SELECTION_DESTINATION}.good" "${SELECTION_DESTINATION}"
+mv "$(dirname "${DESTINATION}")/selection.sha256.good" "$(dirname "${DESTINATION}")/selection.sha256"
+cp "${SELECTION_DESTINATION}" "${SELECTION_DESTINATION}.good"
+cp "$(dirname "${DESTINATION}")/selection.sha256" "$(dirname "${DESTINATION}")/selection.sha256.good"
+python3 - "${SELECTION_DESTINATION}" <<'PY'
+import json, sys
+p = sys.argv[1]; value = json.load(open(p)); value["authorities"]["unknown_field"] = "0" * 64; open(p, "w").write(json.dumps(value))
+PY
+hash_file "${SELECTION_DESTINATION}" >"$(dirname "${DESTINATION}")/selection.sha256"
+expect_failure_without_marker runner-selection-unknown-nested "${RUNNER_MARKER}" "${REGISTER}" "${RUNNER_ARGS[@]}"
+mv "${SELECTION_DESTINATION}.good" "${SELECTION_DESTINATION}"
+mv "$(dirname "${DESTINATION}")/selection.sha256.good" "$(dirname "${DESTINATION}")/selection.sha256"
 
 INVALID_ROLE_ARGS=(--role administrator --credential-file "${CREDENTIAL}" --removal-token-file "${REMOVAL_TOKEN}")
 expect_failure_without_marker runner-invalid-role "${RUNNER_MARKER}" "${REGISTER}" "${INVALID_ROLE_ARGS[@]}"

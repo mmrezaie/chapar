@@ -3,215 +3,141 @@ set -euo pipefail
 
 usage() {
     cat <<'USAGE'
-Usage: ci/submit-env-build.sh [options]
+Usage: ci/submit-env-build.sh --datacenter ID --software-set ID --target ID \
+  --release-id ID --run-id ID --selection PATH --selection-digest SHA256 [--dry-run]
 
-Options:
-  --env-name NAME                Chapar environment name (default: hpcsim)
-  --env-path PATH                Spack environment path (default: envs/<env-name>)
-  --os NAME                      Target OS name, for example rocky9 or rocky10
-  --env-root PATH                Optional shared environment output root
-  --action concretize|build      Run only concretization or full build (default: build)
-  --mode auto|release|spack      Use env release helper or direct Spack (default: auto)
-  --partition NAME               Slurm partition to submit to
-  --cores N                      Optional Slurm CPUs per task; omit to use the full exclusive node
-  --release-id ID                Release/run ID (default: <env>-<os>-YYYYMMDD)
-  --publish-current true|false   Promote current after a successful release build (default: false)
-  --publish-modules true|false   Publish shared module-root symlink after a successful release build (default: false)
-  --dry-run                      Print the sbatch command without submitting
-  -h, --help                     Show this help
-
-Missing values are prompted for when stdin is interactive. Command-line sbatch
-options override the #SBATCH defaults in ci/sbatch-env-build.sh.
+The selection and its exact digest are required. Partition, constraint, paths,
+publication policy, and selected containers come only from its verified target contract.
+Legacy --env-name, --env-path, --env-root, and --partition options are no longer supported.
 USAGE
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHAPAR_ROOT="${CHAPAR_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
-ENV_NAME="${ENV_NAME:-hpcsim}"
-ENV_PATH="${ENV_PATH:-}"
-OS_NAME="${OS_NAME:-}"
-CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT:-}"
-CHAPAR_ENV_ACTION="${CHAPAR_ENV_ACTION:-build}"
-CHAPAR_ENV_BUILD_MODE="${CHAPAR_ENV_BUILD_MODE:-auto}"
-PARTITION=""
-CORES=""
-RELEASE_ID="${RELEASE_ID:-}"
-PUBLISH_CURRENT="${PUBLISH_CURRENT:-}"
-PUBLISH_MODULES="${PUBLISH_MODULES:-}"
-DRY_RUN="false"
+case "${CHAPAR_ROOT}" in
+    /*) ;;
+    *) echo "ERROR: CHAPAR_ROOT must be an absolute path" >&2; exit 2 ;;
+esac
+case "${CHAPAR_ROOT}" in
+    *,*|*[[:space:]]*) echo "ERROR: CHAPAR_ROOT cannot contain commas or whitespace" >&2; exit 2 ;;
+esac
+DATACENTER=""
+SOFTWARE_SET=""
+TARGET=""
+RELEASE_ID=""
+RUN_ID=""
+SELECTION=""
+SELECTION_DIGEST=""
+DRY_RUN=false
+declare -A SEEN=()
+
+require_value() {
+    if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        echo "ERROR: $1 requires a value" >&2
+        exit 2
+    fi
+}
+
+set_once() {
+    local option="$1"
+    local value="$2"
+    if [ -n "${SEEN[${option}]:-}" ]; then
+        echo "ERROR: duplicate identity selector: ${option}" >&2
+        exit 2
+    fi
+    SEEN["${option}"]=1
+    printf -v "$3" '%s' "${value}"
+}
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --env-name) ENV_NAME="$2"; shift 2 ;;
-        --env-path) ENV_PATH="$2"; shift 2 ;;
-        --os) OS_NAME="$2"; shift 2 ;;
-        --env-root) CHAPAR_ENV_ROOT="$2"; shift 2 ;;
-        --action) CHAPAR_ENV_ACTION="$2"; shift 2 ;;
-        --mode) CHAPAR_ENV_BUILD_MODE="$2"; shift 2 ;;
-        --partition) PARTITION="$2"; shift 2 ;;
-        --cores) CORES="$2"; shift 2 ;;
-        --release-id) RELEASE_ID="$2"; shift 2 ;;
-        --publish-current) PUBLISH_CURRENT="$2"; shift 2 ;;
-        --publish-modules) PUBLISH_MODULES="$2"; shift 2 ;;
-        --dry-run) DRY_RUN="true"; shift ;;
+        --datacenter|--software-set|--target|--release-id|--run-id|--selection|--selection-digest)
+            require_value "$@"
+            case "$1" in
+                --datacenter) set_once "$1" "$2" DATACENTER ;;
+                --software-set) set_once "$1" "$2" SOFTWARE_SET ;;
+                --target) set_once "$1" "$2" TARGET ;;
+                --release-id) set_once "$1" "$2" RELEASE_ID ;;
+                --run-id) set_once "$1" "$2" RUN_ID ;;
+                --selection) set_once "$1" "$2" SELECTION ;;
+                --selection-digest) set_once "$1" "$2" SELECTION_DIGEST ;;
+            esac
+            shift 2
+            ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --env-name|--env-path|--env-root|--partition|--os|--action|--mode|--publish-current|--publish-modules)
+            echo "ERROR: $1 is no longer supported; migrate to a resolved selection." >&2
+            exit 2
+            ;;
         -h|--help) usage; exit 0 ;;
-        *) echo "ERROR: unknown option $1" >&2; usage >&2; exit 1 ;;
+        *) echo "ERROR: unknown option $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
-is_interactive() {
-    [ -t 0 ] && [ -t 1 ]
-}
-
-prompt_value() {
-    local name="$1"
-    local prompt="$2"
-    local default_value="${3:-}"
-    local value=""
-
-    if ! is_interactive; then
-        echo "ERROR: ${name} is required in non-interactive mode" >&2
-        exit 1
+for required in DATACENTER SOFTWARE_SET TARGET RELEASE_ID RUN_ID SELECTION SELECTION_DIGEST; do
+    if [ -z "${!required}" ]; then
+        echo "ERROR: ${required,,} is required; provide the complete resolved invocation." >&2
+        exit 2
     fi
+done
 
-    if [ -n "${default_value}" ]; then
-        read -r -p "${prompt} [${default_value}]: " value
-        printf '%s\n' "${value:-${default_value}}"
-    else
-        while [ -z "${value}" ]; do
-            read -r -p "${prompt}: " value
-        done
-        printf '%s\n' "${value}"
-    fi
-}
+case "${SELECTION}" in
+    /*) ;;
+    *) echo "ERROR: selection must be an absolute path" >&2; exit 2 ;;
+esac
+case "${SELECTION}" in
+    *,*|*[[:space:]]*) echo "ERROR: selection cannot contain commas or whitespace" >&2; exit 2 ;;
+esac
+CONTRACT="${CHAPAR_ROOT}/datacenters/${DATACENTER}/targets/${TARGET}/contract.json"
+PLANNER="${SCRIPT_DIR}/selection-plan.py"
+[ -x "${PLANNER}" ] || { echo "ERROR: missing selection planner: ${PLANNER}" >&2; exit 2; }
 
-validate_simple_id() {
-    local label="$1"
-    local value="$2"
-    case "${value}" in
-        ""|.|..|*/*|*[!A-Za-z0-9._-]*)
-            echo "ERROR: ${label} must match [A-Za-z0-9._-]+ and cannot be '.' or '..': ${value}" >&2
-            exit 1
+mapfile -t PLAN < <("${PLANNER}" --selection "${SELECTION}" --selection-digest "${SELECTION_DIGEST}" --contract "${CONTRACT}" --datacenter "${DATACENTER}" --software-set "${SOFTWARE_SET}" --target "${TARGET}" --release-id "${RELEASE_ID}" --run-id "${RUN_ID}")
+if [ "${#PLAN[@]}" -eq 0 ]; then
+    echo "ERROR: selection verification failed before submission" >&2
+    exit 2
+fi
+declare -A VALUES=()
+for item in "${PLAN[@]}"; do
+    IFS=$'\t' read -r key value <<<"${item}"
+    case "${key}" in
+        tuple_id|selection|selection_digest|contract|partition|constraint|account|qos|containers|release_final|release_staging|modulefiles|install_tree|writable_buildcache|ccache|spack_build_stage|publish_buildcache|publish_modules|publish_containers|promote_current)
+            VALUES["${key}"]="${value}"
             ;;
+        *) echo "ERROR: selection planner emitted an unknown field" >&2; exit 2 ;;
     esac
-}
+done
 
-validate_simple_id ENV_NAME "${ENV_NAME}"
-if [ -z "${ENV_PATH}" ]; then
-    ENV_PATH="envs/${ENV_NAME}"
-fi
-case "${ENV_PATH}" in
-    envs/*) ;;
-    *) echo "ERROR: --env-path must be under envs/: ${ENV_PATH}" >&2; exit 1 ;;
-esac
+for required in tuple_id selection selection_digest partition constraint account qos release_final release_staging modulefiles install_tree writable_buildcache ccache spack_build_stage publish_buildcache publish_modules publish_containers promote_current; do
+    [ -n "${VALUES[${required}]:-}" ] || { echo "ERROR: selection planner omitted ${required}" >&2; exit 2; }
+done
 
-if [ -z "${OS_NAME}" ]; then
-    OS_NAME="$(prompt_value OS_NAME 'Target OS name' rocky9)"
-fi
-validate_simple_id OS_NAME "${OS_NAME}"
+echo "canonical tuple: ${VALUES[tuple_id]}"
+echo "canonical selection: ${VALUES[selection]}"
+echo "release id: ${RELEASE_ID}"
+echo "run id: ${RUN_ID}"
+echo "selection digest: ${VALUES[selection_digest]}"
+echo "contract: ${VALUES[contract]}"
+echo "partition: ${VALUES[partition]}"
+echo "constraint: ${VALUES[constraint]}"
+echo "account: ${VALUES[account]}"
+echo "qos: ${VALUES[qos]}"
+echo "containers: ${VALUES[containers]:-none}"
+echo "release final: ${VALUES[release_final]}"
+echo "release staging: ${VALUES[release_staging]}"
+echo "modulefiles: ${VALUES[modulefiles]}"
+echo "install tree: ${VALUES[install_tree]}"
+echo "writable buildcache: ${VALUES[writable_buildcache]}"
+echo "ccache: ${VALUES[ccache]}"
+echo "Spack build stage: ${VALUES[spack_build_stage]}"
+echo "publication: buildcache=${VALUES[publish_buildcache]} modules=${VALUES[publish_modules]} containers=${VALUES[publish_containers]} promote=${VALUES[promote_current]}"
 
-if [ -n "${CHAPAR_ENV_ROOT}" ]; then
-    case "${CHAPAR_ENV_ROOT}" in
-        /*) ;;
-        *) echo "ERROR: --env-root must be an absolute path: ${CHAPAR_ENV_ROOT}" >&2; exit 1 ;;
-    esac
-fi
-
-case "${CHAPAR_ENV_ACTION}" in
-    concretize|build) ;;
-    *) echo "ERROR: --action must be concretize or build, got ${CHAPAR_ENV_ACTION}" >&2; exit 1 ;;
-esac
-
-case "${CHAPAR_ENV_BUILD_MODE}" in
-    auto|release|spack) ;;
-    *) echo "ERROR: --mode must be auto, release, or spack, got ${CHAPAR_ENV_BUILD_MODE}" >&2; exit 1 ;;
-esac
-
-if [ -z "${PARTITION}" ]; then
-    PARTITION="$(prompt_value PARTITION 'Slurm partition')"
-fi
-case "${PARTITION}" in
-    ""|*[!A-Za-z0-9._,+-]*)
-        echo "ERROR: partition contains unsupported characters: ${PARTITION}" >&2
-        exit 1
-        ;;
-esac
-
-if [ -n "${CORES}" ]; then
-    case "${CORES}" in
-        *[!0-9]*) echo "ERROR: --cores must be a positive integer, got ${CORES}" >&2; exit 1 ;;
-        0) echo "ERROR: --cores must be greater than zero" >&2; exit 1 ;;
-    esac
-fi
-
-if [ -z "${RELEASE_ID}" ]; then
-    default_release_id="${ENV_NAME}-${OS_NAME}-$(date -u +%Y%m%d)"
-    if is_interactive; then
-        RELEASE_ID="$(prompt_value RELEASE_ID 'Release/run ID' "${default_release_id}")"
-    else
-        RELEASE_ID="${default_release_id}"
-    fi
-fi
-validate_simple_id RELEASE_ID "${RELEASE_ID}"
-
-if [ -z "${PUBLISH_CURRENT}" ]; then
-    if is_interactive; then
-        PUBLISH_CURRENT="$(prompt_value PUBLISH_CURRENT 'Promote current after success? true or false' false)"
-    else
-        PUBLISH_CURRENT="false"
-    fi
-fi
-case "${PUBLISH_CURRENT}" in
-    true|false) ;;
-    *) echo "ERROR: --publish-current must be true or false, got ${PUBLISH_CURRENT}" >&2; exit 1 ;;
-esac
-
-if [ -z "${PUBLISH_MODULES}" ]; then
-    if is_interactive; then
-        PUBLISH_MODULES="$(prompt_value PUBLISH_MODULES 'Publish shared module root after success? true or false' false)"
-    else
-        PUBLISH_MODULES="false"
-    fi
-fi
-case "${PUBLISH_MODULES}" in
-    true|false) ;;
-    *) echo "ERROR: --publish-modules must be true or false, got ${PUBLISH_MODULES}" >&2; exit 1 ;;
-esac
-
-wrapper="${CHAPAR_ROOT}/ci/sbatch-env-build.sh"
-[ -r "${wrapper}" ] || { echo "ERROR: missing sbatch wrapper: ${wrapper}" >&2; exit 1; }
-
-mkdir -p "${CHAPAR_ROOT}/slogs"
-
-sbatch_args=(
-    --chdir "${CHAPAR_ROOT}"
-    --partition "${PARTITION}"
-    --export "ALL,CHAPAR_ROOT=${CHAPAR_ROOT},ENV_NAME=${ENV_NAME},ENV_PATH=${ENV_PATH},CHAPAR_ENV_ROOT=${CHAPAR_ENV_ROOT},OS_NAME=${OS_NAME},CHAPAR_ENV_ACTION=${CHAPAR_ENV_ACTION},CHAPAR_ENV_BUILD_MODE=${CHAPAR_ENV_BUILD_MODE},RELEASE_ID=${RELEASE_ID},PUBLISH_CURRENT=${PUBLISH_CURRENT},PUBLISH_MODULES=${PUBLISH_MODULES}"
-    "${wrapper}"
-)
-if [ -n "${CORES}" ]; then
-    sbatch_args=(--cpus-per-task "${CORES}" "${sbatch_args[@]}")
-fi
-
-echo "Submitting Chapar environment build"
-echo "  env name:        ${ENV_NAME}"
-echo "  env path:        ${ENV_PATH}"
-echo "  env root:        ${CHAPAR_ENV_ROOT:-default}"
-echo "  os:              ${OS_NAME}"
-echo "  action:          ${CHAPAR_ENV_ACTION}"
-echo "  mode:            ${CHAPAR_ENV_BUILD_MODE}"
-echo "  partition:       ${PARTITION}"
-echo "  cpus per task:   ${CORES:-full exclusive node}"
-echo "  release/run id:  ${RELEASE_ID}"
-echo "  publish current: ${PUBLISH_CURRENT}"
-echo "  publish modules: ${PUBLISH_MODULES}"
-echo "  chapar root:     ${CHAPAR_ROOT}"
-
-if [ "${DRY_RUN}" = "true" ]; then
-    printf 'sbatch'
-    printf ' %q' "${sbatch_args[@]}"
-    printf '\n'
+if "${DRY_RUN}"; then
+    echo "dry-run: verified plan only; no sbatch submission or filesystem creation"
     exit 0
 fi
 
-sbatch "${sbatch_args[@]}"
+WRAPPER="${CHAPAR_ROOT}/ci/sbatch-env-build.sh"
+[ -x "${WRAPPER}" ] || { echo "ERROR: missing sbatch wrapper: ${WRAPPER}" >&2; exit 2; }
+EXPORTS="NONE,CHAPAR_ROOT=${CHAPAR_ROOT},CHAPAR_DATACENTER=${DATACENTER},CHAPAR_SOFTWARE_SET=${SOFTWARE_SET},CHAPAR_TARGET=${TARGET},CHAPAR_RELEASE_ID=${RELEASE_ID},CHAPAR_RUN_ID=${RUN_ID},CHAPAR_SELECTION=${SELECTION},CHAPAR_SELECTION_DIGEST=${SELECTION_DIGEST}"
+sbatch --chdir "${CHAPAR_ROOT}" --partition "${VALUES[partition]}" --constraint "${VALUES[constraint]}" --account "${VALUES[account]}" --qos "${VALUES[qos]}" --export "${EXPORTS}" "${WRAPPER}"
