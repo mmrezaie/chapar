@@ -88,10 +88,16 @@ if [ "$RUN_VERDICT" = "SKIP" ]; then
     exit 77
 fi
 
-# Parse NCCL debug output for the selected network transport. Depending on
-# the NCCL version the line is "Using network IB", "Using network Socket",
-# or "NET/IB : Using ..." / "NET/Socket : Using ...". NCCL versions also
-# differ in whether NCCL_DEBUG_FILE is honored, so scan Python stderr too.
+# Parse NCCL debug output for the selected transport. Depending on the NCCL
+# version the line is "Using network IB", "Using network Socket", or
+# "NET/IB : Using ..." / "NET/Socket : Using ...". NCCL versions also differ in
+# whether NCCL_DEBUG_FILE is honored, so scan Python stderr too.
+#
+# RoCEv2 and InfiniBand are both served by NCCL's NET/IB plugin, so the plugin
+# name alone cannot tell them apart. The device list carries the link layer:
+#   NET/IB : Using [0]mlx5_0:1/RoCE ...   -> RoCEv2
+#   NET/IB : Using [0]mlx5_0:1/IB   ...   -> InfiniBand
+# Matching only /(IB|Socket)/ reported RoCEv2 clusters as "IB".
 SELECTED_TRANSPORT=$(python3 - "$RESULTS_DIR" << 'PYEOF'
 import re, sys
 
@@ -103,19 +109,34 @@ for name in ("nccl_debug.log", "python_stderr.log"):
     except OSError:
         pass
 
-m = re.search(r'Using network\s*:?\s*(\S+)', text)
-name = m.group(1) if m else ""
-if not name:
-    m = re.search(r'NET/(IB|Socket)\b', text)
-    name = m.group(1) if m else ""
+# Link layer per device, e.g. "[0]mlx5_0:1/RoCE" or "[3]mlx5_3:1/IB".
+link_layers = {layer.upper() for layer in re.findall(r"\[\d+\][\w.:]+/(RoCE|IB)\b", text)}
 
-# Normalize plugin names (IB, IBext, Socket, AWS Libfabric, ...) to a class
-if re.search(r'ib', name, re.IGNORECASE):
+plugin = ""
+match = re.search(r"Using network\s*:?\s*(\S+)", text)
+if match:
+    plugin = match.group(1)
+if not plugin:
+    match = re.search(r"NET/(\w+)", text)
+    plugin = match.group(1) if match else ""
+
+if "ROCE" in link_layers:
+    # A mixed fabric is not something this check should silently average out.
+    print("RoCE" if "IB" not in link_layers else "Mixed")
+elif "IB" in link_layers:
     print("IB")
-elif re.search(r'socket', name, re.IGNORECASE):
+elif re.search(r"socket", plugin, re.IGNORECASE):
     print("Socket")
+elif re.search(r"ib", plugin, re.IGNORECASE):
+    # NET/IB with no device list: the fabric is RDMA but the link layer is
+    # unproven, so report the plugin class rather than guessing IB or RoCE.
+    print("IBverbs")
+elif re.search(r"via P2P|P2P/IPC|NVLS|/NVL\b", text):
+    # No network leg at all: every rank pair resolved to intra-node peer
+    # access, which is the NVLink/NVSwitch path on these nodes.
+    print("NVLink")
 else:
-    print(name)
+    print(plugin)
 PYEOF
 )
 echo "Selected transport: ${SELECTED_TRANSPORT:-<not observed>}" >&2
@@ -125,9 +146,9 @@ VERDICT="$RUN_VERDICT"
 NOTE=""
 if [ "$VERDICT" = "PASS" ] && [ -n "$EXPECTED_TRANSPORT" ]; then
     if [ -z "$SELECTED_TRANSPORT" ]; then
-        echo "WARN: NCCL did not report a network transport (single-rank init may not exercise the network)" >&2
+        echo "WARN: NCCL did not report a transport. This job runs one rank on one node, so NCCL has no peer to reach and may skip network init entirely. Run the multi-node 'transport' tier to assert the fabric." >&2
         VERDICT="WARN"
-        NOTE="transport not observed in NCCL debug output"
+        NOTE="transport not observed; single-rank init does not exercise the fabric"
     elif [ "$SELECTED_TRANSPORT" != "$EXPECTED_TRANSPORT" ]; then
         echo "MISMATCH: Expected ${EXPECTED_TRANSPORT}, got ${SELECTED_TRANSPORT}" >&2
         VERDICT="FAIL"
@@ -159,9 +180,9 @@ import json
 with open('${RESULTS_DIR}/nccl_transport_check.json') as f:
     d = json.load(f)
 lines = []
-lines.append('# HELP nccl_transport_selected NCCL transport class selected (0=IB, 1=Socket, 2=NVLink, -1=unknown)')
+lines.append('# HELP nccl_transport_selected NCCL transport class selected (0=IB, 1=Socket, 2=NVLink, 3=RoCE, 4=IBverbs-unknown-link-layer, 5=Mixed, -1=unknown)')
 lines.append('# TYPE nccl_transport_selected gauge')
-transport_code = {'IB': 0, 'Socket': 1, 'NVLink': 2}.get(d.get('selected_transport',''), -1)
+transport_code = {'IB': 0, 'Socket': 1, 'NVLink': 2, 'RoCE': 3, 'IBverbs': 4, 'Mixed': 5}.get(d.get('selected_transport',''), -1)
 lines.append(f'nccl_transport_selected{{node=\"{d[\"node\"]}\"}} {transport_code}')
 lines.append('# HELP nccl_transport_verdict NCCL transport check verdict (0=PASS, 1=WARN, 2=FAIL)')
 lines.append('# TYPE nccl_transport_verdict gauge')

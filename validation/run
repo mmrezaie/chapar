@@ -94,7 +94,6 @@ case "$cmd" in
     echo "       ./validation/run all"
     echo ""
     echo "Environment variables:"
-    echo "  CHAPAR_MODULE_<NAME>   Override module for <name> (e.g., CHAPAR_MODULE_CUDA=cuda/12.8)"
     echo "  CHAPAR_NODES           Override node count for multi-node tests"
     echo "  CHAPAR_TIME            Override time limit"
     echo "  CHAPAR_KEEP_MODULES=1  Skip module purge (use pre-loaded environment)"
