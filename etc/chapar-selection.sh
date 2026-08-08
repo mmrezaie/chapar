@@ -6,6 +6,9 @@ fail() {
     exit 1
 }
 
+# shellcheck source=chapar-install-tree.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/chapar-install-tree.sh"
+
 sha256_file() {
     if command -v sha256sum >/dev/null 2>&1; then
         sha256sum "$1" | awk '{print $1}'
@@ -38,13 +41,21 @@ canonical_path() {
 }
 
 reject_symlink_components() {
-    local value="$1" current="/" part
+    local value="$1" current="/" part parts
     IFS='/' read -r -a parts <<< "${value#/}"
     for part in "${parts[@]}"; do
         [ -n "${part}" ] || continue
         current="${current%/}/${part}"
         [ ! -L "${current}" ] || fail "selected path has symlink ambiguity: ${current}"
     done
+}
+
+# The published modulefiles pointer is a symlink by design -- publish-modules
+# creates it so consumers get a release-id-stable name for the architecture
+# directory inside the immutable release. Only its ancestors must be literal.
+reject_symlink_ancestors() {
+    local value="$1"
+    reject_symlink_components "$(dirname "${value}")"
 }
 
 verify_selection() {
@@ -206,7 +217,7 @@ PY
       ((.policy.target | startswith("linux-x86_64-")) and .target_facts.native_arch == "x86_64" or
        (.policy.target | startswith("linux-aarch64-")) and .target_facts.native_arch == "aarch64") and
       ([.paths.install_tree,.paths.writable_buildcache,.paths.ccache,.paths.spack_build_stage,.paths.modulefiles] |
-        all(startswith("/") and (contains("/../") | not) and endswith("/..") | not)) and
+        all(startswith("/") and (contains("/../") | not) and (endswith("/..") | not))) and
       (.paths.modulefiles | contains("/" + $selection.policy.datacenter + "/" + $selection.policy.software_set + "/" + $selection.policy.target + "/")) and
       ([.paths[] | select(type == "string")] |
         if $selection.target_facts.native_arch == "x86_64" then all(contains("linux-aarch64-") | not)
@@ -223,7 +234,7 @@ PY
       .sharing.seed_mirrors_read_only == true and
       ([.paths.read_only_inputs[] | select(.kind == "seed_mirror") | .path] | length > 0) and
       ([.paths.read_only_inputs[] | select(.kind == "seed_mirror") | .path] |
-        all(type == "string" and startswith("/") and (contains("/../") | not) and endswith("/..") | not))
+        all(type == "string" and startswith("/") and (contains("/../") | not) and (endswith("/..") | not)))
     ' "${CONTRACT_PATH}" >/dev/null || fail "contract tuple or read-only seed policy validation failed"
 
     DATACENTER="$(jq -r '.policy.datacenter' "${SELECTION_PATH}")"
@@ -234,6 +245,7 @@ PY
     CCACHE="$(canonical_path "$(jq -r '.paths.ccache' "${SELECTION_PATH}")")"
     SPACK_BUILD_STAGE="$(canonical_path "$(jq -r '.paths.spack_build_stage' "${SELECTION_PATH}")")"
     MODULEFILES="$(canonical_path "$(jq -r '.paths.modulefiles' "${SELECTION_PATH}")")"
+    RELEASE_FINAL="$(canonical_path "$(jq -r '.paths.release_final' "${SELECTION_PATH}")")"
     mapfile -t RAW_SEED_MIRRORS < <(jq -r '.paths.read_only_inputs[] | select(.kind == "seed_mirror") | .path' "${CONTRACT_PATH}")
     PUBLISH_BUILDCACHE="$(jq -r '.publication.publish_buildcache' "${CONTRACT_PATH}")"
     [ "${PUBLISH_BUILDCACHE}" = true ] || [ "${PUBLISH_BUILDCACHE}" = false ] || fail "contract buildcache publication policy must be boolean"
@@ -262,21 +274,30 @@ PY
             path_relation "${seed}" "${path}" && fail "read-only seed overlaps managed writable path"
         done
     done
-    for path in "${INSTALL_TREE}" "${WRITABLE_BUILDCACHE}" "${CCACHE}" "${SPACK_BUILD_STAGE}" "${MODULEFILES}"; do
+    for path in "${INSTALL_TREE}" "${WRITABLE_BUILDCACHE}" "${CCACHE}" "${SPACK_BUILD_STAGE}"; do
         reject_symlink_components "${path}"
     done
+    reject_symlink_ancestors "${MODULEFILES}"
 }
 
 render_scopes() {
-    local output="$1" index=0 seed
+    local output="$1" index=0 seed padded module_root
     [ ! -e "${output}" ] && [ ! -L "${output}" ] || fail "scope output already exists"
     mkdir -p "${output}"
-    printf 'config:\n  install_tree:\n    root: %s\n    projections:\n      all: "{name}-{version}-{hash}"\n  build_stage:\n    - %s\n' \
+    # padded_length must match release.sh, otherwise a scope rendered here
+    # installs to unpadded prefixes inside the same padded store.
+    padded="$(install_tree_padded_length "${INSTALL_TREE}")"
+    printf 'config:\n  install_tree:\n    root: %s\n    padded_length: %s\n    projections:\n      all: "{name}-{version}-{hash}"\n  build_stage:\n    - %s\n  ccache: true\n' \
         "$(jq -Rrn --arg value "${INSTALL_TREE}" '$value|@json')" \
+        "${padded}" \
         "$(jq -Rrn --arg value "${SPACK_BUILD_STAGE}" '$value|@json')" > "${output}/config.yaml"
+    # Spack appends <platform-os-target> under the module root, so the root is
+    # the release-local modulefiles directory -- not the published pointer,
+    # which already names one architecture directory inside it.
+    module_root="${RELEASE_FINAL}/modulefiles"
     printf 'modules:\n  default:\n    roots:\n      tcl: %s\n      lmod: %s\n    enable: [tcl]\n' \
-        "$(jq -Rrn --arg value "${MODULEFILES}" '$value|@json')" \
-        "$(jq -Rrn --arg value "${MODULEFILES}/lmod" '$value|@json')" > "${output}/modules.yaml"
+        "$(jq -Rrn --arg value "${module_root}" '$value|@json')" \
+        "$(jq -Rrn --arg value "${module_root}/lmod" '$value|@json')" > "${output}/modules.yaml"
     printf 'mirrors:\n' > "${output}/mirrors.yaml"
     for seed in "${SEED_MIRRORS[@]}"; do
         index=$((index + 1))
@@ -316,7 +337,9 @@ case "${command}" in
         ;;
     module-use)
         [ "$#" -eq 0 ] || fail "module-use takes no output argument"
-        [ -d "${MODULEFILES}" ] && [ ! -L "${MODULEFILES}" ] || fail "selected module tree is not an unambiguous directory"
+        # -d follows the published pointer; requiring a non-symlink here would
+        # reject exactly the layout publish-modules creates.
+        [ -d "${MODULEFILES}" ] || fail "selected module tree is not a directory"
         command -v module >/dev/null 2>&1 || fail "module command is unavailable"
         module use "${MODULEFILES}"
         ;;

@@ -8,7 +8,7 @@ trap 'rm -rf -- "${TMP}"' EXIT
 FIXTURE_ROOT="${TMP}/repo"
 mkdir -p "${FIXTURE_ROOT}/etc" "${FIXTURE_ROOT}/ci" \
   "${FIXTURE_ROOT}/envs/software" "${FIXTURE_ROOT}/containers/images"
-cp "${ROOT}/etc/chapar-selection.sh" "${FIXTURE_ROOT}/etc/"
+cp "${ROOT}/etc/chapar-selection.sh" "${ROOT}/etc/chapar-install-tree.sh" "${FIXTURE_ROOT}/etc/"
 cp "${ROOT}/ci/push-buildcache.sh" "${FIXTURE_ROOT}/ci/"
 cp "${ROOT}/envs/software/spack.yaml" "${FIXTURE_ROOT}/envs/software/"
 cp "${ROOT}/containers/images/targets.json" "${ROOT}/containers/images/containers.json" \
@@ -71,7 +71,12 @@ DIGEST="$(sha256_file "${SELECTION}")"
 
 "${HELPER}" render-scopes "${SELECTION}" "${DIGEST}" "${CONTRACT}" "${TMP}/scope"
 grep -Fq 'autopush: true' "${TMP}/scope/mirrors.yaml"
-grep -Fq "$(jq -r .paths.modulefiles "${SELECTION}")" "${TMP}/scope/modules.yaml"
+# Spack appends <platform-os-target> under the module root, so the rendered root
+# is the release-local modulefiles directory. The selection's `modulefiles` path
+# is the published pointer to one architecture directory inside it, and using it
+# as a root would nest a second architecture level.
+grep -Fq "$(jq -r .paths.release_final "${SELECTION}")/modulefiles" "${TMP}/scope/modules.yaml"
+grep -Fq 'padded_length:' "${TMP}/scope/config.yaml"
 
 mkdir -p "${TMP}/bin"
 cat >"${TMP}/bin/spack" <<'MOCK'

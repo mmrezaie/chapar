@@ -11,8 +11,11 @@ SELECTION="${TMP_ROOT}/selection/selection.json"
 CONTRACT="${FIXTURE_ROOT}/datacenters/fixture-dc/targets/linux-x86_64-v4/contract.json"
 trap 'rm -rf -- "${TMP_ROOT}" /private/tmp/chapar-task6' EXIT
 mkdir -p "$(dirname "${HELPER}")" "$(dirname "${CONTRACT}")" \
-    "${FIXTURE_ROOT}/containers/images" "$(dirname "${SELECTION}")"
+    "${FIXTURE_ROOT}/containers/images" "${FIXTURE_ROOT}/etc" "$(dirname "${SELECTION}")"
 cp "${SOURCE_ROOT}/envs/software/release.sh" "${HELPER}"
+# release.sh shares install-tree padding with etc/chapar-selection.sh so the two
+# cannot emit different install_tree shapes for the same store.
+cp "${SOURCE_ROOT}/etc/chapar-install-tree.sh" "${FIXTURE_ROOT}/etc/"
 cp "${SOURCE_ROOT}/envs/software/spack.yaml" "${FIXTURE_ROOT}/envs/software/spack.yaml"
 cp "${SOURCE_ROOT}/containers/images/targets.json" \
     "${SOURCE_ROOT}/containers/images/containers.json" "${FIXTURE_ROOT}/containers/images/"

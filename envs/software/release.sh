@@ -4,9 +4,11 @@ set -euo pipefail
 # Tuple-bound Chapar release driver. Resolver output is the only path and policy
 # authority. Builds are staged, then atomically renamed into an immutable release.
 
-INSTALL_TREE_PADDED_LENGTH=256
 BUILD_STAGING_DIR=""
 BUILD_SCOPE_DIR=""
+
+# shellcheck source=../../etc/chapar-install-tree.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/etc/chapar-install-tree.sh"
 
 die() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -44,18 +46,6 @@ validate_sha256() {
         ""|*[!0-9a-f]* ) return 1 ;;
     esac
     [ "${#1}" -eq 64 ]
-}
-
-detect_padded_length() {
-    local store_root="$1"
-    local prefix_dir count
-    prefix_dir="${store_root}"
-    count=0
-    while [ -d "${prefix_dir}/__spack_path_placeholder__" ]; do
-        prefix_dir="${prefix_dir}/__spack_path_placeholder__"
-        count=$((count + 1))
-    done
-    printf '%s\n' "${count}"
 }
 
 cleanup_build() {
@@ -433,15 +423,10 @@ EOF
 
 make_scope() {
     local module_root="$1"
-    local ph_count effective_padded_length
+    local effective_padded_length
     BUILD_SCOPE_DIR="${SPACK_BUILD_STAGE}/command-line-scope"
     mkdir -p "${BUILD_SCOPE_DIR}"
-    ph_count="$(detect_padded_length "${INSTALL_TREE}")"
-    if [ "${ph_count}" -gt 0 ]; then
-        effective_padded_length="$(( ${#INSTALL_TREE} + 1 + ph_count * 27 + 3 ))"
-    else
-        effective_padded_length="${INSTALL_TREE_PADDED_LENGTH}"
-    fi
+    effective_padded_length="$(install_tree_padded_length "${INSTALL_TREE}")"
     cat >"${BUILD_SCOPE_DIR}/config.yaml" <<EOF
 config:
   install_tree:
@@ -558,7 +543,7 @@ cmd_build() {
     fi
     [ -f "${RELEASE_STAGING}/spack.lock" ] || die "Spack did not create the staged release-local lock"
     write_metadata
-    mv "${RELEASE_STAGING}" "${RELEASE_FINAL}"
+    publish_release "${RELEASE_STAGING}" "${RELEASE_FINAL}"
     BUILD_STAGING_DIR=""
     rm -rf -- "${BUILD_SCOPE_DIR}"
     BUILD_SCOPE_DIR=""
@@ -566,29 +551,72 @@ cmd_build() {
     printf 'release: %s\n' "${RELEASE_FINAL}"
 }
 
+# Rename the staged tree onto its immutable destination. `mv` would move the
+# staging directory *inside* an existing release rather than failing, so a
+# concurrent run reusing the release ID could corrupt an already-published
+# release. rename(2) replaces only an empty destination and reports ENOTEMPTY
+# otherwise, which is the fail-closed behaviour this step needs.
+publish_release() {
+    python3 - "$1" "$2" <<'PY'
+import os
+import sys
+
+try:
+    os.rename(sys.argv[1], sys.argv[2])
+except OSError as error:
+    raise SystemExit(f"ERROR: cannot publish immutable release: {error}")
+PY
+}
+
 atomic_link() {
     local target="$1" link="$2" temporary
+    if [ -e "${link}" ] && [ ! -L "${link}" ]; then
+        # Documented auto-repair, but only for the promotion pointer: any other
+        # occupied destination is real content and must not be removed here.
+        [ "$(basename "${link}")" = current ] || die "link destination is not a symlink: ${link}"
+        echo "==> Removing stale 'current' directory: ${link}"
+        rm -rf -- "${link}"
+    fi
     temporary="${link}.tmp.${RUN_ID}"
     rm -f -- "${temporary}"
     ln -s "${target}" "${temporary}"
     mv -f -- "${temporary}" "${link}"
 }
 
+# Spack writes modules to <tcl root>/<platform-os-target>/<name>/<version>, so
+# every `module use` target is the architecture directory, not its parent.
+release_module_arch() {
+    local modules="${RELEASE_FINAL}/modulefiles" arch_dir count
+    [ -d "${modules}" ] || die "release has no generated modulefiles: ${modules}"
+    count="$(find "${modules}" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+    [ "${count}" -eq 1 ] || die "release must contain exactly one module architecture, found ${count}"
+    arch_dir="$(find "${modules}" -mindepth 1 -maxdepth 1 -type d)"
+    printf '%s\n' "${arch_dir}"
+}
+
 cmd_promote() {
     local module_parent
-    module_parent="$(dirname "${MODULEFILES}")"
-    mkdir -p "${module_parent}"
     atomic_link "${RELEASE_ID}" "${RELEASE_ROOT}/current"
-    atomic_link "${RELEASE_ID}" "${module_parent}/current"
     printf 'current: %s/current -> %s\n' "${RELEASE_ROOT}" "${RELEASE_ID}"
+    # The modulefiles pointer resolves through <ns>/<release_id>, which only
+    # publish-modules creates. Linking it unconditionally would leave a dangling
+    # `current` on a contract that forbids module publication.
+    if [ -e "${MODULEFILES}" ] || [ -L "${MODULEFILES}" ]; then
+        module_parent="$(dirname "${MODULEFILES}")"
+        atomic_link "${RELEASE_ID}" "${module_parent}/current"
+        printf 'modulefiles current: %s/current -> %s\n' "${module_parent}" "${RELEASE_ID}"
+    else
+        printf 'modulefiles current: skipped, no published modulefiles\n'
+    fi
 }
 
 cmd_publish_modules() {
-    local module_parent
+    local module_parent arch_dir
     module_parent="$(dirname "${MODULEFILES}")"
+    arch_dir="$(release_module_arch)"
     mkdir -p "${module_parent}"
-    atomic_link "${RELEASE_FINAL}/modulefiles" "${MODULEFILES}"
-    printf 'modulefiles: %s\n' "${MODULEFILES}"
+    atomic_link "${arch_dir}" "${MODULEFILES}"
+    printf 'modulefiles: %s -> %s\n' "${MODULEFILES}" "${arch_dir}"
 }
 
 parse_common() {
@@ -620,7 +648,7 @@ parse_common() {
 }
 
 main() {
-    local command="${1:-}"
+    local command="${1:-}" module_arch
     case "${command}" in
         -h|--help|help|"") usage; return 0 ;;
     esac
@@ -632,15 +660,31 @@ main() {
     fi
     parse_common "${command}" "$@"
     case "${command}" in
-        build) cmd_build; [ "${PROMOTE_AFTER_BUILD}" = false ] || { [ "${PROMOTE_CURRENT}" = true ] || die "target contract forbids promotion"; OPERATION=promote; load_selection; cmd_promote; } ;;
+        build)
+            cmd_build
+            if [ "${PROMOTE_AFTER_BUILD}" = true ]; then
+                [ "${PROMOTE_CURRENT}" = true ] || die "target contract forbids promotion"
+                OPERATION=promote
+                load_selection
+                # Promotion repoints <ns>/current at the release ID under the
+                # modulefiles root; without publication that name does not exist.
+                [ "${PUBLISH_MODULES}" = false ] || cmd_publish_modules
+                cmd_promote
+            fi
+            ;;
         promote) [ "${PROMOTE_CURRENT}" = true ] || die "target contract forbids promotion"; cmd_promote ;;
         publish-modules) [ "${PUBLISH_MODULES}" = true ] || die "target contract forbids module publication"; cmd_publish_modules ;;
-        module-use) printf 'module use %s/modulefiles\n' "${RELEASE_FINAL}" ;;
+        # Assign first: a failing command substitution inside printf's argument
+        # list would print an empty path and still exit 0.
+        module-use) module_arch="$(release_module_arch)"; printf 'module use %s\n' "${module_arch}" ;;
         status) print_plan ;;
         migrate-buildcache)
             [ -n "${LEGACY_SOURCE}" ] || die "explicit --legacy-source is required"
-            case "${LEGACY_SOURCE}" in /resources/chapar|/resources/chapar/*) die "legacy source overlaps protected path" ;; esac
             [ -d "${LEGACY_SOURCE}" ] || die "legacy source is not a directory"
+            # Resolve first: a literal prefix test lets a symlinked source reach
+            # the protected legacy roots the guard exists to keep out.
+            LEGACY_SOURCE="$(realpath -e -- "${LEGACY_SOURCE}")" || die "legacy source cannot be resolved"
+            case "${LEGACY_SOURCE}" in /resources/chapar|/resources/chapar/*) die "legacy source overlaps protected path" ;; esac
             mkdir -p "${WRITABLE_BUILDCACHE}"
             cp -nR "${LEGACY_SOURCE}/." "${WRITABLE_BUILDCACHE}/"
             ;;
