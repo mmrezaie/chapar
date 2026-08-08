@@ -431,7 +431,12 @@ def main() -> int:
     base = plan.container
     target_spec = plan.target
     store = absolute(plan.roots["install_tree"], "release install tree")
-    module_tree = absolute(plan.roots["modulefiles"], "release modulefiles")
+    # Read the release-local module tree, not metadata.roots["modulefiles"].
+    # That root is the durable *published* path, which release.sh only ever
+    # materialises as a symlink to this directory's single architecture child --
+    # so resolving it here would either be absent (before publish-modules) or a
+    # symlink (after). The release-local tree is immutable and always present.
+    module_tree = release_dir / "modulefiles"
     if module_tree.is_symlink():
         fail("release module destination cannot be a symlink")
     module_arches = sorted(path.name for path in module_tree.iterdir() if path.is_dir()) if module_tree.is_dir() else []

@@ -175,8 +175,6 @@ def verify_release(request: ReleaseRequest) -> ReleasePlan:
     expected_digests = string_mapping(metadata["digests"], "release digests")
     require_fields(expected_digests, frozenset({"software_catalog_sha256", "target_registry_sha256", "container_registry_sha256", "datacenter_contract_sha256", "target_contract_sha256", "selection_sha256", "effective_manifest_sha256", "target_policy_sha256", "release_local_lock_sha256"}), "release digests")
     policy = mapping(metadata["policy"], "release policy")
-    if policy != {"publish_buildcache": True, "buildcache_signed": False, "buildcache_autopush": True}:
-        fail("release publication policy is unsupported")
 
     actual = {
         f"{name}_sha256": snapshots[name].sha256
@@ -215,6 +213,15 @@ def verify_release(request: ReleaseRequest) -> ReleasePlan:
     selected_pairs = [item for item in contract_containers if isinstance(item, dict) and item.get("software_set") == identity["software_set"]] if isinstance(contract_containers, list) else []
     if len(selected_pairs) != 1 or selected_pairs[0].get("container") != request.base_id:
         fail("target contract does not select requested container")
+    # Publication policy belongs to the target contract, not to this tool. A
+    # hardcoded expectation would make every contract with publish_buildcache
+    # false produce releases that can never be imaged.
+    contract_publication = target_contract.get("publication")
+    if not isinstance(contract_publication, dict) or not isinstance(contract_publication.get("publish_buildcache"), bool):
+        fail("target contract publication policy is invalid")
+    publish_buildcache = contract_publication["publish_buildcache"]
+    if policy != {"publish_buildcache": publish_buildcache, "buildcache_signed": False, "buildcache_autopush": publish_buildcache}:
+        fail("release publication policy does not match the target contract")
 
     selection_document = parse_document(snapshots["selection"].payload, "release selection")
     try:

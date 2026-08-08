@@ -47,7 +47,7 @@ write_fixture() {
     "${STORE_ROOT}/runtime-1.0-ccccdddd" "${STORE_ROOT}/build-1.0-eeeeffff" "${CONTRACTS}"
   printf 'module fixture\n' >"${RELEASE_DIR}/modulefiles/${arch}/root.lua"
   printf '{"datacenter_id":"example-lab","targets":["%s"]}\n' "${target}" >"${CONTRACTS}/datacenter.json"
-  printf '{"datacenter_id":"example-lab","target":"%s","allowed_software_sets":["%s"],"container_selections":[{"software_set":"%s","container":"%s"}]}\n' "${target}" "${set_id}" "${set_id}" "${base}" >"${CONTRACTS}/target.json"
+  printf '{"datacenter_id":"example-lab","target":"%s","allowed_software_sets":["%s"],"container_selections":[{"software_set":"%s","container":"%s"}],"publication":{"publish_buildcache":true,"publish_modules":true,"publish_containers":true,"promote_current":true}}\n' "${target}" "${set_id}" "${set_id}" "${base}" >"${CONTRACTS}/target.json"
   python3 - "${PIPELINE_ROOT}" "${CATALOG}" "${RELEASE_DIR}" "${STORE_ROOT}" "${CONTRACTS}" "${base}" "${set_id}" "${target}" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
@@ -70,11 +70,18 @@ sha = lambda path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
 authority = {"software_catalog": sha(catalog), "target_registry": sha(pipeline / "targets.json"), "container_registry": sha(pipeline / "containers.json"), "datacenter_contract": sha(contracts / "datacenter.json"), "target_contract": sha(contracts / "target.json")}
 path_names = ("release_root", "release_final", "release_staging", "modulefiles", "install_tree", "writable_buildcache", "ccache", "container_outputs", "receipts", "evidence", "spack_build_stage", "image_staging", "validation_work", "resolver_work")
 selection_paths = {name: str(release.parent / name) for name in path_names}
+# Mirror what release.sh actually emits: release_final is the release directory,
+# install_tree is the store, and "modulefiles" is the *durable published* root --
+# never the release-local modulefiles tree. Pointing it at release/modulefiles
+# would describe a release shape release.sh cannot produce.
+selection_paths["release_root"] = str(release.parent)
+selection_paths["release_final"] = str(release)
+selection_paths["install_tree"] = str(store)
 selection = {"schema": "https://nscaledev.github.io/chapar/schemas/software-selection/v1", "schema_version": 1, "policy": {"datacenter": "example-lab", "software_set": software_set, "target": target}, "invocation": {"release_id": "release-1", "run_id": "run-1"}, "target_facts": targets[target], "containers": [base], "selected_roots": [{"id": "fixture-root", "spec": "fixture@1", "classification": "runtime"}], "excluded_roots": [], "paths": selection_paths, "authorities": authority, "artifacts": {"target_policy_sha256": sha(release / "target-policy.yaml"), "effective_manifest_sha256": sha(release / "spack.yaml")}, "versions": {"selection_schema": 1, "target_registry_schema": 1, "container_registry_schema": 1, "resolver": "fixture-1", "resolver_sha256": "f" * 64, "pydantic": "2", "PyYAML": "6"}, "deferred_proofs": ["fixture proof"]}
 (release / "selection.json").write_text(json.dumps(selection, indent=2, sort_keys=True) + "\n")
 digests = {name + "_sha256": value for name, value in authority.items()}
 digests.update({"selection_sha256": sha(release / "selection.json"), "effective_manifest_sha256": sha(release / "spack.yaml"), "target_policy_sha256": sha(release / "target-policy.yaml"), "release_local_lock_sha256": sha(release / "spack.lock")})
-metadata = {"schema": "https://nscaledev.github.io/chapar/schemas/release-metadata/v1", "schema_version": 1, "identity": {"datacenter": "example-lab", "software_set": software_set, "target": target, "release_id": "release-1", "run_id": "run-1"}, "roots": {"release_root": str(release.parent), "release_final": str(release), "release_staging": str(release.parent / ".staging"), "modulefiles": str(release / "modulefiles"), "install_tree": str(store), "writable_buildcache": str(release.parent / "cache"), "ccache": str(release.parent / "ccache"), "spack_build_stage": str(release.parent / "stage")}, "digests": digests, "policy": {"publish_buildcache": True, "buildcache_signed": False, "buildcache_autopush": True}}
+metadata = {"schema": "https://nscaledev.github.io/chapar/schemas/release-metadata/v1", "schema_version": 1, "identity": {"datacenter": "example-lab", "software_set": software_set, "target": target, "release_id": "release-1", "run_id": "run-1"}, "roots": {name: selection_paths[name] for name in ("release_root", "release_final", "release_staging", "modulefiles", "install_tree", "writable_buildcache", "ccache", "spack_build_stage")}, "digests": digests, "policy": {"publish_buildcache": True, "buildcache_signed": False, "buildcache_autopush": True}}
 (release / "metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
 PY
 }
