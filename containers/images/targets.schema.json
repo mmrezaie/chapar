@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nscaledev.github.io/chapar/schemas/vlad-image-targets/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "targets"],
+  "properties": {
+    "schema": {
+      "const": "https://nscaledev.github.io/chapar/schemas/vlad-image-targets/v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "targets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/target"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9_-]{0,127}$"
+      }
+    }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["oci_platform", "native_arch", "spack_target", "llvm_targets", "cuda_arch"],
+      "properties": {
+        "oci_platform": {
+          "enum": ["linux/amd64", "linux/arm64"]
+        },
+        "native_arch": {
+          "enum": ["x86_64", "aarch64"]
+        },
+        "spack_target": {
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "llvm_targets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["x86", "aarch64", "nvptx"]
+          }
+        },
+        "cuda_arch": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "pattern": "^[0-9]+a?$"
+          }
+        }
+      }
+    }
+  }
+}

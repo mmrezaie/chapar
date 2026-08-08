@@ -1,9 +1,0 @@
-# Keep Chapar binary cache policy in shared scopes, not environments, so
-# hpcsim and ad-hoc user installs reuse and publish to the same site cache.
-mirrors:
-  chapar-buildcache:
-    url: file://${CHAPAR_BUILDCACHE_ROOT}/rocky10
-    source: false
-    binary: true
-    signed: false
-    autopush: true

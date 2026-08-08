@@ -1,5 +1,0 @@
-# Rocky Linux 10 user-scope overrides
-config:
-  build_stage:
-    - /scratch/spack
-    - $user_cache_path/stage

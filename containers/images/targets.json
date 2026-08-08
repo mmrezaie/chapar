@@ -1,0 +1,84 @@
+{
+  "schema": "https://nscaledev.github.io/chapar/schemas/vlad-image-targets/v1",
+  "schema_version": 1,
+  "targets": {
+    "linux-x86_64-generic": {
+      "oci_platform": "linux/amd64",
+      "native_arch": "x86_64",
+      "spack_target": "x86_64",
+      "llvm_targets": [
+        "x86",
+        "nvptx"
+      ],
+      "cuda_arch": [
+        "80",
+        "86",
+        "87",
+        "89",
+        "90",
+        "90a",
+        "100",
+        "103",
+        "110",
+        "120",
+        "121"
+      ]
+    },
+    "linux-x86_64-v4": {
+      "oci_platform": "linux/amd64",
+      "native_arch": "x86_64",
+      "spack_target": "x86_64_v4",
+      "llvm_targets": [
+        "x86",
+        "nvptx"
+      ],
+      "cuda_arch": [
+        "80",
+        "86",
+        "87",
+        "89",
+        "90",
+        "90a",
+        "100",
+        "103",
+        "110",
+        "120",
+        "121"
+      ]
+    },
+    "linux-aarch64-generic": {
+      "oci_platform": "linux/arm64",
+      "native_arch": "aarch64",
+      "spack_target": "aarch64",
+      "llvm_targets": [
+        "aarch64",
+        "nvptx"
+      ],
+      "cuda_arch": [
+        "80",
+        "86",
+        "87",
+        "89",
+        "90",
+        "90a",
+        "100",
+        "103",
+        "110",
+        "120",
+        "121"
+      ]
+    },
+    "linux-aarch64-gb300": {
+      "oci_platform": "linux/arm64",
+      "native_arch": "aarch64",
+      "spack_target": "aarch64",
+      "llvm_targets": [
+        "aarch64",
+        "nvptx"
+      ],
+      "cuda_arch": [
+        "103"
+      ]
+    }
+  }
+}
