@@ -355,6 +355,14 @@ spack:
         when: platform=linux
       - spec: +cuda+gdrcopy fabrics=mlx,rxm,verbs
         when: platform=linux
+      # shm is libfabric's intra-node provider and carries the CUDA IPC path
+      # that reaches peer GPUs over NVLink. The explicit fabrics list above
+      # replaces libfabric's sockets,tcp,udp default, so without shm there is no
+      # node-local provider at all and same-node ranks fall back to the verbs
+      # loopback. tcp is deliberately still absent: a silent TCP fallback would
+      # hide exactly the RDMA misconfiguration this stack needs to surface.
+      - spec: fabrics=shm
+        when: platform=linux
     libffi:
       require:
       - one_of: ['@3.2.1', '@3.4.7:']
@@ -405,6 +413,12 @@ spack:
       - '@5:'
       - spec: +cuda+fortran~internal-hwloc~internal-pmix fabrics=verbs,ucx schedulers=slurm ^pmix@6
         when: platform=linux
+      # Open MPI 5 reaches the fabric through the UCX PML, so the accelerated
+      # path is inherited from the ucx requirements above. cma adds single-copy
+      # intra-node transfers for the shared-memory BTL, which is the path taken
+      # when the PML is not UCX.
+      - spec: fabrics=cma
+        when: platform=linux
     parallel-netcdf:
       require:
       - spec: '%gcc@15'
@@ -451,6 +465,22 @@ spack:
       - spec: +cuda+gdrcopy
         when: platform=linux
       - spec: +dc+rc+rdmacm+thread_multiple+ud+verbs~xpmem
+        when: platform=linux
+      # mlx5 Direct Verbs is what provides the accelerated rc_mlx5, dc_mlx5 and
+      # ud_mlx5 transports used by both InfiniBand and RoCEv2 on ConnectX. Spack
+      # defaults mlx5_dv to false and passes --without-mlx5, which leaves only
+      # the generic rc_verbs/ud_verbs path and makes +dc inert, because Dynamic
+      # Connection exists only in dc_mlx5.
+      - spec: +mlx5_dv
+        when: platform=linux
+      # ib_hw_tm offloads MPI tag matching to the HCA; dm uses mlx5 device
+      # memory for small-message latency. Both need mlx5_dv.
+      - spec: +dm+ib_hw_tm
+        when: platform=linux
+      # Cross Memory Attach gives single-copy intra-node transfers. Without it,
+      # and with xpmem/knem off because they need site kernel modules, UCX falls
+      # back to two-copy shared memory between ranks on the same node.
+      - spec: +cma
         when: platform=linux
     zlib-api:
       require:
