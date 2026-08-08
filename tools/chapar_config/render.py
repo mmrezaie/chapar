@@ -17,19 +17,29 @@ from tools.chapar_config.models import JsonMapping, Resolution
 from tools.chapar_config.paths import validate_output_path
 from tools.chapar_config.resolve import tool_digest
 
-CUDA_ARCH_PACKAGES: Final = frozenset(
-    {
-        "babelstream",
-        "caliper",
-        "hwloc",
-        "nccl",
-        "nccl-tests",
-        "nvbandwidth",
-        "nvshmem",
-        "nvtop",
-        "openmpi",
-        "ucx",
-    }
+# CUDA architecture policy is a package requirement, never root-spec text. A
+# requirement binds every instance of the package -- including ones that only
+# appear transitively, such as gdrcopy under ucx/libfabric -- whereas decorating
+# root specs can only reach packages an operator happened to name in the catalog.
+# Packages whose CUDA support is unconditional: a bare requirement is correct and
+# a `when: +cuda` clause would be meaningless.
+CUDA_ARCH_UNCONDITIONAL: Final = (
+    "gdrcopy",
+    "nccl",
+    "nccl-tests",
+    "nvbandwidth",
+    "nvshmem",
+    "nvtop",
+)
+# Packages with an optional CUDA variant: gate on `+cuda` so a non-CUDA
+# concretization of the same package stays solvable.
+CUDA_ARCH_WHEN_CUDA: Final = (
+    "babelstream",
+    "caliper",
+    "hwloc",
+    "libfabric",
+    "openmpi",
+    "ucx",
 )
 TOOL_VERSION: Final = "1.0.0"
 
@@ -50,14 +60,15 @@ def _target_policy(resolution: Resolution) -> dict[str, JsonValue]:
     }
 
 
-def _with_target_cuda_arch(specification: str, cuda_arch: str) -> str:
-    terms: list[str] = []
-    for term in specification.split():
-        terms.append(term)
-        package = term.removeprefix("^").split("@", 1)[0].split("+", 1)[0].split("~", 1)[0]
-        if package in CUDA_ARCH_PACKAGES:
-            terms.append(f"cuda_arch={cuda_arch}")
-    return " ".join(terms)
+def _require(packages: dict[str, JsonValue], name: str, requirement: JsonValue) -> None:
+    """Append one target-derived requirement to a package's policy block."""
+    entry = packages.setdefault(name, {})
+    if not isinstance(entry, dict):
+        raise ResolverError(f"typed catalog {name} policy must be a mapping")
+    requirements = entry.setdefault("require", [])
+    if not isinstance(requirements, list):
+        raise ResolverError(f"typed catalog {name} requirements must be an array")
+    requirements.append(requirement)
 
 
 def _effective_manifest(resolution: Resolution) -> dict[str, JsonValue]:
@@ -65,28 +76,20 @@ def _effective_manifest(resolution: Resolution) -> dict[str, JsonValue]:
     spack = root["spack"]
     if not isinstance(spack, dict):
         raise ResolverError("typed catalog lost its spack mapping")
-    cuda_arch = ",".join(resolution.target_fact.cuda_arch)
-    spack["specs"] = [
-        _with_target_cuda_arch(root.spec, cuda_arch)
-        for root in resolution.selected_roots
-    ]
+    spack["specs"] = [selected.spec for selected in resolution.selected_roots]
     packages = spack.get("packages")
     if not isinstance(packages, dict):
         raise ResolverError("typed catalog packages must be a mapping")
-    all_policy = packages.get("all")
-    if not isinstance(all_policy, dict):
-        raise ResolverError("typed catalog all-package policy must be a mapping")
-    requirements = all_policy.setdefault("require", [])
-    if not isinstance(requirements, list):
-        raise ResolverError("typed catalog target requirements must be an array")
-    requirements.append(f"target={resolution.target_fact.spack_target}")
-    llvm = packages.get("llvm")
-    if not isinstance(llvm, dict):
-        raise ResolverError("typed catalog LLVM policy must be a mapping")
-    llvm_require = llvm.get("require")
-    if not isinstance(llvm_require, list):
-        raise ResolverError("typed catalog LLVM requirements must be an array")
-    llvm_require.append(f"targets={','.join(resolution.target_fact.llvm_targets)}")
+    _require(packages, "all", f"target={resolution.target_fact.spack_target}")
+    llvm_targets = ",".join(resolution.target_fact.llvm_targets)
+    if llvm_targets:
+        _require(packages, "llvm", f"targets={llvm_targets}")
+    cuda_arch = ",".join(resolution.target_fact.cuda_arch)
+    if cuda_arch:
+        for name in CUDA_ARCH_UNCONDITIONAL:
+            _require(packages, name, f"cuda_arch={cuda_arch}")
+        for name in CUDA_ARCH_WHEN_CUDA:
+            _require(packages, name, {"spec": f"cuda_arch={cuda_arch}", "when": "+cuda"})
     return JsonMapping.model_validate(root).root
 
 

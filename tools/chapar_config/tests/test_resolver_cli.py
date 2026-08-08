@@ -114,5 +114,16 @@ def test_effective_manifest_derives_target_facts_from_registry(
     requirements = manifest["spack"]["packages"]
     assert f"target={target_fact['spack_target']}" in requirements["all"]["require"]
     assert f"targets={','.join(target_fact['llvm_targets'])}" in requirements["llvm"]["require"]
-    cuda_values = set(re.findall(r"cuda_arch=([0-9a,]+)", "\n".join(manifest["spack"]["specs"])))
-    assert cuda_values == {",".join(target_fact["cuda_arch"])}
+    # CUDA architecture is a package requirement, so it binds transitive
+    # instances too. Root specs must stay exactly as the catalog declares them.
+    assert not re.search(r"cuda_arch=", "\n".join(manifest["spack"]["specs"]))
+    expected_cuda = ",".join(target_fact["cuda_arch"])
+    rendered = {
+        name: json.dumps(entry.get("require", []))
+        for name, entry in requirements.items()
+        if isinstance(entry, dict)
+    }
+    for name in ("gdrcopy", "nccl", "nccl-tests", "nvbandwidth", "nvshmem", "nvtop"):
+        assert f"cuda_arch={expected_cuda}" in rendered[name], name
+    for name in ("babelstream", "caliper", "hwloc", "libfabric", "openmpi", "ucx"):
+        assert {"spec": f"cuda_arch={expected_cuda}", "when": "+cuda"} in requirements[name]["require"], name

@@ -184,8 +184,18 @@ def load_inputs(
 
 
 def tool_digest(root: Path) -> str:
+    """Digest every module a resolution actually depends on.
+
+    The contract models and artifacts live in tools/chapar_datacenter_*.py.
+    Covering only tools/chapar_config left selection.versions.resolver_sha256
+    claiming to pin resolver code that it did not hash.
+    """
+    sources = (
+        *(root / "tools/chapar_config").glob("*.py"),
+        *root.glob("tools/chapar_datacenter_*.py"),
+    )
     digest = sha256()
-    for path in sorted((root / "tools/chapar_config").glob("*.py")):
-        digest.update(path.name.encode())
+    for path in sorted(sources):
+        digest.update(path.relative_to(root).as_posix().encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()
