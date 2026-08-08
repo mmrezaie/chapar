@@ -58,7 +58,9 @@ def replace_once(content: str, needle: str, replacement: str) -> str:
 
 def test_compositions_and_generated_readme() -> None:
     # Given the canonical catalog; When each historical set is rendered; Then its exact root count is stable.
-    expected_counts = {"vlad": 42, "hpcsim": 75, "all": 81}
+    # ccache moved from group_vlad_only to group_shared, so hpcsim gains it and
+    # the vlad/all totals are unchanged.
+    expected_counts = {"vlad": 42, "hpcsim": 76, "all": 81}
     for software_set, expected_count in expected_counts.items():
         result = run_catalog(MANIFEST, "--set", software_set)
         require(result.exit_code == 0, f"{software_set} catalog failed: {result.stderr}")
@@ -73,7 +75,7 @@ def test_compositions_and_generated_readme() -> None:
     require("logical union has 81 roots" in documentation, "target-neutral union explanation drifted")
     arm = run_catalog(MANIFEST, "--set", "hpcsim", "--arch", "aarch64")
     require(arm.exit_code == 0, f"aarch64 catalog failed: {arm.stderr}")
-    require('"root_count": 73' in arm.stdout, "aarch64 did not exclude x86-only roots")
+    require('"root_count": 74' in arm.stdout, "aarch64 did not exclude x86-only roots")
     require('"exclusions": [' in arm.stdout and '"root-f660baf70174"' in arm.stdout, "aarch64 exclusions lost Intel roots")
     all_arm = run_catalog(MANIFEST, "--set", "all", "--arch", "aarch64")
     require(all_arm.exit_code == 0, f"aarch64 all catalog failed: {all_arm.stderr}")

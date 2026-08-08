@@ -37,7 +37,13 @@ reject_ambient_authority() {
     for name in ENV_PATH HPCSIM_ROOT VLAD_ROOT CHAPAR_ENV_ROOT CHAPAR_INSTALL_TREE_ROOT \
         CHAPAR_BUILDCACHE_ROOT CHAPAR_CCACHE_ROOT CHAPAR_MODULE_ROOT \
         CHAPAR_TARGET_PROFILE PUBLISH_BUILDCACHE; do
-        [ -z "${!name+x}" ] || die "ambient authority is forbidden: ${name}"
+        if [ -n "${!name+x}" ]; then
+            printf 'ERROR: ambient authority is forbidden: %s\n' "${name}" >&2
+            printf '       etc/init.sh exports these for interactive use and sets them from a\n' >&2
+            printf '       selection. Run release.sh from a clean shell instead; it derives every\n' >&2
+            printf '       path from --selection and pins its own Spack scopes.\n' >&2
+            exit 1
+        fi
     done
 }
 
@@ -401,6 +407,10 @@ writable_buildcache: ${WRITABLE_BUILDCACHE}
 ccache: ${CCACHE}
 spack_build_stage: ${SPACK_BUILD_STAGE}
 spack_environment: ${RELEASE_STAGING}
+bootstrap_specs: ccache
+bootstrap_compiler: os external gcc, resolved from the system scope at build time
+staged_roots: ${STAGED_ROOTS[*]}
+ccache_dir: ${CCACHE}
 staged_manifest: ${RELEASE_STAGING}/spack.yaml
 release_local_lock: ${RELEASE_FINAL}/spack.lock
 metadata: ${RELEASE_FINAL}/metadata.json
@@ -421,8 +431,15 @@ buildcache_autopush: ${PUBLISH_BUILDCACHE}
 EOF
 }
 
+# make_scope <module root> <ccache enabled>
+#
+# ccache must be false for the bootstrap pass. Spack resolves the binary with
+# which_string("ccache", required=True), which searches PATH only and raises
+# when it is missing -- so enabling ccache before ccache itself is installed
+# would abort the build that installs it.
 make_scope() {
     local module_root="$1"
+    local ccache_enabled="$2"
     local effective_padded_length
     BUILD_SCOPE_DIR="${SPACK_BUILD_STAGE}/command-line-scope"
     mkdir -p "${BUILD_SCOPE_DIR}"
@@ -436,6 +453,7 @@ config:
       all: "{name}-{version}-{hash}"
   build_stage:
   - ${SPACK_BUILD_STAGE}/stage
+  ccache: ${ccache_enabled}
 EOF
     cat >"${BUILD_SCOPE_DIR}/mirrors.yaml" <<EOF
 mirrors:
@@ -458,6 +476,85 @@ modules:
       all:
         autoload: none
 EOF
+}
+
+# The bootstrap compiler is whatever the OS scope declares as its external gcc.
+# Reading it from config keeps this OS-independent: the retired helper hardcoded
+# `case "${OS_NAME}" in ubuntu24.04)` around its prerequisite installs.
+# Run through `spack python` rather than the system interpreter: it resolves
+# scope precedence with Spack's own config API and needs no PyYAML on the
+# builder, which release.sh has otherwise never required.
+bootstrap_compiler() {
+    spack -C "${BUILD_SCOPE_DIR}" python -c '
+import spack.config
+externals = spack.config.get("packages:gcc:externals", [])
+if not externals:
+    raise SystemExit("ERROR: no external gcc declared for this OS; cannot bootstrap")
+# "gcc@13 languages:=c,c++,fortran" -> "gcc@13"
+specification = str(externals[0].get("spec", "")).split()[0]
+if "@" not in specification:
+    raise SystemExit("ERROR: external gcc spec has no version: " + specification)
+print(specification)
+'
+}
+
+# Install one spec outside the environment, idempotently. Bootstrap specs cannot
+# be environment roots: the catalog requires c/cxx/fortran -> gcc@15, so an
+# in-environment ccache would need gcc@15 built first, which is the build ccache
+# exists to accelerate.
+bootstrap_install() {
+    if ! spack -C "${BUILD_SCOPE_DIR}" find "$@" >/dev/null 2>&1; then
+        echo "==> Bootstrapping $*"
+        spack -C "${BUILD_SCOPE_DIR}" install "$@"
+    fi
+    spack -C "${BUILD_SCOPE_DIR}" location -i "$@"
+}
+
+# Build ccache with the OS compiler and put it on PATH before anything else, so
+# the compiler build itself goes through it. The version-pinned compiler is what
+# disambiguates: once the environment's own gcc@15-built ccache root exists, a
+# bare `ccache` query would match two installs.
+bootstrap_ccache() {
+    local compiler prefix
+    compiler="$(bootstrap_compiler)" || exit $?
+    prefix="$(bootstrap_install ccache "%${compiler}")" || exit $?
+    [ -x "${prefix}/bin/ccache" ] || die "bootstrapped ccache has no binary: ${prefix}/bin/ccache"
+    export PATH="${prefix}/bin:${PATH}"
+    echo "==> ccache: ${prefix}/bin/ccache (built with ${compiler})"
+}
+
+# Roots to install before the rest of the environment, in order. Names only: the
+# specs come from the concretized lock, so gcc@15's +profiled variant and any
+# other catalog policy applies without being restated here. The retired helper
+# also preinstalled llvm because it provided the C/CXX virtuals; the catalog now
+# requires gcc@15 for those, and llvm is not a root, so it is not staged.
+STAGED_ROOTS=(gcc)
+
+staged_root_hash() {
+    python3 - "${RELEASE_STAGING}/spack.lock" "$1" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+document = json.loads(Path(sys.argv[1]).read_bytes())
+concrete = document.get("concrete_specs", {})
+for root in document.get("roots", []):
+    digest = root.get("hash")
+    node = concrete.get(digest) or {}
+    if digest and node.get("name") == sys.argv[2]:
+        print(digest)
+        break
+PY
+}
+
+install_staged_roots() {
+    local name hash
+    for name in "${STAGED_ROOTS[@]}"; do
+        hash="$(staged_root_hash "${name}")"
+        [ -n "${hash}" ] || continue
+        echo "==> Installing staged root: ${name}"
+        spack -e "${RELEASE_STAGING}" -C "${BUILD_SCOPE_DIR}" install --only-concrete "/${hash}"
+    done
 }
 
 root_hashes() {
@@ -522,6 +619,34 @@ doc = {
 PY
 }
 
+# A release build supplies its own Spack scopes. etc/system carries the OS
+# externals (bootstrap compiler, libc) that the build cannot proceed without,
+# and etc/init.sh -- the only other thing that sets them -- exports
+# CHAPAR_INSTALL_TREE_ROOT, which reject_ambient_authority refuses. Pinning them
+# here also stops a build inheriting the operator's ~/.spack.
+pin_spack_scopes() {
+    local repository
+    repository="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    [ -d "${repository}/etc/system" ] || die "checkout has no etc/system scope: ${repository}"
+    export SPACK_SYSTEM_CONFIG_PATH="${repository}/etc/system"
+    export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_STAGE}/spack-user-config"
+    export SPACK_USER_CACHE_PATH="${SPACK_BUILD_STAGE}/spack-user-cache"
+    mkdir -p "${SPACK_USER_CONFIG_PATH}" "${SPACK_USER_CACHE_PATH}"
+}
+
+# The contract's ccache class is only real if the compiler wrapper writes there;
+# `config:ccache: true` alone would silently use the ambient cache. The umask and
+# compilercheck settings matter because the cache is shared across users and
+# across rebuilds of an identical compiler, where mtime checks would all miss.
+configure_ccache() {
+    export CCACHE_DIR="${CCACHE}"
+    export CCACHE_TEMPDIR="${SPACK_BUILD_STAGE}/ccache-tmp"
+    export CCACHE_BASEDIR="${SPACK_BUILD_STAGE}"
+    export CCACHE_UMASK="${CCACHE_UMASK:-002}"
+    export CCACHE_COMPILERCHECK="${CCACHE_COMPILERCHECK:-content}"
+    mkdir -p "${CCACHE_DIR}" "${CCACHE_TEMPDIR}"
+}
+
 cmd_build() {
     command -v spack >/dev/null 2>&1 || die "required command 'spack' not found"
     mkdir -p "$(dirname "${RELEASE_STAGING}")" "$(dirname "${RELEASE_FINAL}")" \
@@ -534,8 +659,15 @@ cmd_build() {
     cp "${SELECTION_FILE}" "${RELEASE_STAGING}/selection.json"
     cp "${EFFECTIVE_MANIFEST}" "${RELEASE_STAGING}/spack.yaml"
     cp "${TARGET_POLICY}" "${RELEASE_STAGING}/target-policy.yaml"
-    make_scope "${RELEASE_STAGING}"
+    pin_spack_scopes
+    configure_ccache
+    # Pass 1: ccache disabled, because ccache is not on PATH yet.
+    make_scope "${RELEASE_STAGING}" false
+    bootstrap_ccache
+    # Pass 2: same scope, ccache now resolvable, for every remaining install.
+    make_scope "${RELEASE_STAGING}" true
     spack -e "${RELEASE_STAGING}" -C "${BUILD_SCOPE_DIR}" concretize -f
+    install_staged_roots
     spack -e "${RELEASE_STAGING}" -C "${BUILD_SCOPE_DIR}" install --only-concrete
     refresh_root_modules
     if [ "${PUBLISH_BUILDCACHE}" = true ]; then

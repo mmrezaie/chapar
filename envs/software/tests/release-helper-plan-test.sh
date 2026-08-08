@@ -77,6 +77,11 @@ grep -q '^modulefiles: /private/tmp/chapar-task6/modules/fixture-dc/vlad/linux-x
 grep -q '^writable_buildcache: /private/tmp/chapar-task6/buildcache/fixture-dc/vlad/linux-x86_64-v4$' <<<"${output}"
 grep -q '^spack_environment: /private/tmp/chapar-task6/releases/.staging/fixture-dc/vlad/linux-x86_64-v4/release-6.run-6$' <<<"${output}"
 grep -q '^checkout_lock: forbidden$' <<<"${output}"
+# ccache is bootstrapped with the OS external compiler before the staged roots,
+# so it can accelerate the gcc build rather than depend on the OS shipping it.
+grep -q '^bootstrap_specs: ccache$' <<<"${output}"
+grep -q '^staged_roots: gcc$' <<<"${output}"
+grep -q '^ccache_dir: /private/tmp/chapar-task6/ccache/fixture-dc/vlad/linux-x86_64-v4$' <<<"${output}"
 grep -q '^publish_buildcache: true$' <<<"${output}"
 grep -q '^buildcache_signed: false$' <<<"${output}"
 grep -q '^buildcache_autopush: true$' <<<"${output}"

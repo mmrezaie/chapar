@@ -9,10 +9,12 @@ Target-native, Spack, LLVM, and CUDA architecture values belong to the target re
 
 This section is rendered from `spack.yaml` by `tests/catalog.py`; do not edit it manually.
 
-The [frozen historical inventory](tests/fixtures/historical-root-inventory.json) preserves 90 exact historical root specs: 42 Vlad, 75 HPCSim, 48 exact HPCSim-not-Vlad entries, and 10 historical variant-difference packages. The target-neutral catalog retains the 42/75 compositions (73 HPCSim roots on ARM), while its logical union has 81 roots because nine CUDA-architecture-only legacy duplicates collapse into shared roots.
+The [frozen historical inventory](tests/fixtures/historical-root-inventory.json) preserves 90 exact historical root specs: 42 Vlad, 75 HPCSim, 48 exact HPCSim-not-Vlad entries, and 10 historical variant-difference packages. The target-neutral catalog composes 42 Vlad and 76 HPCSim roots (74 HPCSim roots on ARM), while its logical union has 81 roots because nine CUDA-architecture-only legacy duplicates collapse into shared roots.
 
-- Shared: 36
-- Vlad-only: 6
+The catalog composition is policy and may deliberately differ from the frozen history it started from. It does so in one place today: `ccache` was historically a Vlad-only root and is now shared, because it is bootstrapped as a build tool for every software set rather than delivered to one of them.
+
+- Shared: 37
+- Vlad-only: 5
 - HPCSim-only: 37
 - Architecture-limited: 2 (x86_64 only)
 

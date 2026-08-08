@@ -1,7 +1,10 @@
 # Ubuntu 24.04 LTS external packages.
-# Keep this scope limited to bootstrap compilers, ccache, and libc. Link-time
-# libraries, CUDA, and normal build dependencies should be built by Spack so
-# builders and deployment nodes stay as similar as practical.
+#
+# This scope declares what the OS provides; build policy belongs in the catalog
+# at envs/software/spack.yaml. Keep it limited to the bootstrap compiler and
+# libc. Link-time libraries, CUDA, ccache, and normal build dependencies are
+# built by Spack so builders and deployment nodes stay as similar as practical,
+# and so an environment does not depend on what a given image happens to ship.
 packages:
   c:
     require:
@@ -21,10 +24,6 @@ packages:
           c: /usr/bin/gcc
           cxx: /usr/bin/g++
           fortran: /usr/bin/gfortran
-  ccache:
-    externals:
-    - spec: ccache@4.9.1
-      prefix: /usr
   glibc:
     buildable: false
     externals:

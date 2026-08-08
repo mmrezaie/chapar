@@ -60,7 +60,7 @@ spack:
     - babelstream+cuda
   - root_shared_root-0ff7c7cb0e5e:
     - caliper+mpi+papi+cuda+libunwind+libdw
-  - root_vlad_only_root-ab25da429730:
+  - root_shared_root-ab25da429730:
     - ccache
   - root_vlad_only_root-62430b7c5237:
     - extrae+papi~cuda
@@ -202,8 +202,8 @@ spack:
     - $root_shared_root-e3a0c53eebc8
     - $root_shared_root-e8baab3437cc
     - $root_shared_root-637657df0a60
+    - $root_shared_root-ab25da429730
   - group_vlad_only:
-    - $root_vlad_only_root-ab25da429730
     - $root_vlad_only_root-62430b7c5237
     - $root_vlad_only_root-d29f91e17bbb
     - $root_vlad_only_root-57911f10405b
@@ -278,17 +278,18 @@ spack:
       - ~mgard
       - spec: ldflags="-Wl,--allow-shlib-undefined"
         when: platform=linux
+    # One Spack-built GCC 15 provides the language virtuals for the whole
+    # environment on every OS. These were conditioned on os=ubuntu24.04, which
+    # silently dropped the policy -- not just portability -- on any other OS.
     c:
       require:
-      - spec: gcc@15
-        when: os=ubuntu24.04
+      - gcc@15
     cmake:
       require:
       - ~qtgui
     cxx:
       require:
-      - spec: gcc@15
-        when: os=ubuntu24.04
+      - gcc@15
     darshan-runtime:
       require:
       - spec: '%gcc@15'
@@ -312,8 +313,7 @@ spack:
         when: platform=linux
     fortran:
       require:
-      - spec: gcc@15
-        when: os=ubuntu24.04
+      - gcc@15
     gcc:
       require:
       - spec: +profiled
