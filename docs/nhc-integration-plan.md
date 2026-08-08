@@ -94,8 +94,7 @@ Prolog=/etc/slurm/prolog.d/99-nhc-check
 ```
 
 ### 7. Wire into CI
-Post-build deployment step in the future CI pipeline (see
-docs/ci-github-actions.md); no workflow exists yet.
+Post-build step in incus-spack-build.yml to deploy NHC config.
 
 ## NHC vs Chapar's Existing Tests
 

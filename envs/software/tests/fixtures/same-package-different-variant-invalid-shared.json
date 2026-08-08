@@ -1,7 +1,0 @@
-{
-  "format": "chapar-historical-root-inventory-v1",
-  "roots": [
-    {"id": "alpha-a", "spec": "alpha@1+cuda", "origin": "shared", "historical_sources": ["vlad", "hpcsim"]},
-    {"id": "alpha-b", "spec": "alpha@2~cuda", "origin": "shared", "historical_sources": ["vlad", "hpcsim"]}
-  ]
-}

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export CHAPAR_ENV_NAME="${CHAPAR_ENV_NAME:-hpcsim}"
+export CHAPAR_ENV_ROOT="${CHAPAR_ENV_ROOT:-${CHAPAR_HPCSIM_ROOT:-/resources/chapar/${CHAPAR_ENV_NAME}}}"
+export CHAPAR_ENV_OS="${CHAPAR_ENV_OS:-${CHAPAR_HPCSIM_OS:-rocky9}}"
+export CHAPAR_HPCSIM_ROOT="${CHAPAR_ENV_ROOT}"
+export CHAPAR_HPCSIM_OS="${CHAPAR_ENV_OS}"
+
+if [ -r /etc/profile ]; then
+    # Load environment-modules and Chapar's profile.d hook when available.
+    # shellcheck disable=SC1091
+    . /etc/profile
+fi
+
+if [ ! -e "${CHAPAR_ENV_ROOT}/${CHAPAR_ENV_OS}/current" ] && [ "${CHAPAR_ENV_QUIET:-${CHAPAR_HPCSIM_QUIET:-false}}" != "true" ]; then
+    printf 'WARNING: missing %s release: %s\n' "${CHAPAR_ENV_NAME}" "${CHAPAR_ENV_ROOT}/${CHAPAR_ENV_OS}/current" >&2
+    printf '         bind /resources or set CHAPAR_ENV_ROOT before running Chapar modules.\n' >&2
+fi
+
+if [ "$#" -eq 0 ]; then
+    exec bash --login
+fi
+
+exec "$@"

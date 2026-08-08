@@ -1,26 +1,10 @@
-# Expected network configuration for this cluster.
-#
-# These are per-cluster expectations, not Chapar policy. Update every value to
-# match the fabric you are validating -- the defaults below describe a small
-# FDR InfiniBand test rig and will fail on a modern NDR or RoCEv2 cluster.
+# Expected network configuration for this cluster
+# Update these values to match your cluster's hardware
 infiniband:
   expected_hcas: 1
   expected_state: "ACTIVE"
   expected_phys_state: "LinkUp"
   expected_width: "4X"
-  # e.g. "100 Gbps" (EDR), "200 Gbps" (HDR/RoCEv2 200G), "400 Gbps" (NDR)
   expected_speed: "56 Gbps"
 nccl:
-  # One of:
-  #   IB      InfiniBand link layer, via the NCCL NET/IB plugin
-  #   RoCE    RoCEv2 link layer, also via NET/IB -- distinguished by the device
-  #           link layer NCCL prints as [0]mlx5_0:1/RoCE
-  #   NVLink  no network leg; every rank pair resolved to intra-node peer
-  #           access over NVLink/NVSwitch
-  #   Socket  TCP fallback. On an RDMA cluster this means something is broken
-  #   ""      auto-detect: record what was selected without asserting
-  #
-  # "IBverbs" and "Mixed" are reported but should not be set as an expectation:
-  # the first means the RDMA link layer could not be proven, the second means
-  # RoCE and IB devices were both in use.
-  expected_transport: "IB"
+  expected_transport: "IB"  # IB, Socket, NVLink, or "" for auto-detect

@@ -1,0 +1,32 @@
+# Rocky Linux 10 external packages.
+# Keep this scope limited to bootstrap compilers, ccache, and libc. Link-time
+# libraries, CUDA, and normal build dependencies should be built by Spack so
+# Rocky 9 and Rocky 10 stay as similar as practical.
+packages:
+  c:
+    require:
+    - one_of: [gcc@15, gcc@14]
+  cxx:
+    require:
+    - one_of: [gcc@15, gcc@14]
+  fortran:
+    require:
+    - one_of: [gcc@15, gcc@14]
+  gcc:
+    externals:
+    - spec: gcc@14 languages:='c,c++,fortran'
+      prefix: /usr
+      extra_attributes:
+        compilers:
+          c: /usr/bin/gcc
+          cxx: /usr/bin/g++
+          fortran: /usr/bin/gfortran
+  ccache:
+    externals:
+    - spec: ccache@4.11.3
+      prefix: /usr
+  glibc:
+    buildable: false
+    externals:
+    - spec: glibc@2.39
+      prefix: /usr

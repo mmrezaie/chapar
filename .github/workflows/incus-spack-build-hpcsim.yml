@@ -1,0 +1,138 @@
+name: Incus Chapar Environment Build (hpcsim)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/incus-spack-build.trigger
+      - .github/workflows/incus-spack-build.yml
+      - .github/workflows/incus-spack-build-hpcsim.yml
+      - ci/**
+      - envs/hpcsim/**
+      - etc/**
+      - spack_repo/**
+      - Makefile
+  workflow_dispatch:
+    inputs:
+      os:
+        description: Target Rocky Linux version
+        required: true
+        type: choice
+        default: rocky10
+        options:
+          - all
+          - rocky10
+      build_action:
+        description: Whether to only concretize or concretize and build
+        required: true
+        type: choice
+        default: build
+        options:
+          - concretize
+          - build
+      build_mode:
+        description: Build mode; auto uses release.sh when the environment has one
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - release
+          - spack
+      release_id:
+        description: Optional release/run ID; defaults to the workflow run ID
+        required: false
+        type: string
+        default: ""
+      git_ref:
+        description: Optional branch, tag, or SHA to build; defaults to workflow ref
+        required: false
+        type: string
+        default: ""
+      spack_ref:
+        description: Spack branch, tag, or SHA to use for builds
+        required: true
+        type: string
+        default: develop
+      publish_current:
+        description: Promote this release by updating the OS current symlink
+        required: true
+        type: boolean
+        default: false
+      publish_modules:
+        description: Publish the shared module-root symlink without promoting current
+        required: true
+        type: boolean
+        default: false
+      publish_buildcache:
+        description: Publish successful build outputs to the shared Chapar buildcache
+        required: true
+        type: boolean
+        default: true
+      spack_install_args:
+        description: Arguments passed to spack install inside the container
+        required: true
+        type: string
+        default: -j 8 -p 4
+      runner_label:
+        description: Common custom label on the Rocky Incus container runners
+        required: true
+        type: string
+        default: chapar
+      install_tree_root:
+        description: Shared Spack install tree root (one tree per OS+arch across all envs)
+        required: true
+        type: string
+        default: /resources/chapar/install
+      env_root:
+        description: Shared environment output root inside containers; empty means /resources/chapar/<env_name>
+        required: false
+        type: string
+        default: ""
+      hpcsim_root:
+        description: Legacy hpcsim output root alias used when env_root is empty
+        required: true
+        type: string
+        default: /resources/chapar/hpcsim
+      buildcache_root:
+        description: Chapar binary cache root inside containers (one per OS across all envs)
+        required: true
+        type: string
+        default: /resources/chapar/buildcache
+      ccache_root:
+        description: Shared compiler ccache root inside containers
+        required: true
+        type: string
+        default: /resources/chapar/cache/ccache
+
+concurrency:
+  group: chapar-incus-builders
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build hpcsim on ${{ inputs.os || 'rocky10' }}
+    uses: ./.github/workflows/incus-spack-build.yml
+    with:
+      os: ${{ inputs.os || 'rocky10' }}
+      env_name: hpcsim
+      env_path: envs/hpcsim
+      build_action: ${{ inputs.build_action || 'build' }}
+      build_mode: ${{ inputs.build_mode || 'auto' }}
+      release_id: ${{ inputs.release_id || '' }}
+      git_ref: ${{ inputs.git_ref || '' }}
+      spack_ref: ${{ inputs.spack_ref || 'develop' }}
+      publish_current: ${{ inputs.publish_current == true }}
+      publish_modules: ${{ inputs.publish_modules == true }}
+      publish_buildcache: ${{ inputs.publish_buildcache != false }}
+      spack_install_args: ${{ inputs.spack_install_args || '-j 8 -p 4' }}
+      runner_label: ${{ inputs.runner_label || 'chapar' }}
+      install_tree_root: ${{ inputs.install_tree_root || '/resources/chapar/install' }}
+      env_root: ${{ inputs.env_root || '' }}
+      hpcsim_root: ${{ inputs.hpcsim_root || '/resources/chapar/hpcsim' }}
+      buildcache_root: ${{ inputs.buildcache_root || '/resources/chapar/buildcache' }}
+      ccache_root: ${{ inputs.ccache_root || '/resources/chapar/cache/ccache' }}

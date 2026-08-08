@@ -1,6 +1,0 @@
-{
-  "format": "chapar-historical-root-inventory-v1",
-  "roots": [
-    {"id": "missing-origin", "spec": "alpha@1", "historical_sources": ["vlad"]}
-  ]
-}

@@ -18,9 +18,9 @@
 # and git treats a broken-symlink hook as absent — commits then silently keep
 # their AI trailers. A copy stays active across every branch.
 #
-# Prefer copying individual hooks over `git config core.hooksPath .githooks`:
-# hooksPath activates every hook that later lands in .githooks/, sight unseen,
-# on every machine that set it once.
+# Do NOT run `git config core.hooksPath .githooks` to install this. That also
+# activates .githooks/pre-commit, which requires a local Incus container and will
+# fail commits on any machine without one. Install individual hooks instead.
 
 set -euo pipefail
 

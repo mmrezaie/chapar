@@ -1,18 +1,14 @@
-DATACENTER ?=
-SOFTWARE_SET ?=
-TARGET ?=
+SPACK_INIT := ./etc/init.sh
+ENV := hpcsim
 RELEASE_ID ?=
-RUN_ID ?=
-SELECTION ?=
-SELECTION_DIGEST ?=
-DRY_RUN ?= false
+SPACK_INSTALL_ARGS ?=
 WORKTREE_ROOT ?= foobar
 WORKTREE_START ?= HEAD
-MAKE_TARGETS := help build submit clean-locks git-ssh-setup worktree
+MAKE_TARGETS := help build release promote module-use check clean-locks git-ssh-setup worktree
 WORKTREE_BRANCH_GOALS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 WORKTREE_BRANCH ?= $(or $(BRANCH),$(firstword $(WORKTREE_BRANCH_GOALS)))
 
-.PHONY: help build submit clean-locks git-ssh-setup worktree FORCE
+.PHONY: help build release promote module-use check clean-locks git-ssh-setup worktree FORCE
 
 ifeq ($(firstword $(MAKECMDGOALS)),worktree)
 ifeq ($(BRANCH),)
@@ -27,50 +23,42 @@ endif
 endif
 endif
 
-ifneq ($(filter build submit,$(MAKECMDGOALS)),)
-ifeq ($(strip $(DATACENTER)),)
-$(error DATACENTER is required)
-endif
-ifeq ($(strip $(SOFTWARE_SET)),)
-$(error SOFTWARE_SET is required)
-endif
-ifeq ($(strip $(TARGET)),)
-$(error TARGET is required)
-endif
-ifeq ($(strip $(RELEASE_ID)),)
-$(error RELEASE_ID is required)
-endif
-ifeq ($(strip $(RUN_ID)),)
-$(error RUN_ID is required)
-endif
-ifeq ($(strip $(SELECTION)),)
-$(error SELECTION is required)
-endif
-ifeq ($(strip $(SELECTION_DIGEST)),)
-$(error SELECTION_DIGEST is required)
-endif
-endif
-
 help:
 	@printf '%s\n' \
-	  'Chapar software build targets:' \
-	  '  make submit            Submit one resolved software tuple' \
-	  '  make build             Alias for submit' \
-	  '  make clean-locks        Always refuses to remove tracked locks' \
+	  'Chapar hpcsim targets:' \
+	  '  make build              Concretize and install envs/hpcsim with active scopes' \
+	  '  make release            Build a staged hpcsim release under the site-configured root' \
+	  '  make promote            Promote RELEASE_ID for the current OS' \
+	  '  make module-use         Print module use command for RELEASE_ID or current' \
+	  '  make check              Validate the hpcsim environment config' \
+	  '  make clean-locks        Remove generated hpcsim lockfile' \
 	  '  make git-ssh-setup      Configure repo-local SSH for GitHub pushes' \
 	  '  make worktree <name>    Create $(WORKTREE_ROOT)/<name> on branch <name>' \
 	  '' \
-	  'Resolved invocation variables required by build/submit:' \
-	  '  DATACENTER SOFTWARE_SET TARGET RELEASE_ID RUN_ID SELECTION SELECTION_DIGEST' \
-	  '  DRY_RUN=true verifies a plan without submitting it'
+	  'Variables:' \
+	  '  RELEASE_ID=$(RELEASE_ID) (blank means generated for release/current for module-use)' \
+	  '  SPACK_INSTALL_ARGS=$(SPACK_INSTALL_ARGS)' \
+	  '  BRANCH=                 Optional branch name for make worktree BRANCH=<name>' \
+	  '  WORKTREE_ROOT=$(WORKTREE_ROOT)' \
+	  '  WORKTREE_START=$(WORKTREE_START) (used when creating a new branch)'
 
-build: submit
+build:
+	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(ENV) concretize -f && spack -e ./envs/$(ENV) install $(SPACK_INSTALL_ARGS) && spack -e ./envs/$(ENV) module tcl refresh -y'
 
-submit:
-	bash ./ci/submit-env-build.sh --datacenter "$(DATACENTER)" --software-set "$(SOFTWARE_SET)" --target "$(TARGET)" --release-id "$(RELEASE_ID)" --run-id "$(RUN_ID)" --selection "$(SELECTION)" --selection-digest "$(SELECTION_DIGEST)" $(if $(filter true,$(DRY_RUN)),--dry-run)
+release:
+	bash -lc 'source $(SPACK_INIT) && release_id="$(RELEASE_ID)" && : "$${release_id:=$$(date -u +%Y%m%d%H%M%S)}" && SPACK_INSTALL_ARGS="$(SPACK_INSTALL_ARGS)" bash ./envs/$(ENV)/release.sh build "$${release_id}"'
+
+promote:
+	bash -lc 'source $(SPACK_INIT) && test -n "$(RELEASE_ID)" && bash ./envs/$(ENV)/release.sh promote "$(RELEASE_ID)"'
+
+module-use:
+	bash -lc 'source $(SPACK_INIT) && release_id="$(RELEASE_ID)" && if [ -n "$${release_id}" ]; then bash ./envs/$(ENV)/release.sh module-use "$${release_id}"; else bash ./envs/$(ENV)/release.sh module-use; fi'
+
+check:
+	bash -lc 'source $(SPACK_INIT) && spack -e ./envs/$(ENV) config get config >/dev/null && spack -e ./envs/$(ENV) config get packages >/dev/null && spack -e ./envs/$(ENV) config get modules >/dev/null'
 
 clean-locks:
-	@printf '%s\n' 'error: clean-locks cannot remove tracked release locks' >&2; exit 2
+	rm -f envs/$(ENV)/spack.lock
 
 git-ssh-setup:
 	bash ./etc/setup-git-ssh.sh

@@ -6,7 +6,7 @@ usage() {
 Usage: ci/register-nemoclaw-runner.sh --token TOKEN [options]
 
 Options:
-  --repo-url URL           GitHub repository URL (default: https://github.com/nscaledev/chapar)
+  --repo-url URL           GitHub repository URL (default: https://github.com/mmrezaie/chapar)
   --runner-name NAME       GitHub runner name (default: chapar-nemoclaw-cve-checker)
   --labels LABELS          Comma-separated labels (default: chapar,nemoclaw,cve-checker)
   --runner-dir PATH        Runner install directory (default: /opt/actions-runner/chapar-cve-checker)
@@ -20,7 +20,7 @@ USAGE
 }
 
 TOKEN="${GITHUB_RUNNER_TOKEN:-}"
-REPO_URL="${GITHUB_REPOSITORY_URL:-https://github.com/nscaledev/chapar}"
+REPO_URL="${GITHUB_REPOSITORY_URL:-https://github.com/mmrezaie/chapar}"
 RUNNER_NAME="chapar-nemoclaw-cve-checker"
 LABELS="chapar,nemoclaw,cve-checker"
 RUNNER_DIR="/opt/actions-runner/chapar-cve-checker"

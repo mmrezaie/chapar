@@ -1,7 +1,10 @@
 include:
-- path: ubuntu24.04
+- path: rocky9
   optional: true
-  when: os == "ubuntu24.04"
+  when: os == "rocky9"
+- path: rocky10
+  optional: true
+  when: os == "rocky10"
 - path: linux
   optional: true
   when: platform == "linux"
