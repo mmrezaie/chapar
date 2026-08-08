@@ -14,7 +14,13 @@ from typing import Final
 
 IDENTIFIER: Final = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 SLURM_VALUE: Final = re.compile(r"^[A-Za-z0-9._+-]+$")
-PATH_VALUE: Final = re.compile(r"^/[A-Za-z0-9._+/@=-]+(?:/[A-Za-z0-9._+/@=-]+)*$")
+# The separator must stay out of the character class. With '/' inside it, the
+# leading [...]+ already matched everything the trailing group could, so the two
+# were ambiguous and a non-matching value backtracked exponentially: a 50-byte
+# path took 1.5s and each further 2 bytes quadrupled it. Excluding '/' also makes
+# the pattern mean what its shape implies -- real segments, so no '//' or
+# trailing separator.
+PATH_VALUE: Final = re.compile(r"^/[A-Za-z0-9._+@=-]+(?:/[A-Za-z0-9._+@=-]+)*$")
 REQUIRED_PATHS: Final = (
     "release_final", "release_staging", "modulefiles", "install_tree",
     "writable_buildcache", "ccache", "spack_build_stage",
