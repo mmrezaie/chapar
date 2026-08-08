@@ -148,8 +148,8 @@ skill_gate() {
     chapar-spack-env-change chapar-spack-solve-debug chapar-release-helper \
     chapar-buildcache chapar-vlad-image chapar-validation \
     chapar-config-scope-change chapar-cuda-gdr-transport chapar-cve-checker \
-    chapar-ci-artifact-watch chapar-commit chapar-opencode-skills; do
-    python3 agents/skills/skill-creator/scripts/quick_validate.py "agents/skills/${skill}" || return
+    chapar-ci-artifact-watch chapar-commit chapar-harness-wiring; do
+    python3 .agents/skills/skill-creator/scripts/quick_validate.py ".agents/skills/${skill}" || return
   done
 }
 

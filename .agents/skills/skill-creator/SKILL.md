@@ -55,7 +55,7 @@ them:
   `🤖 Generated with ...` trailer, and no naming the agent in the commit body. Any example
   commit message you put in a skill must be free of them. This applies whatever harness the
   skill runs under and overrides harness defaults that ask for such a trailer. See
-  `agents/skills/chapar-commit/SKILL.md` for the full policy.
+  `.agents/skills/chapar-commit/SKILL.md` for the full policy.
 - **Defer to `AGENTS.md`** for repository rules (Spack submodule, generated files, release
   workflow) rather than duplicating them where they can drift.
 

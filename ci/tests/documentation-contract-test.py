@@ -31,7 +31,7 @@ ACTIVE_DOCS: Final = (
     "AGENTS.md",
     "README.md",
     "TODO.md",
-    "agents/README.md",
+    ".agents/README.md",
     "etc/README.md",
     "docs/buildcache.md",
     "docs/ci-github-actions.md",
@@ -39,18 +39,18 @@ ACTIVE_DOCS: Final = (
     "docs/cve-checker.md",
     "containers/README.md",
     "validation/ARCHITECTURE.md",
-    "agents/skills/chapar-spack-env-change/SKILL.md",
-    "agents/skills/chapar-spack-solve-debug/SKILL.md",
-    "agents/skills/chapar-release-helper/SKILL.md",
-    "agents/skills/chapar-buildcache/SKILL.md",
-    "agents/skills/chapar-vlad-image/SKILL.md",
-    "agents/skills/chapar-validation/SKILL.md",
-    "agents/skills/chapar-config-scope-change/SKILL.md",
-    "agents/skills/chapar-cuda-gdr-transport/SKILL.md",
-    "agents/skills/chapar-commit/SKILL.md",
-    "agents/skills/chapar-ci-artifact-watch/SKILL.md",
-    "agents/skills/chapar-cve-checker/SKILL.md",
-    "agents/skills/chapar-opencode-skills/SKILL.md",
+    ".agents/skills/chapar-spack-env-change/SKILL.md",
+    ".agents/skills/chapar-spack-solve-debug/SKILL.md",
+    ".agents/skills/chapar-release-helper/SKILL.md",
+    ".agents/skills/chapar-buildcache/SKILL.md",
+    ".agents/skills/chapar-vlad-image/SKILL.md",
+    ".agents/skills/chapar-validation/SKILL.md",
+    ".agents/skills/chapar-config-scope-change/SKILL.md",
+    ".agents/skills/chapar-cuda-gdr-transport/SKILL.md",
+    ".agents/skills/chapar-commit/SKILL.md",
+    ".agents/skills/chapar-ci-artifact-watch/SKILL.md",
+    ".agents/skills/chapar-cve-checker/SKILL.md",
+    ".agents/skills/chapar-harness-wiring/SKILL.md",
 )
 FORBIDDEN_ACTIVE_COMMANDS: Final = (
     re.compile(r"^\s*(?:export\s+)?CHAPAR_TARGET_PROFILE=", re.MULTILINE),
@@ -168,10 +168,18 @@ def test_forbidden_command_patterns_detect_regressions() -> None:
 
 
 def test_harness_and_protected_state() -> None:
-    assert (ROOT / "CLAUDE.md").read_text(encoding="utf-8").splitlines()[0] == "@AGENTS.md"
-    assert (ROOT / ".claude/skills").resolve() == (ROOT / "agents/skills").resolve()
+    # One rules file and one skill directory, reached by every harness.
+    # Codex and OpenCode discover .agents/skills natively; Claude Code reads
+    # only CLAUDE.md and .claude/skills, so both are symlinks to the canonical
+    # copy rather than second copies that could drift.
+    assert (ROOT / "CLAUDE.md").is_symlink()
+    assert (ROOT / "CLAUDE.md").resolve() == (ROOT / "AGENTS.md").resolve()
+    assert (ROOT / ".claude/skills").resolve() == (ROOT / ".agents/skills").resolve()
+    assert (ROOT / ".agents/skills/chapar-commit/SKILL.md").is_file()
     opencode = load_json("opencode.json")
-    assert mapping(opencode["skills"])["paths"] == ["agents/skills"]
+    # No harness declares skills any more; opencode.json is permissions only.
+    assert "skills" not in opencode
+    assert set(opencode) == {"$schema", "permission"}
     protected = load_json("envs/software/tests/fixtures/protected-state.json")
     assert protected["legacy_deployment_roots"] == [
         "/resources/chapar/vlad",

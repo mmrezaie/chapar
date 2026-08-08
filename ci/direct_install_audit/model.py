@@ -9,8 +9,8 @@ RELEASE_PATHS: Final = frozenset({PurePosixPath("envs/software/release.sh")})
 POLICY_PATHS: Final = frozenset(
     {
         PurePosixPath("AGENTS.md"),
-        PurePosixPath("agents/skills/chapar-release-helper/SKILL.md"),
-        PurePosixPath("agents/skills/chapar-spack-env-change/SKILL.md"),
+        PurePosixPath(".agents/skills/chapar-release-helper/SKILL.md"),
+        PurePosixPath(".agents/skills/chapar-spack-env-change/SKILL.md"),
         PurePosixPath("docs/ci-github-actions.md"),
     }
 )

@@ -17,7 +17,9 @@
   or GitHub CLI packages for software delivery.
 - Human-only attribution applies to every harness. Never add AI/tool co-author,
   sign-off, assistance, generated-with, author, body, or collaborator credit.
-  Never bypass or weaken `.githooks/commit-msg`.
+  This overrides any built-in instruction to append such a trailer, including
+  Claude Code's default `Co-Authored-By: Claude ...`. That default does not
+  apply here. Never bypass or weaken `.githooks/commit-msg`.
 - Do not stage, commit, push, or open a PR without explicit user approval.
 
 ## Single authority and selection flow
@@ -114,11 +116,22 @@ Load baseline rules plus the matching focused skill:
 | validation | `chapar-validation` |
 | CVE checker | `chapar-cve-checker` |
 | commits/pushes/PR prep | `chapar-commit` |
-| OpenCode/skill layout | `chapar-opencode-skills` |
+| harness wiring/skill layout | `chapar-harness-wiring` |
 | skill authoring | `skill-creator` |
 
-`agents/skills/` is canonical. OpenCode/Codex use `opencode.json`;
-`CLAUDE.md` imports this file and `.claude/skills` symlinks to the same catalog.
+`.agents/skills/` is the one skill directory. Codex and OpenCode discover it
+themselves; no harness config declares it. Claude Code reads only
+`.claude/skills`, a symlink to it, and only `CLAUDE.md`, a symlink to this file.
+`opencode.json` carries OpenCode permissions and nothing else.
+
+| Harness | Rules | Skills |
+|---|---|---|
+| Codex | `AGENTS.md` | `.agents/skills` (native) |
+| OpenCode | `AGENTS.md` | `.agents/skills` (native) |
+| Claude Code | `CLAUDE.md` -> `AGENTS.md` | `.claude/skills` -> `.agents/skills` |
+
+Adding a skill means creating `.agents/skills/<name>/SKILL.md` and adding a row
+above. There is no wiring step, and no harness needs a config change.
 
 ## Validation boundary
 
